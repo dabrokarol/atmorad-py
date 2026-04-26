@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.legend_handler import HandlerTuple
+from matplotlib import colormaps
 from pathlib import Path
 
 from helpers import read_config, orientation, rotate, hg_cos_theta
@@ -139,11 +141,20 @@ class MCRadiation:
         else:
             raise KeyError("No photon paths found. Use '.run()' first")
 
+        starting = []
+        ending = []
+        lines = []
         for i, h in history.items():   
-            X, Y, Z = np.array(h).T #last_positions[i, :, np.newaxis]))
-            ax.plot(X, Y, self.tau_star - Z, label=f'{i}', alpha=0.5)
-            ax.scatter(X[-1], Y[-1], self.tau_star - Z[-1])
+            X, Y, Z = np.array(h).T
+            p1 = ax.scatter(X[0], Y[0], self.tau_star - Z[0], color='green', label='starting-point', alpha=0.7, s=5)
+            l1, = ax.plot(X, Y, self.tau_star - Z, label=f'{i}', alpha=0.7)
+            p2 = ax.scatter(X[-1], Y[-1], self.tau_star - Z[-1], color='red', label='ending-point', alpha=0.7, s=5)
+            starting.append(p1)
+            lines.append(l1)
+            ending.append(p2)
 
+        # source: https://stackoverflow.com/questions/31478077/how-to-make-two-markers-share-the-same-label-in-the-legend
+        fig.legend([tuple(starting), tuple(lines), tuple(ending)], ['start points', 'paths', 'ending points'], handler_map={tuple: HandlerTuple(ndivide=None)})
         fig.savefig(self.img_dir / name)
 
     def print_results(self):
