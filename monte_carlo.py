@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 #### ASSUMPTIONS (TO EASE LATER)
-# Uniform phase function
 # Isotropic atmoshperic layer (tau, albedo)
 # Perfectly black surface layer (can be changed to brdf)
 # Sun position constant (could be taken from some database)
+#### OTHER TODOS
+# Add consistent colors for plotting
 
 #### DIRECTORIES
 img_dir = Path.cwd() / "img"
@@ -14,11 +15,10 @@ img_dir.mkdir(exist_ok=True)
 
 #### SIMULATION PARAMETERS
 N = 1000
-TRACK_N = 1
+TRACK_N = 20 # Number of photons which paths will be tracked 
 
 #### ATMOSPHERIC PARAMETERS
-TAU = 10
-H = 1000 # [m]
+TAU = 2
 OMEGA = 0.99 # single scattering albedo
 
 #### SUNLIGHT ORIENTATION
@@ -34,7 +34,7 @@ x = 0
 y = 0
 
 #### PHASE FUNCTION - HENYEY-GREENSTEIN function
-G = 0.9
+G = 0.7
 
 def henyey_greenstein(theta):
     return 0.5 * (1 - G**2 ) / (1 + G**2 - 2*G * np.cos(theta))**(3/2)
@@ -48,9 +48,8 @@ else:
     def cos_theta(r):
         return 2 * r - 1
 
-
 def orientation(theta, phi):
-    return np.array((np.cos(theta) * np.cos(phi), np.cos(theta) * np.sin(phi), np.sin(theta)))
+    return np.array((np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)))
 
 def rotate(ori, cos_t, sin_t, cos_p, sin_p):
     result = np.zeros_like(ori)
@@ -70,103 +69,139 @@ def rotate(ori, cos_t, sin_t, cos_p, sin_p):
     
     return result
 
-def multi_photon(pos, ori, scatter_counts, ids):
-    global n_left_atmosphere
-    global n_hit_ground
-    global n_absorbed_atmoshpere
-    global history
-    global last_positions
-
-    while ids.size:
-        N = ids.size
-        T = np.random.uniform(0, 1, N)
-
-        for i, positon in zip(ids[ids < TRACK_N], pos[:, ids < TRACK_N].T):
-            history[i].append(positon)
-
-        dist = -np.log(T)
-
-        pos += ori * dist
-
-        left = (pos[2] < 0)
-        hit = (pos[2] > TAU)
-
-        last_pos_left = (0 - pos[2, left]) / ori[2, left] * ori[:, left]
-        last_pos_hit = (TAU - pos[2, hit]) / ori[2, hit] * ori[:, hit]
-        last_positions[ids[left]] = last_pos_left.T
-        last_positions[ids[hit]] = last_pos_hit.T
-
-        n_left_atmosphere += np.count_nonzero(left)
-        n_hit_ground += np.count_nonzero(hit)
-
-        pos[2, left] = np.inf
-        pos[2, hit] = np.inf
+class MCRadiation:
+    def __init__(self):
+        self.n_photons = N
+        self.n_track = TRACK_N
         
-        w = np.random.uniform(0, 1, N)
+        self.optical_depth = TAU
+        self.ss_albedo = OMEGA
+        self.sun_theta = THETA_SUN
+        self.sun_phi = PHI_SUN
 
-        scattered = (w < OMEGA) & (pos[2] < np.inf)
-        absorbed = (w >= OMEGA) & (pos[2] < np.inf)
+        self.starting_pos = np.array((0, 0, 0))
 
-        last_positions[ids[absorbed]] = pos[:, absorbed].T
-        pos[2, absorbed] = np.inf
+        self.g = G
 
-        n_absorbed_atmoshpere += np.count_nonzero(absorbed)
-        n_scattered = np.count_nonzero(scattered)
+        self.results = None
 
-        #### UNIFORM PHASE FUNCTION
-        # theta_prim = np.random.uniform(0, 1, n_scattered) * np.pi
-        # phi_prim = np.random.uniform(0, 1, n_scattered) * 2 * np.pi
-        # cos_t = np.cos(theta_prim)
-        # sin_t = np.sin(theta_prim)
-        # cos_p = np.cos(phi_prim)
-        # sin_p = np.sin(phi_prim)
-       
-        #### HEYNEY GREENSTEIN phase function
-        cos_theta_prim = cos_theta(np.random.uniform(0, 1, n_scattered))
-        phi_prim = np.random.uniform(0, 1, n_scattered) * 2 * np.pi
-        cos_p = np.cos(phi_prim)
-        sin_p = np.sin(phi_prim)
-        cos_t = cos_theta_prim
-        sin_t = np.sqrt(1 - cos_theta_prim**2)
+    def _init_arrays(self):
+        thetas = np.random.normal(self.sun_theta, 1/60, size=(self.n_photons))
+        phis = np.random.normal(self.sun_phi, 1/60, size=(self.n_photons))
+        ori = orientation(thetas, phis)
 
-        ori[:, scattered] = rotate(ori[:, scattered], cos_t, sin_t, cos_p, sin_p)
+        pos = np.zeros(shape=(3, self.n_photons), dtype=np.float64)
+        ids = np.arange(0, self.n_photons)
+        scatter_counts = np.zeros(self.n_photons)
+
+        history = {i: [] for i in range(self.n_track)}
+        last_positions = np.zeros((self.n_photons, 3))
+
+        return pos, ori, ids, scatter_counts, history, last_positions
+
+    def run(self):
+        pos, ori, ids, scatter_counts, history, last_positions = self._init_arrays()
         
-        scatter_counts[ids[scattered]] += 1
+        n_track = self.n_track
+
+        n_left_atmosphere = 0
+        n_hit_ground = 0
+        n_absorbed_atmoshpere = 0
+
+        while ids.size:
+            n_photons = ids.size
+            transmission = np.random.uniform(0, 1, n_photons)
+
+            for i, positon in zip(ids[ids < n_track], pos[:, ids < n_track].T):
+                history[i].append(positon.copy())
+
+            dist = -np.log(transmission)
+
+            pos += ori * dist
+
+            left = (pos[2] < 0)
+            hit = (pos[2] > TAU)
+
+            last_pos_left = pos[:, left] + (0 - pos[2, left]) / ori[2, left] * ori[:, left]
+            last_pos_hit = pos[:, hit] + (TAU - pos[2, hit]) / ori[2, hit] * ori[:, hit]
+            last_positions[ids[left]] = last_pos_left.T
+            last_positions[ids[hit]] = last_pos_hit.T
+
+            n_left_atmosphere += np.count_nonzero(left)
+            n_hit_ground += np.count_nonzero(hit)
+
+            pos[2, left] = np.inf
+            pos[2, hit] = np.inf
+            
+            w = np.random.uniform(0, 1, n_photons)
+
+            scattered = (w < OMEGA) & (pos[2] < np.inf)
+            absorbed = (w >= OMEGA) & (pos[2] < np.inf)
+
+            last_positions[ids[absorbed]] = pos[:, absorbed].T
+            pos[2, absorbed] = np.inf
+
+            n_absorbed_atmoshpere += np.count_nonzero(absorbed)
+            n_scattered = np.count_nonzero(scattered)
         
-        #### SHRINKING THE ARRAY TO ONLY ALIVE PHOTONS
-        msk = pos[2] != np.inf
-        pos = pos[:, msk]
-        ori = ori[:, msk]
-        ids = ids[msk]
+            #### HEYNEY GREENSTEIN phase function
+            cos_theta_prim = cos_theta(np.random.uniform(0, 1, n_scattered))
+            phi_prim = np.random.uniform(0, 1, n_scattered) * 2 * np.pi
+            cos_p = np.cos(phi_prim)
+            sin_p = np.sin(phi_prim)
+            cos_t = cos_theta_prim
+            sin_t = np.sqrt(1 - cos_theta_prim**2)
+
+            ori[:, scattered] = rotate(ori[:, scattered], cos_t, sin_t, cos_p, sin_p)
+            
+            scatter_counts[ids[scattered]] += 1
+            
+            #### SHRINKING THE ARRAY TO ONLY ALIVE PHOTONS
+            msk = pos[2] != np.inf
+            pos = pos[:, msk]
+            ori = ori[:, msk]
+            ids = ids[msk]
+
+        for i, positon in enumerate(last_positions[:self.n_track]):
+            history[i].append(positon.copy())
 
 
+        self.results = {
+            "photons left atmosphere": n_left_atmosphere,
+            "photons absorbed by surface": n_hit_ground,
+            "photons absorbed by atmosphere": n_absorbed_atmoshpere,
+            "sample paths": history
+        }
 
-thetas_0 = np.random.normal(THETA_SUN, 1, size=(N))
-phis_0 = np.random.normal(PHI_SUN, 1, size=(N))
-ori_0 = orientation(thetas_0, phis_0)
+    def plot_paths(self, name:str='multi.png'):
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
 
-pos_0 = np.zeros(shape=(3, N), dtype=np.float64)
-ids_0 = np.arange(0, N)
-scatter_counts_0 = np.zeros(N)
+        if self.results is not None:
+            history = self.results['sample paths']
+        else:
+            raise KeyError("No photon paths found. Use '.run()' first")
 
-n_left_atmosphere = 0
-n_hit_ground = 0
-n_absorbed_atmoshpere = 0
-history = {i: [] for i in range(TRACK_N)}
-last_positions = np.zeros((N, 3))
+        for i, h in history.items():   
+            X, Y, Z = np.array(h).T #last_positions[i, :, np.newaxis]))
+            ax.plot(X, Y, TAU - Z, label=f'{i}', alpha=0.5)
+            ax.scatter(X[-1], Y[-1], TAU - Z[-1])
 
-multi_photon(pos_0, ori_0, scatter_counts_0, ids_0)
+        fig.savefig(img_dir / name)
 
-print("left atmoshpere:", n_left_atmosphere, "\nhit ground:", n_hit_ground, "\nabsorbed atmosphere:", n_absorbed_atmoshpere)
-print("sum:", n_absorbed_atmoshpere + n_hit_ground + n_left_atmosphere)
+    def print_results(self):
+        if self.results is not None:
+            results = self.results
+        else:
+            raise KeyError("No results found. Use '.run()' first")
+
+        for k, v in results.items():
+            print(f"{k}: {v}") if k != "sample paths" else ...
 
 
+if __name__ == '__main__':
+    sim = MCRadiation()
+    sim.run()
+    sim.plot_paths()
+    sim.print_results()
 
-fig = plt.figure()
-ax = fig.add_subplot(projection='3d')
-
-for i, h in history.items():   
-    X, Y, Z = np.array(h).T #last_positions[i, :, np.newaxis]))
-    ax.plot(X, Y, TAU - Z, label=f'{i}', alpha=0.5)
-
-fig.savefig(img_dir / 'multi.png')
