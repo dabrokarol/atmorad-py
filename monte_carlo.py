@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
+from helpers import read_config, orientation, rotate, hg_cos_theta
+
 #### ASSUMPTIONS (TO EASE LATER)
 # Isotropic atmoshperic layer (tau, albedo)
 # Perfectly black surface layer (can be changed to brdf)
@@ -9,85 +11,37 @@ from pathlib import Path
 #### OTHER TODOS
 # Add consistent colors for plotting
 
-#### DIRECTORIES
-img_dir = Path.cwd() / "img"
-img_dir.mkdir(exist_ok=True)
-
-#### SIMULATION PARAMETERS
-N = 1000
-TRACK_N = 20 # Number of photons which paths will be tracked 
-
-#### ATMOSPHERIC PARAMETERS
-TAU = 2
-OMEGA = 0.99 # single scattering albedo
-
-#### SUNLIGHT ORIENTATION
-THETA_SUN = np.pi / 3 # 60 degrees
-PHI_SUN = 0 # for simplicity
-
-#### GROUND PARAMETERS
-SURFACE_ALBEDO = 0
-
-#### STARTING POSITION
-z = 0 # highest point of the atmosphere
-x = 0
-y = 0
-
-#### PHASE FUNCTION - HENYEY-GREENSTEIN function
-G = 0.7
-
-def henyey_greenstein(theta):
-    return 0.5 * (1 - G**2 ) / (1 + G**2 - 2*G * np.cos(theta))**(3/2)
-def distribuant(theta):
-    return (1 - G**2) / (2 * G) * (1 / (1 + G) - 1/np.sqrt(1 + G**2 - 2*G*np.cos(theta)))
-
-if not np.isclose(G, 0):
-    def cos_theta(r):
-        return 1 / (2*G) * (1 + G**2 - ((1 - G**2) / (2*G*r - G + 1))**2)
-else:
-    def cos_theta(r):
-        return 2 * r - 1
-
-def orientation(theta, phi):
-    return np.array((np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)))
-
-def rotate(ori, cos_t, sin_t, cos_p, sin_p):
-    result = np.zeros_like(ori)
-    big_z = np.abs(ori[2]) > 0.999
-    small_z = ~big_z # inverted mask
-
-    sqrt_z = np.sqrt(1 - ori[2, small_z]**2)
-
-    result[:, small_z] = np.array((
-        sin_t[small_z] / sqrt_z * (ori[0, small_z] * ori[2, small_z] * cos_p[small_z] - ori[1, small_z] * sin_p[small_z]) + ori[0, small_z] * cos_t[small_z],
-        sin_t[small_z] / sqrt_z * (ori[1, small_z] * ori[2, small_z] * cos_p[small_z] + ori[0, small_z] * sin_p[small_z]) + ori[1, small_z] * cos_t[small_z],
-        - sin_t[small_z] * cos_p[small_z] * sqrt_z + ori[2, small_z] * cos_t[small_z]
-    ))
-    result[:, big_z] = np.array((
-        sin_t[big_z] * cos_p[big_z], sin_t[big_z] * sin_p[big_z], np.sign(ori[2, big_z]) * cos_t[big_z]
-    ))
-    
-    return result
-
 class MCRadiation:
-    def __init__(self):
-        self.n_photons = N
-        self.n_track = TRACK_N
+    def __init__(self, config):
+        self.img_dir = Path.cwd() / config['simulation']['filepaths']['img_dir']
+        self.plot_name = config['simulation']['filepaths']['plot_name']
+        self.img_dir.mkdir(exist_ok=True)
+
+        self.n_photons = config['simulation']['general']['n_photons']
+        self.n_track = config['simulation']['general']['n_track']
+        self.starting_pos = np.array(config['simulation']['general']['starting_pos'])
         
-        self.optical_depth = TAU
-        self.ss_albedo = OMEGA
-        self.sun_theta = THETA_SUN
-        self.sun_phi = PHI_SUN
+        self.tau_star = config['simulation']['atmoshpere']['tau_star']
+        self.ss_albedo = config['simulation']['atmoshpere']['omega']
+        
+        self.theta_sun = config['simulation']['sun']['theta_sun']
+        self.phi_sun = config['simulation']['sun']['phi_sun']
 
-        self.starting_pos = np.array((0, 0, 0))
-
-        self.g = G
+        self.g = config['simulation']['scattering']['g']
+        
+        scat_type = config['simulation']['scattering']['type']
+        if scat_type == 'henyey-greenstein':
+            self.scat_func = hg_cos_theta
+        else:
+            raise KeyError(f"Unknown scattering func {scat_type}, check config")
 
         self.results = None
 
     def _init_arrays(self):
-        thetas = np.random.normal(self.sun_theta, 1/60, size=(self.n_photons))
-        phis = np.random.normal(self.sun_phi, 1/60, size=(self.n_photons))
+        theta_sun_rad = self.theta_sun / 180 * np.pi
+        phi_sun_rad = self.phi_sun / 180 * np.pi
+        thetas = np.random.normal(theta_sun_rad, 1/60, size=(self.n_photons))
+        phis = np.random.normal(phi_sun_rad, 1/60, size=(self.n_photons))
         ori = orientation(thetas, phis)
 
         pos = np.zeros(shape=(3, self.n_photons), dtype=np.float64)
@@ -120,10 +74,10 @@ class MCRadiation:
             pos += ori * dist
 
             left = (pos[2] < 0)
-            hit = (pos[2] > TAU)
+            hit = (pos[2] > self.tau_star)
 
             last_pos_left = pos[:, left] + (0 - pos[2, left]) / ori[2, left] * ori[:, left]
-            last_pos_hit = pos[:, hit] + (TAU - pos[2, hit]) / ori[2, hit] * ori[:, hit]
+            last_pos_hit = pos[:, hit] + (self.tau_star - pos[2, hit]) / ori[2, hit] * ori[:, hit]
             last_positions[ids[left]] = last_pos_left.T
             last_positions[ids[hit]] = last_pos_hit.T
 
@@ -135,8 +89,8 @@ class MCRadiation:
             
             w = np.random.uniform(0, 1, n_photons)
 
-            scattered = (w < OMEGA) & (pos[2] < np.inf)
-            absorbed = (w >= OMEGA) & (pos[2] < np.inf)
+            scattered = (w < self.ss_albedo) & (pos[2] < np.inf)
+            absorbed = (w >= self.ss_albedo) & (pos[2] < np.inf)
 
             last_positions[ids[absorbed]] = pos[:, absorbed].T
             pos[2, absorbed] = np.inf
@@ -145,7 +99,7 @@ class MCRadiation:
             n_scattered = np.count_nonzero(scattered)
         
             #### HEYNEY GREENSTEIN phase function
-            cos_theta_prim = cos_theta(np.random.uniform(0, 1, n_scattered))
+            cos_theta_prim = self.scat_func(np.random.uniform(0, 1, n_scattered), self.g)
             phi_prim = np.random.uniform(0, 1, n_scattered) * 2 * np.pi
             cos_p = np.cos(phi_prim)
             sin_p = np.sin(phi_prim)
@@ -173,7 +127,10 @@ class MCRadiation:
             "sample paths": history
         }
 
-    def plot_paths(self, name:str='multi.png'):
+    def plot_paths(self, name:str|None=None):
+        if name is None:
+            name = self.plot_name
+
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
 
@@ -184,10 +141,10 @@ class MCRadiation:
 
         for i, h in history.items():   
             X, Y, Z = np.array(h).T #last_positions[i, :, np.newaxis]))
-            ax.plot(X, Y, TAU - Z, label=f'{i}', alpha=0.5)
-            ax.scatter(X[-1], Y[-1], TAU - Z[-1])
+            ax.plot(X, Y, self.tau_star - Z, label=f'{i}', alpha=0.5)
+            ax.scatter(X[-1], Y[-1], self.tau_star - Z[-1])
 
-        fig.savefig(img_dir / name)
+        fig.savefig(self.img_dir / name)
 
     def print_results(self):
         if self.results is not None:
@@ -200,7 +157,8 @@ class MCRadiation:
 
 
 if __name__ == '__main__':
-    sim = MCRadiation()
+    config = read_config()
+    sim = MCRadiation(config)
     sim.run()
     sim.plot_paths()
     sim.print_results()

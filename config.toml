@@ -1,0 +1,26 @@
+title = "default config"
+
+[simulation]
+[simulation.filepaths]
+img_dir = "img"
+plot_name = "default.png"
+
+[simulation.general]
+n_photons = 1000 # Number of simulated photons
+n_track = 20 # Number of photons which paths will be tracked 
+starting_pos = [0, 0, 0] # (x, y, z) coords, where z=0 is the highest poinf of atmoshpere
+
+[simulation.atmoshpere]
+tau_star = 2 # Atmoshperic layer density
+omega = 0.99 # Single scattering albedo
+
+[simulation.sun]
+theta_sun = 60 # Sun elevation angle [degrees]
+phi_sun = 0 # Sun longitude [degrees]
+
+[simulaton.surface]
+surface_albedo = 0 # absorbs all photons for simplicity
+
+[simulation.scattering]
+type = "henyey-greenstein" # for now only 'henyey-greenstein' is supported
+g = 0.7 # eccentricity parameter from [-1,1]

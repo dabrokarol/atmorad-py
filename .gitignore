@@ -1,5 +1,5 @@
 .venv
 .ruff_cache
 .provenance
-
+__pycache__/
 img/
