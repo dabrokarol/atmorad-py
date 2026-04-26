@@ -4,7 +4,7 @@ from matplotlib.legend_handler import HandlerTuple
 from pathlib import Path
 
 from .physics import orientation, rotate, hg_cos_theta
-from .atmoshpere import Atmosphere
+from .atmosphere import Atmosphere
 from .boundaries import Surface, Space
 
 #### ASSUMPTIONS (TO EASE LATER)
@@ -70,8 +70,9 @@ class MCRadiation:
 
             pos += ori * dist
 
-            pos, reached_space = self.atmoshpere.check_reached_space(pos, ori)
-            pos, reached_surf = self.atmoshpere.check_reached_surf(pos, ori)
+            reached_space = self.atmoshpere.check_reached_space(pos)
+            reached_surf = self.atmoshpere.check_reached_surf(pos)
+            pos = self.atmoshpere.snap_to_boundaries(pos, ori, reached_space, reached_surf)
 
             n_reached = np.count_nonzero(reached_surf)
             rand_surf = np.random.uniform(0, 1, n_reached)
@@ -114,9 +115,7 @@ class MCRadiation:
             rand_t = np.random.uniform(0, 1, n_scattered)
             rand_p = np.random.uniform(0, 1, n_scattered)
 
-            cos_t, cos_p = self.atmoshpere.scatter(pos[:, scattered], ori[:, scattered], rand_t, rand_p)
-            sin_p = np.sqrt(1 - cos_p**2)
-            sin_t = np.sqrt(1 - cos_t**2)
+            cos_t, sin_t, cos_p, sin_p = self.atmoshpere.scatter(pos[:, scattered], ori[:, scattered], rand_t, rand_p)
 
             ori[:, scattered] = rotate(ori[:, scattered], cos_t, sin_t, cos_p, sin_p)
             

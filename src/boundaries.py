@@ -26,12 +26,9 @@ class Surface:
         self.grid_density = surf_config['grid_density']
         self.dimensions = np.array(surf_config['dimensions']) * self.grid_density
         
-        if surf_config['periodic'] == 'True':
-            self.periodic = True
-        else:
-            self.periodic = False
+        self.periodic = surf_config['periodic']
 
-        self.ground_id = np.zeros(shape=self.dimensions * self.grid_density) # for now all cells have the same ground type, to be changed later
+        self.ground_id = np.zeros(shape=self.dimensions) # for now all cells have the same ground type, to be changed later
         self.albedos = [self.albedo]
         self.brdfs = [self.reflection_func]
 

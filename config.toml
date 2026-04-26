@@ -29,7 +29,6 @@ albedo = 0 # chance of photon being reflected [0,1] - 0 for no reflections
 height = 2
 dimensions = [10, 10] # in the same units as atmospheric height
 grid_density = 30 # number of grid elements per unit dimension
-periodic = 'True'
-
+periodic = true
 ground_types = ['mirror', 'none']
 brdf_type = 'mirror' # deterministic mirror-like scattering

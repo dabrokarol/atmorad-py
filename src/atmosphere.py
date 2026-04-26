@@ -28,16 +28,20 @@ class Atmosphere:
     
     def scatter(self, pos, ori, rand_t, rand_p):
         cos_t = hg_cos_theta(rand_t, self.g)
+        sin_t = np.sqrt(1 - cos_t**2)
         cos_p = np.cos(2*np.pi * rand_p)
-
-        return cos_t, cos_p
+        sin_p = np.sin(2*np.pi * rand_p)
+        
+        return cos_t, sin_t, cos_p, sin_p
     
-    def check_reached_space(self, pos, ori):
-        reached = pos[2] < 0
-        pos[:, reached] += (0 - pos[2, reached]) / ori[2, reached] * ori[:, reached]
-        return pos, reached
+    def check_reached_space(self, pos):
+        return pos[2] < 0
     
-    def check_reached_surf(self, pos, ori):
-        reached = pos[2] > self.height
-        pos[:, reached] += (self.tau_star - pos[2, reached]) / ori[2, reached] * ori[:, reached]
-        return pos, reached
+    def check_reached_surf(self, pos):
+        return pos[2] > self.height
+    
+    def snap_to_boundaries(self, pos, ori, reached_space, reached_surf):
+        pos[:, reached_space] += (0 - pos[2, reached_space]) / ori[2, reached_space] * ori[:, reached_space]
+        pos[:, reached_surf] += (self.height - pos[2, reached_surf]) / ori[2, reached_surf] * ori[:, reached_surf]
+        return pos
+    

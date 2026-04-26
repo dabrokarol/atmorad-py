@@ -1,7 +1,7 @@
 import tomllib
 import numpy as np
 from src.simulation import MCRadiation
-from src.atmoshpere import Atmosphere
+from src.atmosphere import Atmosphere
 from src.boundaries import Surface, Space
 
 def read_config(path = 'config.toml'):
