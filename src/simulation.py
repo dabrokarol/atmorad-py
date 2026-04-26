@@ -1,10 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.legend_handler import HandlerTuple
-from matplotlib import colormaps
 from pathlib import Path
 
-from helpers import read_config, orientation, rotate, hg_cos_theta
+from .physics import orientation, rotate, hg_cos_theta
+from .atmoshpere import Atmosphere
+from .boundaries import Surface, Space
 
 #### ASSUMPTIONS (TO EASE LATER)
 # Isotropic atmoshperic layer (tau, albedo)
@@ -14,30 +15,23 @@ from helpers import read_config, orientation, rotate, hg_cos_theta
 # Add consistent colors for plotting
 
 class MCRadiation:
-    def __init__(self, config):
-        self.img_dir = Path.cwd() / config['simulation']['filepaths']['img_dir']
-        self.plot_name = config['simulation']['filepaths']['plot_name']
+    def __init__(self, config, atm: Atmosphere, sur: Surface, spa: Space):
+        self.img_dir = Path.cwd() / config['filepaths']['img_dir']
+        self.plot_name = config['filepaths']['plot_name']
         self.img_dir.mkdir(exist_ok=True)
 
-        self.n_photons = config['simulation']['general']['n_photons']
-        self.n_track = config['simulation']['general']['n_track']
-        self.starting_pos = np.array(config['simulation']['general']['starting_pos'])
+        self.n_photons = config['general']['n_photons']
+        self.n_track = config['general']['n_track']
+        self.starting_pos = np.array(config['general']['starting_pos'], dtype=np.float64).reshape(-1, 1)
         
-        self.tau_star = config['simulation']['atmoshpere']['tau_star']
-        self.ss_albedo = config['simulation']['atmoshpere']['omega']
-        
-        self.theta_sun = config['simulation']['sun']['theta_sun']
-        self.phi_sun = config['simulation']['sun']['phi_sun']
-
-        self.g = config['simulation']['scattering']['g']
-        
-        scat_type = config['simulation']['scattering']['type']
-        if scat_type == 'henyey-greenstein':
-            self.scat_func = hg_cos_theta
-        else:
-            raise KeyError(f"Unknown scattering func {scat_type}, check config")
+        self.theta_sun = config['sun']['theta_sun']
+        self.phi_sun = config['sun']['phi_sun']
 
         self.results = None
+
+        self.atmoshpere = atm
+        self.surface = sur
+        self.space = spa
 
     def _init_arrays(self):
         theta_sun_rad = self.theta_sun / 180 * np.pi
@@ -46,7 +40,7 @@ class MCRadiation:
         phis = np.random.normal(phi_sun_rad, 1/60, size=(self.n_photons))
         ori = orientation(thetas, phis)
 
-        pos = np.zeros(shape=(3, self.n_photons), dtype=np.float64)
+        pos = np.tile(self.starting_pos, (1, self.n_photons))
         ids = np.arange(0, self.n_photons)
         scatter_counts = np.zeros(self.n_photons)
 
@@ -61,7 +55,7 @@ class MCRadiation:
         n_track = self.n_track
 
         n_left_atmosphere = 0
-        n_hit_ground = 0
+        n_absorbed_surf = 0
         n_absorbed_atmoshpere = 0
 
         while ids.size:
@@ -71,28 +65,45 @@ class MCRadiation:
             for i, positon in zip(ids[ids < n_track], pos[:, ids < n_track].T):
                 history[i].append(positon.copy())
 
-            dist = -np.log(transmission)
+            tau = -np.log(transmission)
+            dist = self.atmoshpere.calc_dist(pos, ori, tau)
 
             pos += ori * dist
 
-            left = (pos[2] < 0)
-            hit = (pos[2] > self.tau_star)
+            pos, reached_space = self.atmoshpere.check_reached_space(pos, ori)
+            pos, reached_surf = self.atmoshpere.check_reached_surf(pos, ori)
 
-            last_pos_left = pos[:, left] + (0 - pos[2, left]) / ori[2, left] * ori[:, left]
-            last_pos_hit = pos[:, hit] + (self.tau_star - pos[2, hit]) / ori[2, hit] * ori[:, hit]
-            last_positions[ids[left]] = last_pos_left.T
-            last_positions[ids[hit]] = last_pos_hit.T
+            n_reached = np.count_nonzero(reached_surf)
+            rand_surf = np.random.uniform(0, 1, n_reached)
 
-            n_left_atmosphere += np.count_nonzero(left)
-            n_hit_ground += np.count_nonzero(hit)
+            reflected_surf = np.zeros_like(reached_surf, dtype=bool)
+            if n_reached > 0:
+                reflected_surf[reached_surf] = self.surface.check_reflection(pos[:, reached_surf], rand_surf)
 
-            pos[2, left] = np.inf
-            pos[2, hit] = np.inf
+            absorbed_surf = ~reflected_surf & reached_surf
+
+            rand_t = np.random.uniform(0, 1, np.count_nonzero(reflected_surf))
+            rand_p = np.random.uniform(0, 1, np.count_nonzero(reflected_surf))
+            ori[:, reflected_surf] = self.surface.reflect(pos[:, reflected_surf], ori[:, reflected_surf], rand_t, rand_p)
             
-            w = np.random.uniform(0, 1, n_photons)
+            last_positions[ids[reached_space]] = pos[:, reached_space].T
+            last_positions[ids[absorbed_surf]] = pos[:, absorbed_surf].T
 
-            scattered = (w < self.ss_albedo) & (pos[2] < np.inf)
-            absorbed = (w >= self.ss_albedo) & (pos[2] < np.inf)
+            n_left_atmosphere += np.count_nonzero(reached_space)
+            n_absorbed_surf += np.count_nonzero(absorbed_surf)
+
+            pos[2, reached_space] = np.inf
+            pos[2, absorbed_surf] = np.inf
+
+            to_scatter = (~reached_space) & (~reached_surf)
+            w = np.random.uniform(0, 1, np.count_nonzero(to_scatter))
+
+            scattered = np.zeros_like(to_scatter, dtype=bool)
+
+            res_scat = self.atmoshpere.check_scat(pos[:, to_scatter], ori[:, to_scatter], w)
+            scattered[to_scatter] = res_scat
+
+            absorbed = ~scattered & to_scatter            
 
             last_positions[ids[absorbed]] = pos[:, absorbed].T
             pos[2, absorbed] = np.inf
@@ -100,13 +111,12 @@ class MCRadiation:
             n_absorbed_atmoshpere += np.count_nonzero(absorbed)
             n_scattered = np.count_nonzero(scattered)
         
-            #### HEYNEY GREENSTEIN phase function
-            cos_theta_prim = self.scat_func(np.random.uniform(0, 1, n_scattered), self.g)
-            phi_prim = np.random.uniform(0, 1, n_scattered) * 2 * np.pi
-            cos_p = np.cos(phi_prim)
-            sin_p = np.sin(phi_prim)
-            cos_t = cos_theta_prim
-            sin_t = np.sqrt(1 - cos_theta_prim**2)
+            rand_t = np.random.uniform(0, 1, n_scattered)
+            rand_p = np.random.uniform(0, 1, n_scattered)
+
+            cos_t, cos_p = self.atmoshpere.scatter(pos[:, scattered], ori[:, scattered], rand_t, rand_p)
+            sin_p = np.sqrt(1 - cos_p**2)
+            sin_t = np.sqrt(1 - cos_t**2)
 
             ori[:, scattered] = rotate(ori[:, scattered], cos_t, sin_t, cos_p, sin_p)
             
@@ -124,7 +134,7 @@ class MCRadiation:
 
         self.results = {
             "photons left atmosphere": n_left_atmosphere,
-            "photons absorbed by surface": n_hit_ground,
+            "photons absorbed by surface": n_absorbed_surf,
             "photons absorbed by atmosphere": n_absorbed_atmoshpere,
             "sample paths": history
         }
@@ -146,13 +156,14 @@ class MCRadiation:
         lines = []
         for i, h in history.items():   
             X, Y, Z = np.array(h).T
-            p1 = ax.scatter(X[0], Y[0], self.tau_star - Z[0], color='green', label='starting-point', alpha=0.7, s=5)
-            l1, = ax.plot(X, Y, self.tau_star - Z, label=f'{i}', alpha=0.7)
-            p2 = ax.scatter(X[-1], Y[-1], self.tau_star - Z[-1], color='red', label='ending-point', alpha=0.7, s=5)
+            p1 = ax.scatter(X[0], Y[0], Z[0], color='green', label='starting-point', alpha=0.7, s=5)
+            l1, = ax.plot(X, Y, Z, label=f'{i}', alpha=0.7)
+            p2 = ax.scatter(X[-1], Y[-1], Z[-1], color='red', label='ending-point', alpha=0.7, s=5)
             starting.append(p1)
             lines.append(l1)
             ending.append(p2)
 
+        ax.invert_zaxis()
         # source: https://stackoverflow.com/questions/31478077/how-to-make-two-markers-share-the-same-label-in-the-legend
         fig.legend([tuple(starting), tuple(lines), tuple(ending)], ['start points', 'paths', 'ending points'], handler_map={tuple: HandlerTuple(ndivide=None)})
         fig.savefig(self.img_dir / name)
@@ -165,12 +176,4 @@ class MCRadiation:
 
         for k, v in results.items():
             print(f"{k}: {v}") if k != "sample paths" else ...
-
-
-if __name__ == '__main__':
-    config = read_config()
-    sim = MCRadiation(config)
-    sim.run()
-    sim.plot_paths()
-    sim.print_results()
 

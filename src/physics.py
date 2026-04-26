@@ -1,13 +1,4 @@
-import tomllib
 import numpy as np
-
-def read_config(path = 'config.toml'):
-    try:
-        with open(path, 'rb') as f:
-            data = tomllib.load(f)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"config file missing at {path}")
-    return data
 
 def orientation(theta, phi):
     return np.array((np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)))
@@ -32,7 +23,8 @@ def rotate(ori, cos_t, sin_t, cos_p, sin_p):
 
 def henyey_greenstein(theta, g):
     return 0.5 * (1 - g**2 ) / (1 + g**2 - 2*g * np.cos(theta))**(3/2)
-def distribuant(theta, g):
+
+def hg_distribuant(theta, g):
     return (1 - g**2) / (2 * g) * (1 / (1 + g) - 1/np.sqrt(1 + g**2 - 2*g*np.cos(theta)))
 
 def hg_cos_theta(r, g):
