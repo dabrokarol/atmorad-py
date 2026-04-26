@@ -14,7 +14,7 @@ img_dir.mkdir(exist_ok=True)
 
 #### SIMULATION PARAMETERS
 N = 1000
-TRACK_N = 10
+TRACK_N = 1
 
 #### ATMOSPHERIC PARAMETERS
 TAU = 10
@@ -33,20 +33,30 @@ z = 0 # highest point of the atmosphere
 x = 0
 y = 0
 
-#### PHASE FUNCTION - uniform for now
+#### PHASE FUNCTION - HENYEY-GREENSTEIN function
+G = 0.9
+
+def henyey_greenstein(theta):
+    return 0.5 * (1 - G**2 ) / (1 + G**2 - 2*G * np.cos(theta))**(3/2)
+def distribuant(theta):
+    return (1 - G**2) / (2 * G) * (1 / (1 + G) - 1/np.sqrt(1 + G**2 - 2*G*np.cos(theta)))
+
+if not np.isclose(G, 0):
+    def cos_theta(r):
+        return 1 / (2*G) * (1 + G**2 - ((1 - G**2) / (2*G*r - G + 1))**2)
+else:
+    def cos_theta(r):
+        return 2 * r - 1
+
 
 def orientation(theta, phi):
     return np.array((np.cos(theta) * np.cos(phi), np.cos(theta) * np.sin(phi), np.sin(theta)))
 
-def rotate(ori, theta, phi):
+def rotate(ori, cos_t, sin_t, cos_p, sin_p):
     result = np.zeros_like(ori)
     big_z = np.abs(ori[2]) > 0.999
     small_z = ~big_z # inverted mask
 
-    sin_t = np.sin(theta)
-    cos_t = np.cos(theta)
-    sin_p = np.sin(phi)
-    cos_p = np.cos(phi)
     sqrt_z = np.sqrt(1 - ori[2, small_z]**2)
 
     result[:, small_z] = np.array((
@@ -103,11 +113,25 @@ def multi_photon(pos, ori, scatter_counts, ids):
         n_absorbed_atmoshpere += np.count_nonzero(absorbed)
         n_scattered = np.count_nonzero(scattered)
 
-        theta_prim = np.random.uniform(0, 1, n_scattered) * np.pi
+        #### UNIFORM PHASE FUNCTION
+        # theta_prim = np.random.uniform(0, 1, n_scattered) * np.pi
+        # phi_prim = np.random.uniform(0, 1, n_scattered) * 2 * np.pi
+        # cos_t = np.cos(theta_prim)
+        # sin_t = np.sin(theta_prim)
+        # cos_p = np.cos(phi_prim)
+        # sin_p = np.sin(phi_prim)
+       
+        #### HEYNEY GREENSTEIN phase function
+        cos_theta_prim = cos_theta(np.random.uniform(0, 1, n_scattered))
         phi_prim = np.random.uniform(0, 1, n_scattered) * 2 * np.pi
+        cos_p = np.cos(phi_prim)
+        sin_p = np.sin(phi_prim)
+        cos_t = cos_theta_prim
+        sin_t = np.sqrt(1 - cos_theta_prim**2)
 
-        ori[:, scattered] = rotate(ori[:, scattered], theta_prim, phi_prim)
-        scatter_counts[scattered] += 1
+        ori[:, scattered] = rotate(ori[:, scattered], cos_t, sin_t, cos_p, sin_p)
+        
+        scatter_counts[ids[scattered]] += 1
         
         #### SHRINKING THE ARRAY TO ONLY ALIVE PHOTONS
         msk = pos[2] != np.inf
@@ -142,7 +166,7 @@ fig = plt.figure()
 ax = fig.add_subplot(projection='3d')
 
 for i, h in history.items():   
-    X, Y, Z = np.hstack((np.array(h).T, last_positions[i, :, np.newaxis]))
+    X, Y, Z = np.array(h).T #last_positions[i, :, np.newaxis]))
     ax.plot(X, Y, TAU - Z, label=f'{i}', alpha=0.5)
 
 fig.savefig(img_dir / 'multi.png')
