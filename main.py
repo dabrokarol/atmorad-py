@@ -13,12 +13,4 @@ def read_config(path = 'config.toml'):
     return data
 
 if __name__ == '__main__':
-    config = read_config()
-    atm = Atmosphere(config['atmoshpere'])
-    sur = Surface(config['surface'])
-    spa = Space()
-    sim = MCRadiation(config['simulation'], atm, sur, spa)
-    sim.run()
-    sim.plot_paths()
-    sim.print_results()
-
+    pass

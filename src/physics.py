@@ -1,7 +1,7 @@
 import numpy as np
 
-def orientation(theta, phi):
-    return np.array((np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)))
+def orientation(cos_t, sin_t, cos_p, sin_p):
+    return np.array((sin_t * cos_p, sin_t * sin_p, cos_t))
 
 def rotate(ori, cos_t, sin_t, cos_p, sin_p):
     result = np.zeros_like(ori)

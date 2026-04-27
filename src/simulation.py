@@ -3,9 +3,8 @@ import matplotlib.pyplot as plt
 from matplotlib.legend_handler import HandlerTuple
 from pathlib import Path
 
-from .physics import orientation, rotate, hg_cos_theta
-from .atmosphere import Atmosphere
-from .boundaries import Surface, Space
+from .physics import orientation, rotate
+from scene import Scene
 
 #### ASSUMPTIONS (TO EASE LATER)
 # Isotropic atmoshperic layer (tau, albedo)
@@ -15,7 +14,7 @@ from .boundaries import Surface, Space
 # Add consistent colors for plotting
 
 class MCRadiation:
-    def __init__(self, config, atm: Atmosphere, sur: Surface, spa: Space):
+    def __init__(self, config, scene: Scene):
         self.img_dir = Path.cwd() / config['filepaths']['img_dir']
         self.plot_name = config['filepaths']['plot_name']
         self.img_dir.mkdir(exist_ok=True)
@@ -29,16 +28,20 @@ class MCRadiation:
 
         self.results = None
 
-        self.atmoshpere = atm
-        self.surface = sur
-        self.space = spa
+        self.scene = scene
 
     def _init_arrays(self):
         theta_sun_rad = self.theta_sun / 180 * np.pi
         phi_sun_rad = self.phi_sun / 180 * np.pi
-        thetas = np.random.normal(theta_sun_rad, 1/60, size=(self.n_photons))
-        phis = np.random.normal(phi_sun_rad, 1/60, size=(self.n_photons))
-        ori = orientation(thetas, phis)
+        theta = np.random.normal(theta_sun_rad, 1/60, size=(self.n_photons))
+        phi = np.random.normal(phi_sun_rad, 1/60, size=(self.n_photons))
+
+        cos_t = np.cos(theta)
+        sin_t = np.sin(theta)
+        cos_p = np.cos(phi)
+        sin_p = np.sin(phi)
+
+        ori = orientation(cos_t, sin_t, cos_p, sin_p)
 
         pos = np.tile(self.starting_pos, (1, self.n_photons))
         ids = np.arange(0, self.n_photons)
@@ -53,6 +56,7 @@ class MCRadiation:
         pos, ori, ids, scatter_counts, history, last_positions = self._init_arrays()
         
         n_track = self.n_track
+        scene = self.scene
 
         n_left_atmosphere = 0
         n_absorbed_surf = 0
@@ -60,69 +64,23 @@ class MCRadiation:
 
         while ids.size:
             n_photons = ids.size
+
             transmission = np.random.uniform(0, 1, n_photons)
+            tau_to_travel = -np.log(transmission)
 
-            for i, positon in zip(ids[ids < n_track], pos[:, ids < n_track].T):
-                history[i].append(positon.copy())
-
-            tau = -np.log(transmission)
-            dist = self.atmoshpere.calc_dist(pos, ori, tau)
-
-            pos += ori * dist
-
-            reached_space = self.atmoshpere.check_reached_space(pos)
-            reached_surf = self.atmoshpere.check_reached_surf(pos)
-            pos = self.atmoshpere.snap_to_boundaries(pos, ori, reached_space, reached_surf)
-
-            n_reached = np.count_nonzero(reached_surf)
-            rand_surf = np.random.uniform(0, 1, n_reached)
-
-            reflected_surf = np.zeros_like(reached_surf, dtype=bool)
-            if n_reached > 0:
-                reflected_surf[reached_surf] = self.surface.check_reflection(pos[:, reached_surf], rand_surf)
-
-            absorbed_surf = ~reflected_surf & reached_surf
-
-            rand_t = np.random.uniform(0, 1, np.count_nonzero(reflected_surf))
-            rand_p = np.random.uniform(0, 1, np.count_nonzero(reflected_surf))
-            ori[:, reflected_surf] = self.surface.reflect(pos[:, reflected_surf], ori[:, reflected_surf], rand_t, rand_p)
+            pos, surface_mask, space_mask = scene.move_photons(pos, ori, tau_to_travel)
             
-            last_positions[ids[reached_space]] = pos[:, reached_space].T
-            last_positions[ids[absorbed_surf]] = pos[:, absorbed_surf].T
-
-            n_left_atmosphere += np.count_nonzero(reached_space)
-            n_absorbed_surf += np.count_nonzero(absorbed_surf)
-
-            pos[2, reached_space] = np.inf
-            pos[2, absorbed_surf] = np.inf
-
-            to_scatter = (~reached_space) & (~reached_surf)
-            w = np.random.uniform(0, 1, np.count_nonzero(to_scatter))
-
-            scattered = np.zeros_like(to_scatter, dtype=bool)
-
-            res_scat = self.atmoshpere.check_scat(pos[:, to_scatter], ori[:, to_scatter], w)
-            scattered[to_scatter] = res_scat
-
-            absorbed = ~scattered & to_scatter            
-
-            last_positions[ids[absorbed]] = pos[:, absorbed].T
-            pos[2, absorbed] = np.inf
-
-            n_absorbed_atmoshpere += np.count_nonzero(absorbed)
-            n_scattered = np.count_nonzero(scattered)
-        
-            rand_t = np.random.uniform(0, 1, n_scattered)
-            rand_p = np.random.uniform(0, 1, n_scattered)
-
-            cos_t, sin_t, cos_p, sin_p = self.atmoshpere.scatter(pos[:, scattered], ori[:, scattered], rand_t, rand_p)
-
-            ori[:, scattered] = rotate(ori[:, scattered], cos_t, sin_t, cos_p, sin_p)
+            atmoshpere_mask = (~surface_mask) & (~space_mask)
             
-            scatter_counts[ids[scattered]] += 1
+            r1, r2, r3 = np.random.uniform(0, 1, size=(3, ids.size))
+            ori, absorbed_surface, absorbed_atmosphere = scene.scatter_photons(pos, ori, r1, r2, r3, surface_mask, atmoshpere_mask)
+
+            n_left_atmosphere += np.count_nonzero(space_mask)
+            n_absorbed_atmoshpere += np.count_nonzero(absorbed_atmosphere)
+            n_absorbed_surf += np.count_nonzero(absorbed_surface)
             
             #### SHRINKING THE ARRAY TO ONLY ALIVE PHOTONS
-            msk = pos[2] != np.inf
+            msk = (~space_mask) & (~absorbed_surface) & ~(absorbed_atmosphere)
             pos = pos[:, msk]
             ori = ori[:, msk]
             ids = ids[msk]
