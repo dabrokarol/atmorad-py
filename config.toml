@@ -6,7 +6,7 @@ img_dir = "img"
 plot_name = "default.png"
 
 [simulation.general]
-n_photons = 1000 # Number of simulated photons
+n_photons = 1000000 # Number of simulated photons
 n_track = 10 # Number of photons which paths will be tracked 
 starting_pos = [5, 5, 0] # (x, y, z) coords, where z=0 is the highest poinf of atmoshpere
 

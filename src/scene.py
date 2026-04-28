@@ -1,16 +1,14 @@
 import numpy as np
-from .physics import orientation
+from .physics import orientation, rotate
 
-from typing import Any, Iterable
-from abc import ABC
+import logging
+
+from typing import Any, List
 
 INT_MAX = 2147483647
 
 # TODO: add space layer to atmospheric layers (with mu 0, albedo 0) at the beginnign of it
-# TODO: refactor scene class, make it work
-# TODO: use refactored scene class in simulation
 # TODO: move classes to different files to maintain visual simplicity
-# TODO: create sample atmospheric layout and test!
 
 class Scattering:
     def __init__(self, scatter_func, g, n_precomputed=1000):
@@ -116,7 +114,7 @@ class AtmosphericMedium:
         self.scattering = scattering
 
 class AtmosphericLayer:
-    def __init__(self, height, ingredients: list[tuple[AtmosphericMedium, float]]):
+    def __init__(self, height, ingredients: List[tuple[AtmosphericMedium, float]]):
         self.height = height
 
         p = 0
@@ -128,7 +126,7 @@ class AtmosphericLayer:
         self.ingredients = ingredients
 
 class Atmosphere:
-    def __init__(self, layers: list[AtmosphericLayer]):
+    def __init__(self, layers: List[AtmosphericLayer]):
         boundaries = [0]
         unique_mediums = []
         max_layer_width = 0
@@ -165,12 +163,12 @@ class Atmosphere:
         self.layer_medium_ids = layer_medium_ids
 
     def get_layer_idx(self, pos_z):
-        layer_idx = np.searchsorted(self.boundaries, pos_z, 'left')
+        layer_idx = np.searchsorted(self.boundaries, pos_z, 'right') - 1
         layer_idx[pos_z < 0] = INT_MAX # space will get INT_MAX
         return layer_idx
 
     def get_mediums(self, pos, rand_1):
-        layer_idx = np.searchsorted(self.boundaries, pos[2])
+        layer_idx = np.searchsorted(self.boundaries, pos[2], 'right') - 1
         layer_medium_idx = np.argmax(rand_1[:, np.newaxis] < self.layer_cdfs[layer_idx], axis=1)
         return self.layer_medium_ids[layer_idx, layer_medium_idx] # array of column numbers, array of row numbers
 
@@ -199,7 +197,7 @@ class ProceduralMap:
     #example map functions:
     @staticmethod
     def uniform_ground(pos):
-        return np.zeros_like(pos.shape[1])
+        return np.zeros_like(pos[0]).astype(int)
     
     @staticmethod
     def split_half_x(pos):
@@ -209,7 +207,7 @@ class ProceduralMap:
     def checkerboard(pos):
         x = np.mod(pos[0], 10)
         y = np.mod(pos[1], 10)
-        return np.where((x<5 & y<5) | (x >= 5 & y >= 5), 0, 1)
+        return np.where(((x<5) & (y<5)) | ((x >= 5) & (y >= 5)), 0, 1)
 
 class GridMap:
     def __init__(self, ground_ids_matrix, periodic = True, grid_density=10, dimensions=(10,10)):
@@ -226,11 +224,10 @@ class GridMap:
             raise FutureWarning('Non-periodic ground map is not yet implemented')
 
 class Surface:
-    def __init__(self, ground_map: GridMap | ProceduralMap, ground_types = Iterable[SurfaceMaterial]):
+    def __init__(self, ground_map: GridMap | ProceduralMap, ground_types = List[SurfaceMaterial]):
         self.ground_map = ground_map
         self.ground_types = np.array(ground_types)
-
-        self.albedos = [material.albedo for material in self.ground_types]
+        self.albedos = np.array([material.albedo for material in self.ground_types])
         self.reflections = [material.reflection for material in self.ground_types]
 
     def check_reflection(self, pos, rand):
@@ -260,7 +257,7 @@ class Scene:
         self.space = space
         self.atmosphere = atmosphere
 
-    def move_photons(self, pos, ori, tau_to_travel):
+    def move_photons(self, pos, ori, tau_to_travel, rng):
         """Function moves photons according to their tau_to_travel.
         
         Args:
@@ -271,20 +268,21 @@ class Scene:
         Returns:
             final_pos, surface_msk, space_msk
             """
-        boundaries = self.boundaries
-        mus = np.array([l.mu for l in self.layers])
-
+        boundaries = self.atmosphere.boundaries
         ids = np.arange(0, pos.shape[1])
 
         final_pos = np.zeros_like(pos)
         final_space_msk = np.zeros_like(ids, dtype=bool)
         final_surface_msk = np.zeros_like(ids, dtype=bool)
 
-        while tau_to_travel.size:
-            layer_idx = self.get_layer_idx(pos[2])
+        rand_weather = rng.uniform(0, 1, ids.size)
+        medium_ids = self.atmosphere.get_mediums(pos, rand_weather)
 
-            surface_msk = layer_idx == self.boundaries.size
-            space_msk = layer_idx == -1
+        while tau_to_travel.size:
+            layer_idx = self.atmosphere.get_layer_idx(pos[2])
+
+            surface_msk = layer_idx == boundaries.size
+            space_msk = layer_idx == INT_MAX
             atmoshpere_msk = (~space_msk) & (~surface_msk)
 
             pos = self.snap_to_boundaries(pos, ori, space_msk, surface_msk)
@@ -300,7 +298,7 @@ class Scene:
             pos = pos[:, atmoshpere_msk]
             ids = ids[atmoshpere_msk]
 
-            relative_pos_z = pos[2] - self.boundaries[layer_idx]
+            relative_pos_z = pos[2] - self.atmosphere.boundaries[layer_idx]
             travel_to_space = ori[2] < 0
             travel_to_ground = ori[2] > 0
             travel_horizontal = ori[2] == 0
@@ -314,16 +312,20 @@ class Scene:
             relative_pos_z[travel_to_ground] = upper_bound[travel_to_ground] - pos[2, travel_to_ground]
             relative_pos_z[travel_horizontal] = np.inf
 
-
-            mu = mus[layer_idx]
+            mu = self.atmosphere.mus[medium_ids[ids]]
             tau_to_boundary = (relative_pos_z) / ori[2] * mu
 
             new_tau_to_travel = np.where(tau_to_boundary < tau_to_travel, tau_to_boundary, tau_to_travel)
-            dist = new_tau_to_travel / mu
+            dist = new_tau_to_travel / mu + 1e-8
             pos += ori * dist
 
             tau_to_travel -= new_tau_to_travel
             finished_mask = np.isclose(tau_to_travel, 0)
+
+            cross_layer_mask = ~finished_mask
+            n_cross_layer = np.count_nonzero(cross_layer_mask)
+            rand_weather = rng.uniform(0, 1, n_cross_layer)
+            medium_ids[ids[cross_layer_mask]] = self.atmosphere.get_mediums(pos[:, cross_layer_mask], rand_weather)
 
             final_pos[:, ids[finished_mask]] = pos[:, finished_mask]
 
@@ -333,25 +335,26 @@ class Scene:
             pos = pos[:, ~finished_mask]
             ids = ids[~finished_mask]
 
-        return final_pos, final_surface_msk, final_space_msk
+        return final_pos, final_surface_msk, final_space_msk, medium_ids
     
-    def scatter_photons(self, pos, ori, rand_1, rand_2, rand_3, surface_mask, atmosphere_mask, in_cloud_mask):
+    def scatter_photons(self, pos, ori, rand_1, rand_2, rand_3, surface_mask, atmosphere_mask, medium_ids):
         """Scatters and reflects photons based on random numbers."""
-        in_air_mask = (~in_cloud_mask) & atmosphere_mask
-        air_layer_idx = np.where(in_air_mask, self.get_layer_idx(pos[2]), 0)
-        cloud_layer_idx = np.where(in_cloud_mask, self.get_layer_idx(pos[2]), 0)
+        to_scat = np.zeros_like(rand_1).astype(bool)
+        to_scat[atmosphere_mask] = self.atmosphere.check_scat(medium_ids[atmosphere_mask], rand_1[atmosphere_mask])
+        cos_t, sin_t, cos_p, sin_p = self.atmosphere.scatter(medium_ids[to_scat], rand_2[to_scat], rand_3[to_scat])
 
-        albedos = np.zeros_like(rand_1.size)
-        albedos[in_air_mask] = self.air_albedos[air_layer_idx]
-        albedos[in_cloud_mask] = self.cloud_albedos[cloud_layer_idx]
-        albedos[surface_mask] = self.surface_albedos
+        ori[:, to_scat] = rotate(ori[:, to_scat], cos_t, sin_t, cos_p, sin_p)
 
-        for i, layer in enumerate(self.layers):
-            air_scattered = rand_1[air_layer_idx == i] < layer.ss_albedo
-            cloud_scattered = rand_1[cloud_layer_idx == i] < layer.cloud_ss_albedo
+        to_reflect = np.zeros_like(rand_1).astype(bool)
+        to_reflect[surface_mask] = self.surface.check_reflection(pos[:, surface_mask], rand_1[surface_mask])
+        ori[:, to_reflect] = self.surface.reflect(pos[:, to_reflect], ori[:, to_reflect], rand_2[to_reflect], rand_3[to_reflect])
 
+        absorbed_surface = (~to_reflect) & surface_mask
+        absorbed_atmosphere = (~to_scat) & atmosphere_mask
+
+        return ori, absorbed_surface, absorbed_atmosphere
     
     def snap_to_boundaries(self, pos, ori, reached_space, reached_surf):
         pos[:, reached_space] += (0 - pos[2, reached_space]) / ori[2, reached_space] * ori[:, reached_space]
-        pos[:, reached_surf] += (self.boundaries[-1] - pos[2, reached_surf]) / ori[2, reached_surf] * ori[:, reached_surf]
+        pos[:, reached_surf] += (self.atmosphere.boundaries[-1] - pos[2, reached_surf]) / ori[2, reached_surf] * ori[:, reached_surf]
         return pos
