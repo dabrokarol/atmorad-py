@@ -4,6 +4,14 @@ from .physics import orientation
 from typing import Any, Iterable
 from abc import ABC
 
+INT_MAX = 2147483647
+
+# TODO: add space layer to atmospheric layers (with mu 0, albedo 0) at the beginnign of it
+# TODO: refactor scene class, make it work
+# TODO: use refactored scene class in simulation
+# TODO: move classes to different files to maintain visual simplicity
+# TODO: create sample atmospheric layout and test!
+
 class Scattering:
     def __init__(self, scatter_func, g, n_precomputed=1000):
         """Computes normalized probability distribution of cos_theta and sums to obtain distribuant."""
@@ -158,7 +166,7 @@ class Atmosphere:
 
     def get_layer_idx(self, pos_z):
         layer_idx = np.searchsorted(self.boundaries, pos_z, 'left')
-        layer_idx[pos_z < 0] = -1 # space will give -1
+        layer_idx[pos_z < 0] = INT_MAX # space will get INT_MAX
         return layer_idx
 
     def get_mediums(self, pos, rand_1):
