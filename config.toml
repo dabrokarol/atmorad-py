@@ -6,21 +6,29 @@ img_dir = "img"
 plot_name = "default.png"
 
 [simulation.general]
-n_photons = 1000 # Number of simulated photons
-n_track = 20 # Number of photons which paths will be tracked 
-starting_pos = [0, 0, 0] # (x, y, z) coords, where z=0 is the highest poinf of atmoshpere
-
-[simulation.atmoshpere]
-tau_star = 2 # Atmoshperic layer density
-omega = 0.99 # Single scattering albedo
+n_photons = 100000 # Number of simulated photons
+n_track = 10 # Number of photons which paths will be tracked 
+starting_pos = [5, 5, 0] # (x, y, z) coords, where z=0 is the highest poinf of atmoshpere
 
 [simulation.sun]
 theta_sun = 60 # Sun elevation angle [degrees]
 phi_sun = 0 # Sun longitude [degrees]
 
-[simulaton.surface]
-surface_albedo = 0 # absorbs all photons for simplicity
+[atmoshpere]
+tau_star = 1 # Atmoshperic layer density
+omega = 0.99 # Single scattering albedo
+height = 2
 
-[simulation.scattering]
+[atmoshpere.scattering]
 type = "henyey-greenstein" # for now only 'henyey-greenstein' is supported
 g = 0.7 # eccentricity parameter from [-1,1]
+
+[surface]
+albedo = 0 # chance of photon being reflected [0,1] - 0 for no reflections
+
+height = 2
+dimensions = [10, 10] # in the same units as atmospheric height
+grid_density = 30 # number of grid elements per unit dimension
+periodic = true
+ground_types = ['mirror', 'none']
+brdf_type = 'mirror' # deterministic mirror-like scattering
