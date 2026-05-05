@@ -169,7 +169,7 @@ class Atmosphere:
         return layer_idx
 
     def get_mediums(self, pos, rand_1):
-        layer_idx = np.searchsorted(self.boundaries, pos[2], 'right') - 1
+        layer_idx = self.get_layer_idx(pos[2])
         layer_medium_idx = np.argmax(rand_1[:, np.newaxis] < self.layer_cdfs[layer_idx], axis=1)
         return self.layer_medium_ids[layer_idx, layer_medium_idx] # array of column numbers, array of row numbers
 
@@ -284,8 +284,8 @@ class Scene:
 
             print(f"move photons: {tau_to_travel.size}")
 
-            surface_msk = layer_idx == boundaries.size - 2
-            space_msk = layer_idx == INT_MAX
+            surface_msk = pos[2] > boundaries[-1]
+            space_msk = pos[2] < 0 
             atmoshpere_msk = (~space_msk) & (~surface_msk)
 
             pos = self.snap_to_boundaries(pos, ori, space_msk, surface_msk)
@@ -319,7 +319,8 @@ class Scene:
             tau_to_boundary = (relative_pos_z) / ori[2] * mu
 
             new_tau_to_travel = np.where(tau_to_boundary < tau_to_travel, tau_to_boundary, tau_to_travel)
-            dist = new_tau_to_travel / mu + 1e-8
+            dist = new_tau_to_travel / mu
+            dist[tau_to_boundary < tau_to_travel] += 1e-8
             pos += ori * dist
 
             tau_to_travel -= new_tau_to_travel
