@@ -1,7 +1,12 @@
 import tomllib
 import numpy as np
+
 from src.simulation import MCRadiation
-from src.scene import Scene, Atmosphere, Surface, AtmosphericLayer, AtmosphericMedium, SurfaceMaterial, ProceduralMap, Scattering, SurfaceReflection, Space
+from src.scene import Scene, Space
+from src.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
+from src.surface import Surface, SurfaceMaterial, ProceduralMap, GridMap
+from src.physics import SurfaceReflections, AtmosphereScatterings
+
 
 def read_config(path = 'config.toml'):
     try:
@@ -15,15 +20,16 @@ if __name__ == '__main__':
     rng = np.random.default_rng(42)
     config = read_config()
     
-    air = AtmosphericMedium(1, 0.5, Scattering(Scattering.henyey_greenstein, 0.1, 1000))
-    clouds = AtmosphericMedium(20, 0.9, Scattering(Scattering.henyey_greenstein, 0.8, 1000))
-    layer1 = AtmosphericLayer(10, [(air, 0.7), (clouds, 0.3)])
-    layer2 = AtmosphericLayer(10, [(air, 1)])
-    atm = Atmosphere([layer1, layer2])
+    air = AtmosphericMedium(0.001, 0.5, AtmosphereScatterings.HenyeyGreenstein(g=0.5))
+    clouds = AtmosphericMedium(20, 0.999999, AtmosphereScatterings.HenyeyGreenstein(g=0.85))
+    layer1 = AtmosphericLayer(50, [(air, 1)])
+    layer2 = AtmosphericLayer(1, [(clouds, 1)])
+    layer3 = AtmosphericLayer(50, [(air, 1)])
+    atm = Atmosphere([layer1, layer2, layer3])
 
-    mirror = SurfaceMaterial(1, SurfaceReflection(SurfaceReflection.mirror_reflection))
-    diffuse = SurfaceMaterial(0.7, SurfaceReflection(SurfaceReflection.lambertian_reflection))
-    map = ProceduralMap(ProceduralMap.checkerboard)
+    mirror = SurfaceMaterial(1, SurfaceReflections.MirrorReflection())
+    diffuse = SurfaceMaterial(0, SurfaceReflections.LambertianReflection())
+    map = ProceduralMap(ProceduralMap.split_half_x)
     surf = Surface(map, [mirror, diffuse])
 
     space = Space()

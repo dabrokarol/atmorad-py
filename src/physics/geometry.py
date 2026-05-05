@@ -20,14 +20,3 @@ def rotate(ori, cos_t, sin_t, cos_p, sin_p):
     ))
     
     return result
-
-def henyey_greenstein(theta, g):
-    return 0.5 * (1 - g**2 ) / (1 + g**2 - 2*g * np.cos(theta))**(3/2)
-
-def hg_distribuant(theta, g):
-    return (1 - g**2) / (2 * g) * (1 / (1 + g) - 1/np.sqrt(1 + g**2 - 2*g*np.cos(theta)))
-
-def hg_cos_theta(r, g):
-    if np.isclose(g, 0):
-        return 2 * r - 1
-    return 1 / (2*g) * (1 + g**2 - ((1 - g**2) / (2*g*r - g + 1))**2)

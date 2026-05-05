@@ -4,15 +4,11 @@ import matplotlib.pyplot as plt
 from matplotlib.legend_handler import HandlerTuple
 from pathlib import Path
 
-from .physics import orientation, rotate
-from .scene import Scene
+from src.physics import orientation, rotate
+from src.scene import Scene
 
-#### ASSUMPTIONS (TO EASE LATER)
-# Isotropic atmoshperic layer (tau, albedo)
-# Perfectly black surface layer (can be changed to brdf)
+# TODO:
 # Sun position constant (could be taken from some database)
-#### OTHER TODOS
-# Add consistent colors for plotting
 
 class MCRadiation:
     def __init__(self, config, scene: Scene, rng):
@@ -45,7 +41,12 @@ class MCRadiation:
 
         ori = orientation(cos_t, sin_t, cos_p, sin_p)
 
-        pos = np.tile(self.starting_pos, (1, self.n_photons))
+        pos_x = self.rng.uniform(-1, 1, self.n_photons) * 1000
+        pos_y = self.rng.uniform(-1, 1, self.n_photons) * 1000
+        pos_z = np.full(self.n_photons, 1e-6)
+        pos = np.vstack((pos_x, pos_y, pos_z))
+
+        np.random.uniform()
         ids = np.arange(0, self.n_photons)
         scatter_counts = np.zeros(self.n_photons)
 
@@ -107,9 +108,9 @@ class MCRadiation:
             "sample paths": history
         }
 
-    def plot_paths(self, name:str|None=None):
-        if name is None:
-            name = self.plot_name
+    def plot_paths(self, filename:str|None=None):
+        if filename is None:
+            filename = self.plot_name
 
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
@@ -133,8 +134,8 @@ class MCRadiation:
 
         ax.invert_zaxis()
         # source: https://stackoverflow.com/questions/31478077/how-to-make-two-markers-share-the-same-label-in-the-legend
-        fig.legend([tuple(starting), tuple(lines), tuple(ending)], ['start points', 'paths', 'ending points'], handler_map={tuple: HandlerTuple(ndivide=None)})
-        fig.savefig(self.img_dir / name)
+        fig.legend([tuple(starting), tuple(lines), tuple(ending)], ['start points', 'paths', 'ending points'], handler_map={tuple: HandlerTuple(ndivide=None)}) # type: ignore
+        fig.savefig(self.img_dir / filename)
 
     def print_results(self):
         if self.results is not None:
