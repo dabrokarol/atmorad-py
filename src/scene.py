@@ -235,7 +235,7 @@ class Surface:
         ground_ids = self.ground_map.get_material_ids(pos)
         albedos = self.albedos[ground_ids]
 
-        return albedos < rand
+        return albedos > rand
     
     def reflect(self, pos, ori, rand_1, rand_2):
         ground_ids = self.ground_map.get_material_ids(pos)
