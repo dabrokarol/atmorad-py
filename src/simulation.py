@@ -11,10 +11,11 @@ from src.scene import Scene
 # Sun position constant (could be taken from some database)
 
 class MCRadiation:
-    def __init__(self, config, scene: Scene, rng):
-        self.img_dir = Path.cwd() / config['filepaths']['img_dir']
+    def __init__(self, config, scene: Scene):
+        config = config['simulation']
+        self.fig_dir = Path.cwd() / config['filepaths']['fig_dir']
         self.plot_name = config['filepaths']['plot_name']
-        self.img_dir.mkdir(exist_ok=True)
+        self.fig_dir.mkdir(exist_ok=True)
 
         self.n_photons = config['general']['n_photons']
         self.n_track = config['general']['n_track']
@@ -26,7 +27,7 @@ class MCRadiation:
         self.results = None
 
         self.scene = scene
-        self.rng = rng
+        self.rng = np.random.default_rng(config['random_seed'])
 
     def _init_arrays(self):
         theta_sun_rad = self.theta_sun / 180 * np.pi
@@ -135,7 +136,7 @@ class MCRadiation:
         ax.invert_zaxis()
         # source: https://stackoverflow.com/questions/31478077/how-to-make-two-markers-share-the-same-label-in-the-legend
         fig.legend([tuple(starting), tuple(lines), tuple(ending)], ['start points', 'paths', 'ending points'], handler_map={tuple: HandlerTuple(ndivide=None)}) # type: ignore
-        fig.savefig(self.img_dir / filename)
+        fig.savefig(self.fig_dir / filename)
 
     def print_results(self):
         if self.results is not None:

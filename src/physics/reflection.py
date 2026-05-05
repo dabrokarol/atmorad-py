@@ -1,6 +1,6 @@
 import numpy as np
 
-from .geometry import orientation
+from src.physics.geometry import orientation
 
 class SurfaceReflection:
     def __init__(self, reflection_func):

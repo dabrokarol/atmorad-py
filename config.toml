@@ -2,13 +2,15 @@ title = "default config"
 
 [simulation]
 [simulation.filepaths]
-img_dir = "img"
+fig_dir = "fig"
 plot_name = "default.png"
 
 [simulation.general]
 n_photons = 100000 # Number of simulated photons
 n_track = 10 # Number of photons which paths will be tracked 
 starting_pos = [5, 5, 0] # (x, y, z) coords, where z=0 is the highest poinf of atmoshpere
+random_seed = 42 # for reproducibility
+
 
 [simulation.sun]
 theta_sun = 60 # Sun elevation angle [degrees]
