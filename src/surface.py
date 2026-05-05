@@ -34,7 +34,7 @@ class GridMap:
         self.matrix = ground_ids_matrix
         self.periodic = periodic
         self.density = grid_density
-        self.dims = ground_ids_matrix.shape // grid_density
+        self.dims = ground_ids_matrix.shape / grid_density
         
     def get_material_ids(self, pos):
         if self.periodic:
