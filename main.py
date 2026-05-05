@@ -44,8 +44,10 @@ if __name__ == '__main__':
     # 3. SCENE AND SIMULATION
     space = Space() # For now an empty object, represents end of atmosphere
     scene = Scene(surface, atm, space, config)
+    
     sim = MCRadiation(config, scene)
-
     sim.run()
+
+    # 4. OUTPUTS
     sim.print_results()
     sim.plot_paths()
