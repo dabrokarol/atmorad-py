@@ -2,7 +2,7 @@ title = "default config"
 
 [simulation]
 [simulation.filepaths]
-img_dir = "img"
+fig_dir = "fig"
 plot_name = "default.png"
 
 [simulation.general]
