@@ -164,6 +164,7 @@ class Atmosphere:
 
     def get_layer_idx(self, pos_z):
         layer_idx = np.searchsorted(self.boundaries, pos_z, 'right') - 1
+        layer_idx[pos_z>=self.boundaries[-1]] = len(self.boundaries) - 2
         layer_idx[pos_z < 0] = INT_MAX # space will get INT_MAX
         return layer_idx
 
@@ -224,7 +225,7 @@ class GridMap:
             raise FutureWarning('Non-periodic ground map is not yet implemented')
 
 class Surface:
-    def __init__(self, ground_map: GridMap | ProceduralMap, ground_types = List[SurfaceMaterial]):
+    def __init__(self, ground_map: GridMap | ProceduralMap, ground_types: list[SurfaceMaterial]):
         self.ground_map = ground_map
         self.ground_types = np.array(ground_types)
         self.albedos = np.array([material.albedo for material in self.ground_types])
@@ -281,7 +282,9 @@ class Scene:
         while tau_to_travel.size:
             layer_idx = self.atmosphere.get_layer_idx(pos[2])
 
-            surface_msk = layer_idx == boundaries.size
+            print(f"move photons: {tau_to_travel.size}")
+
+            surface_msk = layer_idx == boundaries.size - 2
             space_msk = layer_idx == INT_MAX
             atmoshpere_msk = (~space_msk) & (~surface_msk)
 
@@ -322,7 +325,8 @@ class Scene:
             tau_to_travel -= new_tau_to_travel
             finished_mask = np.isclose(tau_to_travel, 0)
 
-            cross_layer_mask = ~finished_mask
+            in_atmosphere_mask = (pos[2] >= 0) & (pos[2] <   self.atmosphere.boundaries[-1])
+            cross_layer_mask = ~finished_mask & in_atmosphere_mask
             n_cross_layer = np.count_nonzero(cross_layer_mask)
             rand_weather = rng.uniform(0, 1, n_cross_layer)
             medium_ids[ids[cross_layer_mask]] = self.atmosphere.get_mediums(pos[:, cross_layer_mask], rand_weather)
