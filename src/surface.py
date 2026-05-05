@@ -30,11 +30,11 @@ class ProceduralMap:
         return np.where(((x<5) & (y<5)) | ((x >= 5) & (y >= 5)), 0, 1)
 
 class GridMap:
-    def __init__(self, ground_ids_matrix, periodic = True, grid_density=10, dimensions=(10,10)):
+    def __init__(self, ground_ids_matrix, periodic = True, grid_density=10):
         self.matrix = ground_ids_matrix
         self.periodic = periodic
         self.density = grid_density
-        self.dims = np.array(dimensions)
+        self.dims = ground_ids_matrix.shape // grid_density
         
     def get_material_ids(self, pos):
         if self.periodic:

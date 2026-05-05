@@ -1,13 +1,10 @@
 # atmorad.py
 ## A vectorized monte carlo simulation of atmospheric radiative transfer. 
 
-## Description:
-
-
 ## How to run:
 ### Use UV (simplest)
 
-- If not installed, install uv, a fast python package manager: [installation guide](https://docs.astral.sh/uv/getting-started/installation/)
+- If not installed, [install uv](https://docs.astral.sh/uv/getting-started/installation/), a fast python package manager
 - Create a virtual environment:
 ```
 uv venv
@@ -43,11 +40,16 @@ uv run main.py
 ## Physical assumptions:
 Simulation treats photons as monochromatic, non-polarized particles. Environment is created with plane-parallel approximation and can consist of uniform layers of chosen height and material. Each material can have its own scattering phase function, optical density and albedo. Surface consists of a list of materials and a procedural map that outputs material type based on position. 
 
+- Simulated photons are Monochromatic and non-polarized
+- Atmospheric layer can consist of a few materials at once so that each photon gets that material assigned randomly upon entering such layer (useful for partially cloudy layers)
+- Henyey-Greenstein scattering function is used
+
 
 ## Programmers' assumptions:
-- Simulation uses `numpy` to parallelize photons and improve performance
-- `Scene` class computes photons' paths and keeps track of the environment
-- `Atmosphere` and `Surface` classes keep track of optical properties, phase functions, reflection functions etc.
+- Simulation uses `numpy` to simulate `N` photons in parallel
+- Plots are created using `matplotlib`:
+  - whole paths for a selected batch of photons (`n_track` in `config.toml`) 
+  - aggregated final positions for all photons
 
 ## Project Structure
 ```
@@ -71,6 +73,12 @@ Simulation treats photons as monochromatic, non-polarized particles. Environment
 ├── README.md
 ├── requirements.txt
 ```
+
+- `Scene` class computes photons' paths and keeps track of the environment
+- `Atmosphere` and `Surface` classes keep track of optical properties, phase functions, reflection functions etc.
+
+## Custom Surface and Atmospheric Layers:
+See `main.py` for examples and comments.
 
 ## References and Literature
 - (in Polish) Script for Lecture about [Radiative Processes in the Atmosphere](https://www.igf.fuw.edu.pl/~kmark/stacja/wyklady/ProcesyRadiacyjne/2013/WykladRadiacjaKlimat.pdf), K. Markowicz, Faculty of Physics, University of Warsaw, 2013

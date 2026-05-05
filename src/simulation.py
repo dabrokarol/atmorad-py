@@ -11,7 +11,8 @@ from src.scene import Scene
 # Sun position constant (could be taken from some database)
 
 class MCRadiation:
-    def __init__(self, config, scene: Scene, rng):
+    def __init__(self, config, scene: Scene):
+        config = config['simulation']
         self.fig_dir = Path.cwd() / config['filepaths']['fig_dir']
         self.plot_name = config['filepaths']['plot_name']
         self.fig_dir.mkdir(exist_ok=True)
@@ -26,7 +27,7 @@ class MCRadiation:
         self.results = None
 
         self.scene = scene
-        self.rng = rng
+        self.rng = np.random.default_rng(config['random_seed'])
 
     def _init_arrays(self):
         theta_sun_rad = self.theta_sun / 180 * np.pi
