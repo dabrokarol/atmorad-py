@@ -1,7 +1,4 @@
 numpy
 matplotlib
-colorcet
 cmocean
-datashader
 seaborn
-pandas
