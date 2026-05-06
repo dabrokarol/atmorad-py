@@ -82,8 +82,8 @@ class MCRadiation:
             direction = direction[:, active_mask]
             active_ids = active_ids[active_mask]
 
-        for i, positon in enumerate(final_positions[:, :self.num_track].T):
-            tracked_paths[i].append(positon.copy())
+        for i, position in enumerate(final_positions[:, :self.num_track].T):
+            tracked_paths[i].append(position.copy())
 
         space_mask, surface_mask, layer_idx = scene.get_photon_position_mask(final_positions[2])
 

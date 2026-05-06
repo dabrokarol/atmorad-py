@@ -8,7 +8,7 @@ from src.physics import SurfaceReflections, AtmosphereScatterings
 from src.results import Results
 from src.data_io import read_config, read_results, OutputHandler
 
-if __name__ == '__main__':
+def main():
     config = read_config()
     
     # 1. ATMOSPHERE
@@ -53,3 +53,6 @@ if __name__ == '__main__':
     handler.save_metadata(config, (end_time - start_time) / 1e9)
     handler.save_results(res)
     handler.print_results(res)
+
+if __name__ == '__main__':
+    main()
