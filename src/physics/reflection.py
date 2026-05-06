@@ -21,24 +21,24 @@ class SurfaceReflection:
     def lambertian_reflection_func(ori, rand_1, rand_2):
         phi = rand_2 * 2 * np.pi
 
-        cos_t = -np.sqrt(rand_1) # cosine-weighted hemisphere sampling, minus because surface has the biggest height
+        cos_theta = -np.sqrt(rand_1) # cosine-weighted hemisphere sampling, minus because surface has the biggest height
         sin_t = np.sqrt(1 - rand_1)
-        cos_p = np.cos(phi)
+        cos_phi = np.cos(phi)
         sin_p = np.sin(phi)
 
-        return orientation(cos_t, sin_t, cos_p, sin_p)
+        return orientation(cos_theta, sin_t, cos_phi, sin_p)
     
     @staticmethod
     def uniform_reflection_func(ori, rand_1, rand_2):
         theta = rand_1 * np.pi / 2
         phi = rand_2 * 2 * np.pi
 
-        cos_t = -np.cos(theta) # uniform sampling
+        cos_theta = -np.cos(theta) # uniform sampling
         sin_t = np.sin(theta)
-        cos_p = np.cos(phi)
+        cos_phi = np.cos(phi)
         sin_p = np.sin(phi)
 
-        return orientation(cos_t, sin_t, cos_p, sin_p)
+        return orientation(cos_theta, sin_t, cos_phi, sin_p)
     
 class MirrorReflection(SurfaceReflection):
     def __init__(self):

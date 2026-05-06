@@ -31,7 +31,7 @@ class OutputHandler:
     def save_results(self, results: Results):
         np.savez_compressed(
             self.base_dir / 'data_compressed',
-            last_positions=results.last_positions,
+            final_positions=results.final_positions,
             space_mask=results.space_mask,
             surface_mask=results.surface_mask,
             atmosphere_mask=results.atmosphere_mask,

@@ -62,10 +62,10 @@ class Surface:
     
     def reflect(self, pos, ori, rand_1, rand_2):
         ground_ids = self.ground_map.get_material_ids(pos)
-        result_ori = np.zeros_like(ori)
+        result_direction = np.zeros_like(ori)
 
         for i, refl in enumerate(self.reflections):
-            msk_i = ground_ids == i
-            result_ori[:, msk_i] = refl.reflect(ori[:, msk_i], rand_1[msk_i], rand_2[msk_i])
+            mask_i = ground_ids == i
+            result_direction[:, mask_i] = refl.reflect(ori[:, mask_i], rand_1[mask_i], rand_2[mask_i])
 
-        return result_ori
+        return result_direction

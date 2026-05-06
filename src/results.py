@@ -11,8 +11,8 @@ from matplotlib.colors import ListedColormap
 sns.set_theme(style="ticks")
 
 class Results:
-    def __init__(self, last_positions, space_mask, surface_mask, layer_idx, sample_paths) -> None:
-        self.last_positions = last_positions
+    def __init__(self, final_positions, space_mask, surface_mask, layer_idx, sample_paths) -> None:
+        self.final_positions = final_positions
         self.space_mask = space_mask
         self.surface_mask = surface_mask
         self.atmosphere_mask = (~space_mask) & (~surface_mask)
@@ -60,7 +60,7 @@ photons absorbed by atmosphere {np.count_nonzero(self.atmosphere_mask)}\n"
         return fig
 
     def surface_plot(self):
-        pos = self.last_positions[:, self.surface_mask]
+        pos = self.final_positions[:, self.surface_mask]
         pos = pos[:, (pos[0]>-30) & (pos[0]<30) & (pos[1] > -30) & (pos[1]<30)]
         joint_plot = sns.jointplot(x=pos[0], y=pos[1], kind="hex", cmap='viridis')
         return joint_plot.figure

@@ -1,1 +1,0 @@
-{"title": "default config", "simulation": {"general": {"n_photons": 1000000, "n_track": 1000, "starting_pos": [0, 0, 0], "random_seed": 42}, "sun": {"theta_sun": 45, "phi_sun": 0}}, "execution_time_s": 11.945736429}
