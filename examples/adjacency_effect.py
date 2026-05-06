@@ -9,7 +9,7 @@ _project_root = _script_dir if (_script_dir / 'src').exists() else _script_dir.p
 sys.path.append(str(_project_root))
 
 from src.simulation import MCRadiation
-from src.scene import Scene, Space
+from src.scene import Scene
 from src.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
 from src.surface import Surface, SurfaceMaterial, ProceduralMap
 from src.physics import SurfaceReflections, AtmosphereScatterings

@@ -4,10 +4,6 @@ from src.physics import rotate
 from src.atmosphere import Atmosphere
 from src.surface import Surface
 
-class Space:
-    def __init__(self):
-        pass
-
 class Scene:
     def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:
         self.surface = surface
