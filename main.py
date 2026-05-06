@@ -1,12 +1,13 @@
 """AtmoRad.py - a small usage example
 
-This script will demonstrate a basic usage of simulation using a simplest-possible setup.
+This script will demonstrate a basic usage of simulation 
+using the simplest-possible setup (one layer of air, uniform Lambertian ground).
 
-Another, slightly more complex and descriptive example can be seen in examples/adjacency_effect.py
+To see more complex ecample (e.g. mixed surface boundaries, multiple atmosphere layers, cloudy layers), 
+check the scripts inside  `examples/` directory 
 
+Have fun!
 """
-
-
 
 import time
 import numpy as np
@@ -40,10 +41,10 @@ def main():
     ###################
     # 2. ATMOSPHERE ###
     ###################
-    # Format: AtmosphericMedium(optical_density_per_km, ssa, scattering_phase_function)
+    # format: AtmosphericMedium(optical_density_per_km, ssa, scattering_phase_function)
     air = AtmosphericMedium(0.01, 0.5, AtmosphereScatterings.HenyeyGreenstein(g=0.5))
 
-    # Format: AtmosphericLayer(thickness_km, [(medium0, fraction0), ...])
+    # format: AtmosphericLayer(thickness_km, [(medium0, fraction0), ...])
     layer0 = AtmosphericLayer(20, [(air, 1)])
 
     atm = Atmosphere([layer0])
@@ -51,7 +52,7 @@ def main():
     ###################
     # 3. SURFACE ######
     ###################
-    # Format: SurfaceMaterial(albedo, reflection_object)
+    # format: SurfaceMaterial(albedo, reflection_object)
     material0 = SurfaceMaterial(0.5, SurfaceReflections.LambertianReflection())
 
     ground_map = ProceduralMap(ProceduralMap.uniform_ground)
