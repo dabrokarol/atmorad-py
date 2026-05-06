@@ -1,4 +1,5 @@
 import time
+import numpy as np
 
 from src.simulation import MCRadiation
 from src.scene import Scene, Space
@@ -38,7 +39,9 @@ def main():
     space = Space() # For now an empty object, represents end of atmosphere
     scene = Scene(surface, atm, space, config)
 
-    sim = MCRadiation(config, scene)
+    measure_z = np.arange(0, 17, 1)
+
+    sim = MCRadiation(config, scene, measure_z)
     start_time = time.perf_counter_ns()
     sim.run()
     end_time = time.perf_counter_ns()

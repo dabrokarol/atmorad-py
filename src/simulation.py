@@ -9,7 +9,7 @@ from src.results import Results
 # Sun position constant (could be taken from some database)
 
 class MCRadiation:
-    def __init__(self, config, scene: Scene):
+    def __init__(self, config, scene: Scene, measure_z):
         config = config['simulation']
 
         self.num_photons = config['general']['n_photons']
@@ -22,6 +22,10 @@ class MCRadiation:
 
         self.results = None
         self.scene = scene
+
+        self.measure_z = measure_z
+        self.diff_down = np.zeros(measure_z.size + 1)
+        self.diff_up = np.zeros(measure_z.size + 1)
 
     def _init_arrays(self):
         theta_sun_rad = self.theta_sun / 180 * np.pi
@@ -68,7 +72,32 @@ class MCRadiation:
             transmission = self.rng.uniform(0, 1, num_active_photons)
             tau_to_travel = -np.log(transmission)
 
+            old_z = pos[2].copy()
+
             pos, surface_mask, space_mask, medium_ids = scene.move_photons(pos, direction, tau_to_travel, self.rng)
+
+            new_z = pos[2]
+            down_mask = new_z > old_z
+            if np.any(down_mask):
+                z1_down = old_z[down_mask]
+                z2_down = new_z[down_mask]
+                
+                idx_start = np.searchsorted(self.measure_z, z1_down, side='right')
+                idx_end = np.searchsorted(self.measure_z, z2_down, side='right')
+                
+                np.add.at(self.diff_down, idx_start, 1)
+                np.add.at(self.diff_down, idx_end, -1)
+
+            up_mask = new_z < old_z
+            if np.any(up_mask):
+                z1_up = new_z[up_mask] 
+                z2_up = old_z[up_mask]
+                
+                idx_start = np.searchsorted(self.measure_z, z1_up, side='left')
+                idx_end = np.searchsorted(self.measure_z, z2_up, side='left')
+                
+                np.add.at(self.diff_up, idx_start, 1)
+                np.add.at(self.diff_up, idx_end, -1)
             
             atmosphere_mask = (~surface_mask) & (~space_mask)
             
@@ -78,6 +107,7 @@ class MCRadiation:
             active_mask = (~space_mask) & (~absorbed_surface) & ~(absorbed_atmosphere)
             terminated_mask = ~active_mask
             
+            #### UPDATING SIMULATION MEASURES
             final_positions[:, active_ids[terminated_mask]] = pos[:, terminated_mask]
             final_directions[:, active_ids[terminated_mask]] = direction[:, terminated_mask]
             scatter_counts[active_ids[scattered]] += 1
@@ -99,6 +129,9 @@ class MCRadiation:
 
         space_mask, surface_mask, layer_idx = scene.get_photon_position_mask(final_positions[2])
 
+        flux_down = np.cumsum(self.diff_down)[:-1]
+        flux_up = np.cumsum(self.diff_up)[:-1]
+
         self.results = Results(
             final_positions=final_positions,
             space_mask=space_mask,
@@ -106,7 +139,10 @@ class MCRadiation:
             layer_idx=layer_idx,
             sample_paths=tracked_paths,
             surface_hits=surface_hits_pos,
-            scatter_counts=scatter_counts
+            scatter_counts=scatter_counts,
+            measure_z=self.measure_z,
+            flux_up=flux_up,
+            flux_down=flux_down,
         )
     
     def get_results(self):
