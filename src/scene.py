@@ -9,7 +9,7 @@ class Space:
         pass
 
 class Scene:
-    def __init__(self, surface: Surface, atmosphere: Atmosphere, space: Space, config: dict) -> None:
+    def __init__(self, surface: Surface, atmosphere: Atmosphere, space: Space) -> None:
         self.surface = surface
         self.space = space
         self.atmosphere = atmosphere
