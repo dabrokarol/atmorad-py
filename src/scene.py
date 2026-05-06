@@ -110,7 +110,7 @@ class Scene:
         absorbed_surface = (~to_reflect) & surface_mask
         absorbed_atmosphere = (~to_scat) & atmosphere_mask
 
-        return direction, absorbed_surface, absorbed_atmosphere
+        return direction, absorbed_surface, absorbed_atmosphere, to_scat
     
     def snap_to_boundaries(self, pos, direction, reached_space, reached_surf):
         pos[:, reached_space] += (0 - pos[2, reached_space]) / direction[2, reached_space] * direction[:, reached_space]
