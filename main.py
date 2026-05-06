@@ -39,9 +39,9 @@ def main():
     scene = Scene(surface, atm, space, config)
 
     sim = MCRadiation(config, scene)
-    start_time = time.time_ns()
+    start_time = time.perf_counter_ns()
     sim.run()
-    end_time = time.time_ns()
+    end_time = time.perf_counter_ns()
     # 4. OUTPUTS
     res = sim.get_results()
     fig_surf = res.surface_plot()
