@@ -14,9 +14,11 @@ from matplotlib.figure import Figure
 from src.results import Results
 from src.config import SimConfig
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 class OutputHandler:
     def __init__(self, base_dir: str, overwrite = False) -> None:
-        self.base_dir = Path.cwd() / base_dir
+        self.base_dir = PROJECT_ROOT / base_dir
         if overwrite:
             self.base_dir.mkdir(exist_ok=True)
         else:
