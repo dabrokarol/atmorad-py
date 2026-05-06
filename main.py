@@ -1,5 +1,13 @@
 import time
 import numpy as np
+import sys
+from pathlib import Path
+
+# if file ends up one dir upward from root directory, it will still include src
+_script_dir = Path(__file__).resolve().parent
+_project_root = _script_dir if (_script_dir / 'src').exists() else _script_dir.parent
+sys.path.append(str(_project_root))
+
 
 from src.simulation import MCRadiation
 from src.scene import Scene, Space
@@ -14,8 +22,8 @@ def main():
 
     # 1. SIMULATION PARAMETERS
     config = SimConfig(
-        num_photons=100_000,
-        num_track=100,
+        num_photons=1_000_000,
+        num_track=200,
         random_seed=42,
         theta_sun_deg=60,
         phi_sun_deg=0
@@ -55,19 +63,19 @@ def main():
     sim.run()
     end_time = time.perf_counter_ns()
 
-    # 4. OUTPUTS
+    # 5. OUTPUTS
     res = sim.get_results()
-    handler = OutputHandler('demo_outputs', overwrite=False)
+    handler = OutputHandler('results', overwrite=False)
 
-    fig_surf = res.surface_flux_plot()
+    fig_surf = res.surface_flux_plot(title='Downward flux near the ground on the border\n of absorbant and reflective surfaces (border on X=0)')
     fig_paths = res.plot_paths()
     fig_flux = res.plot_flux_profile()
     fig_scat_hist = res.plot_scattering_histogram()
 
-    handler.save_plot(fig_paths, 'sample_paths.png')
+    handler.save_plot(fig_paths, '3d_photon_paths.png')
     handler.save_plot(fig_surf, 'surface_flux_map.png')
-    handler.save_plot(fig_flux, 'flux.png')
-    handler.save_plot(fig_scat_hist, 'scattering_counts.png')
+    handler.save_plot(fig_flux, 'vertical_flux_profile.png')
+    handler.save_plot(fig_scat_hist, 'scattering_hist.png')
 
     handler.save_metadata(config, (end_time - start_time) / 1e9)
     handler.save_results(res)
