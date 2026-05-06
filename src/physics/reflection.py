@@ -6,39 +6,39 @@ class SurfaceReflection:
     def __init__(self, reflection_func):
         self.reflection_func = reflection_func
 
-    def reflect(self, ori, rand_1, rand_2):
-        return self.reflection_func(ori, rand_1, rand_2)
+    def reflect(self, direction, rand_1, rand_2):
+        return self.reflection_func(direction, rand_1, rand_2)
     
-    def __call__(self, ori, rand_1, rand_2):
-        return self.reflection_func(ori, rand_1, rand_2)
-    
-    @staticmethod
-    def mirror_reflection_func(ori, rand_1, rand_2):
-        ori[2] = -ori[2]
-        return ori
+    def __call__(self, direction, rand_1, rand_2):
+        return self.reflection_func(direction, rand_1, rand_2)
     
     @staticmethod
-    def lambertian_reflection_func(ori, rand_1, rand_2):
+    def mirror_reflection_func(direction, rand_1, rand_2):
+        direction[2] = -direction[2]
+        return direction
+    
+    @staticmethod
+    def lambertian_reflection_func(direction, rand_1, rand_2):
         phi = rand_2 * 2 * np.pi
 
-        cos_t = -np.sqrt(rand_1) # cosine-weighted hemisphere sampling, minus because surface has the biggest height
-        sin_t = np.sqrt(1 - rand_1)
-        cos_p = np.cos(phi)
-        sin_p = np.sin(phi)
+        cos_theta = -np.sqrt(rand_1) # cosine-weighted hemisphere sampling, minus because surface has the biggest height
+        sin_theta = np.sqrt(1 - rand_1)
+        cos_phi = np.cos(phi)
+        sin_phi = np.sin(phi)
 
-        return orientation(cos_t, sin_t, cos_p, sin_p)
+        return orientation(cos_theta, sin_theta, cos_phi, sin_phi)
     
     @staticmethod
-    def uniform_reflection_func(ori, rand_1, rand_2):
+    def uniform_reflection_func(direction, rand_1, rand_2):
         theta = rand_1 * np.pi / 2
         phi = rand_2 * 2 * np.pi
 
-        cos_t = -np.cos(theta) # uniform sampling
-        sin_t = np.sin(theta)
-        cos_p = np.cos(phi)
-        sin_p = np.sin(phi)
+        cos_theta = -np.cos(theta) # uniform sampling
+        sin_theta = np.sin(theta)
+        cos_phi = np.cos(phi)
+        sin_phi = np.sin(phi)
 
-        return orientation(cos_t, sin_t, cos_p, sin_p)
+        return orientation(cos_theta, sin_theta, cos_phi, sin_phi)
     
 class MirrorReflection(SurfaceReflection):
     def __init__(self):
