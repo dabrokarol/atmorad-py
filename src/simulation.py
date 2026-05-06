@@ -46,11 +46,14 @@ class MCRadiation:
 
         tracked_paths = {i: [] for i in range(self.num_track)}
         final_positions = np.zeros((3, self.num_photons))
+        final_directions = np.zeros((3, self.num_photons))
 
-        return pos, direction, ids, scatter_counts, tracked_paths, final_positions
+        return pos, direction, ids, scatter_counts, tracked_paths, final_positions, final_directions
 
     def run(self):
-        pos, direction, active_ids, scatter_counts, tracked_paths, final_positions = self._init_arrays()
+        pos, direction, active_ids, scatter_counts, tracked_paths, final_positions, final_directions = self._init_arrays()
+
+        surface_hits_pos = []
         
         num_track = self.num_track
         scene = self.scene
@@ -70,12 +73,16 @@ class MCRadiation:
             atmosphere_mask = (~surface_mask) & (~space_mask)
             
             rand_interaction, rand_theta, rand_phi = self.rng.uniform(0, 1, size=(3, active_ids.size))
-            direction, absorbed_surface, absorbed_atmosphere = scene.scatter_photons(pos, direction, rand_interaction, rand_theta, rand_phi, surface_mask, atmosphere_mask, medium_ids)
+            direction, absorbed_surface, absorbed_atmosphere, scattered = scene.scatter_photons(pos, direction, rand_interaction, rand_theta, rand_phi, surface_mask, atmosphere_mask, medium_ids)
 
             active_mask = (~space_mask) & (~absorbed_surface) & ~(absorbed_atmosphere)
             terminated_mask = ~active_mask
             
             final_positions[:, active_ids[terminated_mask]] = pos[:, terminated_mask]
+            final_directions[:, active_ids[terminated_mask]] = direction[:, terminated_mask]
+            scatter_counts[:, active_ids[scattered]] += 1
+            if np.any(surface_mask):
+                surface_hits_pos.append(pos[:2, surface_mask].copy())
             
             #### SHRINKING THE ARRAY TO ONLY ALIVE PHOTONS
             pos = pos[:, active_mask]
@@ -85,6 +92,11 @@ class MCRadiation:
         for i, position in enumerate(final_positions[:, :self.num_track].T):
             tracked_paths[i].append(position.copy())
 
+        if surface_hits_pos:
+            surface_hits_pos = np.concatenate(surface_hits_pos)
+        else:
+            surface_hits_pos = np.array([])
+
         space_mask, surface_mask, layer_idx = scene.get_photon_position_mask(final_positions[2])
 
         self.results = Results(
@@ -92,7 +104,8 @@ class MCRadiation:
             space_mask=space_mask,
             surface_mask=surface_mask,
             layer_idx=layer_idx,
-            sample_paths=tracked_paths
+            sample_paths=tracked_paths,
+            surface_hits=surface_hits_pos
         )
     
     def get_results(self):

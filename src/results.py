@@ -11,13 +11,15 @@ from matplotlib.colors import ListedColormap
 sns.set_theme(style="ticks")
 
 class Results:
-    def __init__(self, final_positions, space_mask, surface_mask, layer_idx, sample_paths) -> None:
+    def __init__(self, final_positions, space_mask, surface_mask, layer_idx, sample_paths, surface_hits, scatter_counts) -> None:
         self.final_positions = final_positions
         self.space_mask = space_mask
         self.surface_mask = surface_mask
         self.atmosphere_mask = (~space_mask) & (~surface_mask)
         self.sample_paths = sample_paths
         self.layer_idx = layer_idx
+        self.surface_hits = surface_hits
+        self.scatter_counts = scatter_counts
 
     def __str__(self):
         return f"photons left atmosphere: {np.count_nonzero(self.space_mask)}\n\
