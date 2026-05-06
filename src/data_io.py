@@ -26,9 +26,10 @@ class OutputHandler:
                 self.base_dir = Path.cwd() / f"{base_dir}_{timestamp}"
                 self.base_dir.mkdir()
     
-    def save_metadata(self, config: SimConfig, execution_time_s: float) -> None:
-        config.execution_time_s = execution_time_s
+    def save_metadata(self, config: SimConfig, execution_time_s: float|None = None) -> None:
         config_dict = asdict(config)
+        if execution_time_s:
+            config_dict['execution_time_s'] = execution_time_s
         with open(self.base_dir / 'metadata.json', 'w') as f:
             json.dump(config_dict, f, indent=4)
 

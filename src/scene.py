@@ -9,9 +9,8 @@ class Space:
         pass
 
 class Scene:
-    def __init__(self, surface: Surface, atmosphere: Atmosphere, space: Space) -> None:
+    def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:
         self.surface = surface
-        self.space = space
         self.atmosphere = atmosphere
 
     def move_photons(self, pos, direction, tau_to_travel, rng):
