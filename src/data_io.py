@@ -3,6 +3,8 @@ import datetime
 import json
 import tomllib
 import numpy as np
+import shutil
+import sys
 
 from pathlib import Path
 from typing import Any
@@ -32,6 +34,7 @@ class OutputHandler:
             config_dict['execution_time_s'] = execution_time_s
         with open(self.base_dir / 'metadata.json', 'w') as f:
             json.dump(config_dict, f, indent=4)
+        shutil.copy(sys.argv[0], self.base_dir / 'experiment_setup.py')
 
     def save_plot(self, fig: Figure, plot_name: str) -> None:
         fig.savefig(self.base_dir / plot_name, dpi=300, bbox_inches='tight')
