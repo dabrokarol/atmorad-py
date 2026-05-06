@@ -80,7 +80,7 @@ class MCRadiation:
             
             final_positions[:, active_ids[terminated_mask]] = pos[:, terminated_mask]
             final_directions[:, active_ids[terminated_mask]] = direction[:, terminated_mask]
-            scatter_counts[:, active_ids[scattered]] += 1
+            scatter_counts[active_ids[scattered]] += 1
             if np.any(surface_mask):
                 surface_hits_pos.append(pos[:2, surface_mask].copy())
             
@@ -93,7 +93,7 @@ class MCRadiation:
             tracked_paths[i].append(position.copy())
 
         if surface_hits_pos:
-            surface_hits_pos = np.concatenate(surface_hits_pos)
+            surface_hits_pos = np.concatenate(surface_hits_pos, axis=1)
         else:
             surface_hits_pos = np.array([])
 
