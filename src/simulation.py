@@ -105,7 +105,8 @@ class MCRadiation:
             surface_mask=surface_mask,
             layer_idx=layer_idx,
             sample_paths=tracked_paths,
-            surface_hits=surface_hits_pos
+            surface_hits=surface_hits_pos,
+            scatter_counts=scatter_counts
         )
     
     def get_results(self):
