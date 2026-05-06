@@ -2,3 +2,5 @@ numpy
 matplotlib
 colorcet
 datashader
+seaborn
+pandas
