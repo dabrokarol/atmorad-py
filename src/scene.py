@@ -117,3 +117,9 @@ class Scene:
         pos[:, reached_space] += (0 - pos[2, reached_space]) / ori[2, reached_space] * ori[:, reached_space]
         pos[:, reached_surf] += (self.atmosphere.boundaries[-1] - pos[2, reached_surf]) / ori[2, reached_surf] * ori[:, reached_surf]
         return pos
+    
+    def get_photon_position_msk(self, pos_z):
+        space_msk = pos_z <= 0
+        surface_msk = pos_z >= self.atmosphere.boundaries[-1]
+        layer_idx = self.atmosphere.get_layer_idx(pos_z)
+        return space_msk, surface_msk, layer_idx

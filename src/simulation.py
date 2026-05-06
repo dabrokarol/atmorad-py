@@ -1,11 +1,9 @@
 import logging
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.legend_handler import HandlerTuple
-from pathlib import Path
 
 from src.physics import orientation, rotate
 from src.scene import Scene
+from src.results import Results
 
 # TODO:
 # Sun position constant (could be taken from some database)
@@ -13,21 +11,17 @@ from src.scene import Scene
 class MCRadiation:
     def __init__(self, config, scene: Scene):
         config = config['simulation']
-        self.fig_dir = Path.cwd() / config['filepaths']['fig_dir']
-        self.plot_name = config['filepaths']['plot_name']
-        self.fig_dir.mkdir(exist_ok=True)
 
         self.n_photons = config['general']['n_photons']
         self.n_track = config['general']['n_track']
         self.starting_pos = np.array(config['general']['starting_pos'], dtype=np.float64).reshape(-1, 1)
+        self.rng = np.random.default_rng(config['general']['random_seed'])
         
         self.theta_sun = config['sun']['theta_sun']
         self.phi_sun = config['sun']['phi_sun']
 
         self.results = None
-
         self.scene = scene
-        self.rng = np.random.default_rng(config['random_seed'])
 
     def _init_arrays(self):
         theta_sun_rad = self.theta_sun / 180 * np.pi
@@ -42,17 +36,16 @@ class MCRadiation:
 
         ori = orientation(cos_t, sin_t, cos_p, sin_p)
 
-        pos_x = self.rng.uniform(-1, 1, self.n_photons) * 1000
-        pos_y = self.rng.uniform(-1, 1, self.n_photons) * 1000
+        pos_x = self.rng.uniform(-1, 1, self.n_photons) * 100 + self.starting_pos[0]
+        pos_y = self.rng.uniform(-1, 1, self.n_photons) * 100 + self.starting_pos[1]
         pos_z = np.full(self.n_photons, 1e-6)
         pos = np.vstack((pos_x, pos_y, pos_z))
 
-        np.random.uniform()
         ids = np.arange(0, self.n_photons)
         scatter_counts = np.zeros(self.n_photons)
 
         history = {i: [] for i in range(self.n_track)}
-        last_positions = np.zeros((self.n_photons, 3))
+        last_positions = np.zeros((3, self.n_photons))
 
         return pos, ori, ids, scatter_counts, history, last_positions
 
@@ -62,15 +55,11 @@ class MCRadiation:
         n_track = self.n_track
         scene = self.scene
 
-        n_left_atmosphere = 0
-        n_absorbed_surf = 0
-        n_absorbed_atmoshpere = 0
-
         while ids.size:
             n_photons = ids.size
 
             logging.info(f"{n_photons} photons left")
-            for i, position in zip(ids[ids<n_track], pos[:, ids<n_track].T.copy()):
+            for i, position in zip(ids[ids<n_track], pos[:, ids<n_track].copy().T):
                 history[i].append(position)
 
             transmission = self.rng.uniform(0, 1, n_photons)
@@ -83,67 +72,34 @@ class MCRadiation:
             r1, r2, r3 = self.rng.uniform(0, 1, size=(3, ids.size))
             ori, absorbed_surface, absorbed_atmosphere = scene.scatter_photons(pos, ori, r1, r2, r3, surface_mask, atmoshpere_mask, medium_ids)
 
-
-            n_left_atmosphere += np.count_nonzero(space_mask)
-            n_absorbed_atmoshpere += np.count_nonzero(absorbed_atmosphere)
-            n_absorbed_surf += np.count_nonzero(absorbed_surface)
-
             msk = (~space_mask) & (~absorbed_surface) & ~(absorbed_atmosphere)
             left_msk = ~msk
             
-            last_positions[ids[left_msk]] = pos[:, left_msk].T
+            last_positions[:, ids[left_msk]] = pos[:, left_msk]
             
             #### SHRINKING THE ARRAY TO ONLY ALIVE PHOTONS
             pos = pos[:, msk]
             ori = ori[:, msk]
             ids = ids[msk]
 
-        for i, positon in enumerate(last_positions[:self.n_track]):
+        for i, positon in enumerate(last_positions[:, :self.n_track].T):
             history[i].append(positon.copy())
 
+        space_mask, surface_mask, layer_idx = scene.get_photon_position_msk(last_positions[2])
 
-        self.results = {
-            "photons left atmosphere": n_left_atmosphere,
-            "photons absorbed by surface": n_absorbed_surf,
-            "photons absorbed by atmosphere": n_absorbed_atmoshpere,
-            "sample paths": history
-        }
+        self.results = Results(
+            last_positions=last_positions,
+            space_mask=space_mask,
+            surface_mask=surface_mask,
+            layer_idx=layer_idx,
+            sample_paths=history
+        )
+    
+    def get_results(self):
+        if self.results is None:
+            raise KeyError("No results, use '.run()' first")
+        
+        return self.results
 
-    def plot_paths(self, filename:str|None=None):
-        if filename is None:
-            filename = self.plot_name
 
-        fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
-
-        if self.results is not None:
-            history = self.results['sample paths']
-        else:
-            raise KeyError("No photon paths found. Use '.run()' first")
-
-        starting = []
-        ending = []
-        lines = []
-        for i, h in history.items(): 
-            X, Y, Z = np.array(h).T
-            p1 = ax.scatter(X[0], Y[0], Z[0], color='green', label='starting-point', alpha=0.7, s=5)
-            l1, = ax.plot(X, Y, Z, label=f'{i}', alpha=0.7)
-            p2 = ax.scatter(X[-1], Y[-1], Z[-1], color='red', label='ending-point', alpha=0.7, s=5)
-            starting.append(p1)
-            lines.append(l1)
-            ending.append(p2)
-
-        ax.invert_zaxis()
-        # source: https://stackoverflow.com/questions/31478077/how-to-make-two-markers-share-the-same-label-in-the-legend
-        fig.legend([tuple(starting), tuple(lines), tuple(ending)], ['start points', 'paths', 'ending points'], handler_map={tuple: HandlerTuple(ndivide=None)}) # type: ignore
-        fig.savefig(self.fig_dir / filename)
-
-    def print_results(self):
-        if self.results is not None:
-            results = self.results
-        else:
-            raise KeyError("No results found. Use '.run()' first")
-
-        for k, v in results.items():
-            print(f"{k}: {v}") if k != "sample paths" else ...
 

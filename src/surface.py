@@ -24,6 +24,10 @@ class ProceduralMap:
         return np.where(pos[0] < 0, 0, 1)
     
     @staticmethod
+    def circle(pos):
+        return np.where((pos[0]**2 + pos[1]**2) < 100, 0, 1)
+    
+    @staticmethod
     def checkerboard(pos):
         x = np.mod(pos[0], 10)
         y = np.mod(pos[1], 10)
