@@ -32,14 +32,16 @@ def main():
 
     # Procedural map takes in a function that takes in a np.array of shape (2, N) or (3, N) and outputs array of shape (N) with integers
     # The returned integer array represents material IDs.
-    ground_map = ProceduralMap(ProceduralMap.circle)
+    ground_map = ProceduralMap(ProceduralMap.split_half_x)
     surface = Surface(ground_map, [material0, material1])
 
     # 3. SCENE AND SIMULATION
     space = Space() # For now an empty object, represents end of atmosphere
     scene = Scene(surface, atm, space, config)
 
-    measure_z = np.arange(0, 17, 1)
+    # heights at which flux will be measured (0 - top of atmosphere)
+    hmax = atm.boundaries[-1]
+    measure_z = np.arange(0, hmax, 0.5)
 
     sim = MCRadiation(config, scene, measure_z)
     start_time = time.perf_counter_ns()
@@ -47,12 +49,17 @@ def main():
     end_time = time.perf_counter_ns()
     # 4. OUTPUTS
     res = sim.get_results()
-    fig_surf = res.surface_plot()
+    fig_surf = res.surface_flux_plot()
     fig_paths = res.plot_paths()
+    fig_flux = res.plot_flux_profile()
+    fig_scat_hist = res.plot_scattering_histogram()
+
 
     handler = OutputHandler('results', overwrite=True)
-    handler.save_plot(fig_paths, 'paths.png')
-    handler.save_plot(fig_surf, 'surface.png')
+    handler.save_plot(fig_paths, 'sample_paths.png')
+    handler.save_plot(fig_surf, 'surface_flux_map.png')
+    handler.save_plot(fig_flux, 'flux.png')
+    handler.save_plot(fig_scat_hist, 'scattering_counts.png')
     handler.save_metadata(config, (end_time - start_time) / 1e9)
     handler.save_results(res)
     handler.print_results(res)
