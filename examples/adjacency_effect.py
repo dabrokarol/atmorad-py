@@ -1,13 +1,12 @@
 import time
 import numpy as np
-import sys
 from pathlib import Path
+import sys
 
 # if file ends up one dir upward from root directory, it will still include src
 _script_dir = Path(__file__).resolve().parent
 _project_root = _script_dir if (_script_dir / 'src').exists() else _script_dir.parent
 sys.path.append(str(_project_root))
-
 
 from src.simulation import MCRadiation
 from src.scene import Scene, Space
