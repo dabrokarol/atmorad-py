@@ -13,7 +13,7 @@ class MCRadiation:
         config = config['simulation']
 
         self.num_photons = config['general']['n_photons']
-        self.num_track = config['general']['n_track']
+        self.num_track = min(config['general']['n_track'], self.num_photons)
         self.starting_pos = np.array(config['general']['starting_pos'], dtype=np.float64).reshape(-1, 1)
         self.rng = np.random.default_rng(config['general']['random_seed'])
         
@@ -30,11 +30,11 @@ class MCRadiation:
         phi = self.rng.normal(phi_sun_rad, 1/60, size=(self.num_photons))
 
         cos_theta = np.cos(theta)
-        sin_t = np.sin(theta)
+        sin_theta = np.sin(theta)
         cos_phi = np.cos(phi)
-        sin_p = np.sin(phi)
+        sin_phi = np.sin(phi)
 
-        direction = orientation(cos_theta, sin_t, cos_phi, sin_p)
+        direction = orientation(cos_theta, sin_theta, cos_phi, sin_phi)
 
         pos_x = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[0]
         pos_y = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[1]

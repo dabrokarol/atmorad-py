@@ -1,11 +1,10 @@
 title = "default config"
 
-
 [simulation]
 [simulation.general]
-n_photons = 1000000 # Number of simulated photons
-n_track = 1000 # Number of photons which paths will be tracked 
-starting_pos = [0, 0, 0] # (x, y, z) coords, where z=0 is the highest poinf of atmoshpere
+n_photons = 100000 # Number of simulated photons
+n_track = 100 # Number of photons which paths will be tracked 
+starting_pos = [0, 0, 0] # (x, y, z) coords, where z=0 is the highest point of atmosphere
 random_seed = 42 # for reproducibility
 
 [simulation.sun]

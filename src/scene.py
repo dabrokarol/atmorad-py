@@ -64,7 +64,6 @@ class Scene:
             lower_bound = boundaries[layer_idx]
             upper_bound = boundaries[layer_idx + 1]
 
-            delta_z = np.zeros_like(pos[2])
             delta_z[travel_up] = lower_bound[travel_up] - pos[2, travel_up]
             delta_z[travel_down] = upper_bound[travel_down] - pos[2, travel_down]
             delta_z[travel_horizontal] = np.inf
@@ -96,17 +95,17 @@ class Scene:
 
         return final_pos, final_surface_mask, final_space_mask, medium_ids
     
-    def scatter_photons(self, pos, direction, rand_interaction, rand_thetaheta, rand_phi, surface_mask, atmosphere_mask, medium_ids):
+    def scatter_photons(self, pos, direction, rand_interaction, rand_theta, rand_phi, surface_mask, atmosphere_mask, medium_ids):
         """Scatters and reflects photons based on random numbers."""
         to_scat = np.zeros_like(rand_interaction).astype(bool)
         to_scat[atmosphere_mask] = self.atmosphere.is_scattered(medium_ids[atmosphere_mask], rand_interaction[atmosphere_mask])
-        cos_theta, sin_t, cos_phi, sin_p = self.atmosphere.scatter(medium_ids[to_scat], rand_thetaheta[to_scat], rand_phi[to_scat])
+        cos_theta, sin_theta, cos_phi, sin_phi = self.atmosphere.scatter(medium_ids[to_scat], rand_theta[to_scat], rand_phi[to_scat])
 
-        direction[:, to_scat] = rotate(direction[:, to_scat], cos_theta, sin_t, cos_phi, sin_p)
+        direction[:, to_scat] = rotate(direction[:, to_scat], cos_theta, sin_theta, cos_phi, sin_phi)
 
         to_reflect = np.zeros_like(rand_interaction).astype(bool)
         to_reflect[surface_mask] = self.surface.check_reflection(pos[:, surface_mask], rand_interaction[surface_mask])
-        direction[:, to_reflect] = self.surface.reflect(pos[:, to_reflect], direction[:, to_reflect], rand_thetaheta[to_reflect], rand_phi[to_reflect])
+        direction[:, to_reflect] = self.surface.reflect(pos[:, to_reflect], direction[:, to_reflect], rand_theta[to_reflect], rand_phi[to_reflect])
 
         absorbed_surface = (~to_reflect) & surface_mask
         absorbed_atmosphere = (~to_scat) & atmosphere_mask

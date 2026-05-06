@@ -2,7 +2,7 @@ import numpy as np
 
 class Scattering:
     def __init__(self, scatter_func, g, n_precomputed=1000):
-        """Computes normalized probability distribution of cos_thetaheta and sums to obtain distribuant."""
+        """Computes normalized probability distribution of cos_theta and sums to obtain distribuant."""
         cos_grid = np.linspace(-1, 1, n_precomputed)
         dx = cos_grid[1] - cos_grid[0]
 
@@ -17,18 +17,18 @@ class Scattering:
         """Computes sin and cos of theta, phi used for scattering. Uses `np.interp` to obtain reversed distribuant values for given rand_1. Samples phi from uniform distribution [0,2pi].
         
         Args:
-            rand_1 - array of random numbers (uniform(0,1)) used to sample cos_thetaheta
+            rand_1 - array of random numbers (uniform(0,1)) used to sample cos_theta
             rand_2 - array of random numbers (uniform(0,1)) used to sample sin_theta
 
         Returns:
-            np.array((cos_theta, sin_t, cos_phi, sin_p)) - trigonometric functions of sampled angles
+            np.array((cos_theta, sin_theta, cos_phi, sin_phi)) - trigonometric functions of sampled angles
         """
         phi = 2*np.pi*rand_2
         cos_theta = np.interp(rand_1, self.distribuant, self.cos_grid)
-        sin_t = np.sqrt(1 - np.clip(cos_theta**2, 0, 1))
+        sin_theta = np.sqrt(1 - np.clip(cos_theta**2, 0, 1))
         cos_phi = np.cos(phi)
-        sin_p = np.sin(phi)
-        return np.array((cos_theta, sin_t, cos_phi, sin_p))
+        sin_phi = np.sin(phi)
+        return np.array((cos_theta, sin_theta, cos_phi, sin_phi))
     
     def __call__(self, rand_1, rand_2):
         return self.scatter(rand_1, rand_2)

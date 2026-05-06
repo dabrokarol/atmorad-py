@@ -60,12 +60,12 @@ class Surface:
 
         return albedos > rand
     
-    def reflect(self, pos, ori, rand_1, rand_2):
+    def reflect(self, pos, direction, rand_1, rand_2):
         ground_ids = self.ground_map.get_material_ids(pos)
-        result_direction = np.zeros_like(ori)
+        result_direction = np.zeros_like(direction)
 
         for i, refl in enumerate(self.reflections):
             mask_i = ground_ids == i
-            result_direction[:, mask_i] = refl.reflect(ori[:, mask_i], rand_1[mask_i], rand_2[mask_i])
+            result_direction[:, mask_i] = refl.reflect(direction[:, mask_i], rand_1[mask_i], rand_2[mask_i])
 
         return result_direction

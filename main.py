@@ -12,7 +12,7 @@ if __name__ == '__main__':
     config = read_config()
     
     # 1. ATMOSPHERE
-    # Format: AtmosphericMedium(optical_density_per_km, albedo, scattering_phase_function)
+    # Format: AtmosphericMedium(optical_density_per_km, ssa, scattering_phase_function)
     air = AtmosphericMedium(0.01, 0.5, AtmosphereScatterings.HenyeyGreenstein(g=0.5))
     clouds = AtmosphericMedium(5, 0.999999, AtmosphereScatterings.HenyeyGreenstein(g=0.85))
 
