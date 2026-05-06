@@ -1,10 +1,10 @@
 """AtmoRad.py - a small usage example
 
-This script will demonstrate a basic usage of simulation 
-using the simplest-possible setup (one layer of air, uniform Lambertian ground).
+This script demonstrates basic simulation usage
+using the simplest possible setup (one layer of air, uniform Lambertian ground).
 
-To see more complex ecample (e.g. mixed surface boundaries, multiple atmosphere layers, cloudy layers)
-and how to generate plots seen in README.md, check the script inside  `examples/` directory 
+To see more complex examples (e.g. mixed surface boundaries, multiple atmosphere layers, and cloudy layers)
+and learn how to generate the plots shown in README.md, check the script inside the `examples/` directory.
 
 Enjoy!
 """
@@ -62,7 +62,7 @@ def main():
     # 4. SCENE AND SIMULATION #####
     ###############################
     hmax = atm.get_total_thickness() # height of the eintire atmospheric layer
-    flux_measures_z = np.arange(0, hmax, 0.5) # heights at which flux will be measured (0 - top of atmosphere))
+    flux_measures_z = np.arange(0, hmax, 0.5) # heights at which flux will be measured (0 - top of atmosphere)
 
     scene = Scene(surface, atm)
     sim = MCRadiation(config, scene, flux_measures_z)

@@ -1,12 +1,12 @@
 """
 Adjacency Effect Simulation:
-this file shows how to set up adjacency effect simulation and generate plots seen in README.md
+This file shows how to set up adjacency effect simulation and generate plots seen in README.md
 
 Simulation structure:
 - Three atmospheric layers (air, clouds, air)
 - Surface split on half (x=0)
-    - x<0: albedo=0 (fully absorbant surface)
-    - x>0: albedo=1 (fully reflectife surface, lambertian reflection)
+    - x<0: albedo=0 (fully absorbent surface)
+    - x>0: albedo=1 (fully reflective surface, lambertian reflection)
  """
 
 import time
