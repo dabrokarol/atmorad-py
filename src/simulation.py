@@ -4,21 +4,21 @@ import numpy as np
 from src.physics import orientation, rotate
 from src.scene import Scene
 from src.results import Results
+from src.config import SimConfig
 
 # TODO:
 # Sun position constant (could be taken from some database)
 
 class MCRadiation:
-    def __init__(self, config, scene: Scene, measure_z):
-        config = config['simulation']
+    def __init__(self, config: SimConfig, scene: Scene, measure_z):
 
-        self.num_photons = config['general']['n_photons']
-        self.num_track = min(config['general']['n_track'], self.num_photons)
-        self.starting_pos = np.array(config['general']['starting_pos'], dtype=np.float64).reshape(-1, 1)
-        self.rng = np.random.default_rng(config['general']['random_seed'])
+        self.num_photons = config.num_photons
+        self.num_track = min(config.num_track, self.num_photons)
+        self.starting_pos = np.array(config.starting_pos, dtype=np.float64).reshape(-1, 1)
+        self.rng = np.random.default_rng(config.random_seed)
         
-        self.theta_sun = config['sun']['theta_sun']
-        self.phi_sun = config['sun']['phi_sun']
+        self.theta_sun = config.theta_sun_deg
+        self.phi_sun = config.phi_sun_deg
 
         self.results = None
         self.scene = scene

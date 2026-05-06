@@ -10,24 +10,24 @@
 uv venv
 uv pip install -r requirements.txt
 ```
-- Modify `config.toml` and `main.py` to your liking
+- Modify `main.py` to your liking
 - Run the simulation 
 ```bash
 uv run main.py
 ```
 - Check `fig/` directory for simulation outputs and plots
 
-<!-- ### The traditional way
+### The traditional way
 
 - Create a virtual environment:
   ```
   python3 -m venv .venv
   ```
-- Modify `config.toml` and `main.py` to your liking
+- Modify `main.py` to your liking
 - Activate the environment and run the simulation 
   - Windows
   ```sh
-  .venv/scripts/activate
+  .venv/Scripts/activate
   python3 main.py
   ```
   - Linux / MacOS
@@ -35,7 +35,7 @@ uv run main.py
   source .venv/bin/activate
   python3 main.py
   ```
-- Check `fig/` directory for simulation outputs and plots -->
+- Check `fig/` directory for simulation outputs and plots
 
 ## Physical assumptions:
 Simulation treats photons as monochromatic, non-polarized particles. Environment is created with plane-parallel approximation and can consist of uniform layers of chosen height and material. Each material can have its own scattering phase function, optical density and albedo. Surface consists of a list of materials and a procedural map that outputs material type based on position. 

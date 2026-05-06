@@ -4,10 +4,13 @@ import json
 import tomllib
 import numpy as np
 
-from src.results import Results
 from pathlib import Path
 from typing import Any
+from dataclasses import asdict
 from matplotlib.figure import Figure
+
+from src.results import Results
+from src.config import SimConfig
 
 class OutputHandler:
     def __init__(self, base_dir: str, overwrite = False) -> None:
@@ -23,10 +26,12 @@ class OutputHandler:
                 self.base_dir = Path.cwd() / f"{base_dir}_{timestamp}"
                 self.base_dir.mkdir()
     
-    def save_metadata(self, config: dict[str, Any], execution_time_s: float) -> None:
-        config['execution_time_s'] = execution_time_s
+    def save_metadata(self, config: SimConfig, execution_time_s: float|None = None) -> None:
+        config_dict = asdict(config)
+        if execution_time_s:
+            config_dict['execution_time_s'] = execution_time_s
         with open(self.base_dir / 'metadata.json', 'w') as f:
-            json.dump(config, f)
+            json.dump(config_dict, f, indent=4)
 
     def save_plot(self, fig: Figure, plot_name: str) -> None:
         fig.savefig(self.base_dir / plot_name, dpi=300, bbox_inches='tight')
@@ -48,14 +53,6 @@ class OutputHandler:
 
     def print_results(self, results: Results) -> None:
         print(results.summary())
-    
-def read_config(path: Path|str = 'config.toml') -> dict[str, Any]:
-    try:
-        with open(path, 'rb') as f:
-            data = tomllib.load(f)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"config file missing at {path}")
-    return data
 
 def read_results(path: Path|str) -> Results:
     try:

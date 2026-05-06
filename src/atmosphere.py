@@ -77,3 +77,6 @@ class Atmosphere:
             if np.any(mask_i):
                 new_directions[:, mask_i] = scat(rand_theta[mask_i], rand_phi[mask_i])
         return new_directions
+    
+    def get_total_thickness(self):
+        return self.boundaries[-1]
