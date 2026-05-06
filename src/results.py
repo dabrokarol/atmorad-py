@@ -33,7 +33,6 @@ class Results:
 
     def plot_paths(self, title: str = "Sample 3D photon paths", limit_xy=100):    
         fig = plt.figure(figsize=(10,10))
-        sns.set_style('ticks')
         ax = fig.add_subplot(projection='3d')
 
         labeled_surface, labeled_space, labeled_atmosphere = False, False, False
