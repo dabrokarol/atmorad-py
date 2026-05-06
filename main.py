@@ -3,10 +3,10 @@
 This script will demonstrate a basic usage of simulation 
 using the simplest-possible setup (one layer of air, uniform Lambertian ground).
 
-To see more complex ecample (e.g. mixed surface boundaries, multiple atmosphere layers, cloudy layers), 
-check the scripts inside  `examples/` directory 
+To see more complex ecample (e.g. mixed surface boundaries, multiple atmosphere layers, cloudy layers)
+and how to generate plots seen in README.md, check the script inside  `examples/` directory 
 
-Have fun!
+Enjoy!
 """
 
 import time
@@ -14,7 +14,7 @@ import numpy as np
 import sys
 from pathlib import Path
 
-# if file ends up one dir upward from root directory, it will still include src
+# a script that will allow nested copies of this file to run properly, you can ignore it 
 _script_dir = Path(__file__).resolve().parent
 _project_root = _script_dir if (_script_dir / 'src').exists() else _script_dir.parent
 sys.path.append(str(_project_root))
