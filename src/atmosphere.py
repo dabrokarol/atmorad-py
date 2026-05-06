@@ -1,7 +1,6 @@
 import numpy as np
 
 from src.physics.scattering import Scattering
-from src.constants import INT_MAX
   
 class AtmosphericMedium:
     def __init__(self, mu: float, albedo: float, scattering: Scattering):
@@ -60,8 +59,7 @@ class Atmosphere:
 
     def get_layer_idx(self, pos_z):
         layer_idx = np.searchsorted(self.boundaries, pos_z, 'right') - 1
-        layer_idx[pos_z>=self.boundaries[-1]] = len(self.boundaries) - 2
-        layer_idx[pos_z < 0] = INT_MAX # space will get INT_MAX
+        layer_idx = np.clip(layer_idx, 0, len(self.boundaries) - 2) # clip to valid indexes
         return layer_idx
 
     def get_mediums(self, pos, rand_1):
