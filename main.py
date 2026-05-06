@@ -16,7 +16,7 @@ def main():
     air = AtmosphericMedium(0.01, 0.5, AtmosphereScatterings.HenyeyGreenstein(g=0.5))
     clouds = AtmosphericMedium(5, 0.999999, AtmosphereScatterings.HenyeyGreenstein(g=0.85))
 
-    # Format: AtmosphericLayer(height_km, [(medium0, fraction0), (medium1, fraction1), ...])
+    # Format: AtmosphericLayer(thickness_km, [(medium0, fraction0), (medium1, fraction1), ...])
     # fractions should sum up to 1.0
     # Eg. layer = AtmosphericLayer(50, [(air, 0.3), (clouds, 0.7)]) 
     layer0 = AtmosphericLayer(5, [(air, 1)])
