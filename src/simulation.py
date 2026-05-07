@@ -23,7 +23,8 @@ class MCRadiation:
         self.results = None
         self.scene = scene
 
-        self.measure_z = measure_z
+        self.measure_z = np.array(measure_z)
+        self.measure_z[self.measure_z==0] = 1e-5 # move the z=0 detector infinitesimally downwards
         self.diff_down = np.zeros(measure_z.size + 1)
         self.diff_up = np.zeros(measure_z.size + 1)
 
@@ -54,6 +55,33 @@ class MCRadiation:
 
         return pos, direction, ids, scatter_counts, tracked_paths, final_positions, final_directions
 
+    def update_flux_counts(self, old_z: np.ndarray, new_z: np.ndarray):
+        down_mask = new_z > old_z
+        if np.any(down_mask):
+            z1_down = old_z[down_mask]
+            z2_down = new_z[down_mask]
+            
+            idx_start = np.searchsorted(self.measure_z, z1_down, side='right')
+            idx_end = np.searchsorted(self.measure_z, z2_down, side='right')
+            start_bins = np.bincount(idx_start)
+            end_bins = np.bincount(idx_end)
+
+            self.diff_down[0:start_bins.size] += start_bins
+            self.diff_down[0:end_bins.size] -= end_bins
+
+        up_mask = new_z < old_z
+        if np.any(up_mask):
+            z1_up = new_z[up_mask] 
+            z2_up = old_z[up_mask]
+            
+            idx_start = np.searchsorted(self.measure_z, z1_up, side='left')
+            idx_end = np.searchsorted(self.measure_z, z2_up, side='left')
+            start_bins = np.bincount(idx_start)
+            end_bins = np.bincount(idx_end)
+            
+            self.diff_up[0:start_bins.size] += start_bins
+            self.diff_up[0:end_bins.size] -= end_bins
+
     def run(self):
         pos, direction, active_ids, scatter_counts, tracked_paths, final_positions, final_directions = self._init_arrays()
 
@@ -73,31 +101,9 @@ class MCRadiation:
             tau_to_travel = -np.log(transmission)
 
             old_z = pos[2].copy()
-
             pos, surface_mask, space_mask, medium_ids = scene.move_photons(pos, direction, tau_to_travel, self.rng)
-
             new_z = pos[2]
-            down_mask = new_z > old_z
-            if np.any(down_mask):
-                z1_down = old_z[down_mask]
-                z2_down = new_z[down_mask]
-                
-                idx_start = np.searchsorted(self.measure_z, z1_down, side='right')
-                idx_end = np.searchsorted(self.measure_z, z2_down, side='right')
-                
-                np.add.at(self.diff_down, idx_start, 1)
-                np.add.at(self.diff_down, idx_end, -1)
-
-            up_mask = new_z < old_z
-            if np.any(up_mask):
-                z1_up = new_z[up_mask] 
-                z2_up = old_z[up_mask]
-                
-                idx_start = np.searchsorted(self.measure_z, z1_up, side='left')
-                idx_end = np.searchsorted(self.measure_z, z2_up, side='left')
-                
-                np.add.at(self.diff_up, idx_start, 1)
-                np.add.at(self.diff_up, idx_end, -1)
+            self.update_flux_counts(old_z, new_z)
             
             atmosphere_mask = (~surface_mask) & (~space_mask)
             
