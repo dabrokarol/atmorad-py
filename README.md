@@ -1,10 +1,13 @@
 # atmorad.py
-## A vectorized Monte Carlo simulation of atmospheric radiative transfer. 
+## A vectorized Monte Carlo simulation of atmospheric radiative transfer.
+
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 | 2D Surface flux map | Vertical flux profile |
 | :--- | :--- |
 | ![map](examples/surface_flux_map.png) | ![profile](examples/vertical_flux_profile.png) |
-| Sample photon paths | Scattering counts |
+| **Sample photon paths** | **Scattering counts** |
 | ![paths](examples/3d_photon_paths.png)| ![hist](examples/scattering_hist.png) |
 
 ## Overview:
@@ -30,10 +33,10 @@ This project simulates propagation of light through heterogenous, plane-parallel
 - Create a virtual environment and install dependencies:
 ```bash
 uv venv
-uv pip install -r requirements.txt
+uv pip install -e .
 ```
 - Modify configuration in `main.py` to your liking
-- Run the simulation 
+- Run the simulation:
 ```bash
 uv run main.py
 ```
@@ -45,42 +48,46 @@ uv run main.py
 ```bash
 python3 -m venv .venv
 ```
-- Modify configuration in `main.py` to your liking
-- Activate the environment and run the simulation 
+- Activate the environment and install dependencies:
   - Windows
   ```sh
   .venv/Scripts/activate
-  python3 main.py
+  pip install -e .
   ```
   - Linux / MacOS
   ```sh
   source .venv/bin/activate
-  python3 main.py
+  pip install -e .
   ```
+- Modify configuration in `main.py` to your liking
+- Run the simulation 
+```sh
+python3 main.py
+```
 - Check `results/` directory for simulation outputs and plots
 
 ## Project Structure
 ```
 .
-├── examples/...
-├── src
-│   ├── physics
-│   │   ├── geometry.py
-│   │   ├── __init__.py
-│   │   ├── reflection.py
-│   │   └── scattering.py
-│   ├── atmosphere.py
-│   ├── config.py
-│   ├── data_io.py
-│   ├── __init__.py
-│   ├── results.py
-│   ├── scene.py
-│   ├── simulation.py
-│   └── surface.py
-├── main.py
-├── README.md
-├── LICENSE
-├── requirements.txt
+├── examples/               # A more complex usage example and some plots
+├── src/                    # Simulation engine
+│   ├── physics/            # Functions for physical behaviours
+│   │   ├── __init__.py     # Import interface
+│   │   ├── geometry.py     # Rotation function
+│   │   ├── reflection.py   # Surface BRDFs
+│   │   └── scattering.py   # Phase functions
+│   ├── __init__.py         #
+│   ├── atmosphere.py       # Atmosphere, layers and materials
+│   ├── config.py           # SimConfig class
+│   ├── data_io.py          # Class for saving and reading results
+│   ├── results.py          # Class for storing results and drawing plots
+│   ├── scene.py            # Class containing the sim environment
+│   ├── simulation.py       # Class running the main simulation loop
+│   └── surface.py          # Surface maps and materials
+├── main.py                 # A simple example of project capabilities 
+├── README.md               # 
+├── LICENSE                 # MIT license
+├── requirements.txt        # python libraries required to run the project
 ```
 ### Core Architecture:
 - `Scene`: computes photons' paths and keeps track of the environment.
@@ -96,3 +103,7 @@ See `main.py` for examples and comments on how to build custom surface maps and 
 
 ## Contributing:
 Feel free to open an Issue or submit a Pull Request if you'd like to contribute or report a bug.
+
+## Acknowledgments
+- This project was inspired by the lectures on *Radiative Processes in the Atmosphere* by Prof. K. Markowicz, Faculty of Physics, University of Warsaw.
+- Large Language Models were used for code-debugging and learning best python practices (e.g. `dataclasses`, `__init__.py` import interfaces, class layouts). Code was not copy pasted, but rewrited based on LLM's suggestions to learn as much as possible while creating this project.

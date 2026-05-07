@@ -3,3 +3,5 @@
 .provenance
 __pycache__/
 fig/*
+*egg-info
+uv.lock
