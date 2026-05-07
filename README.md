@@ -62,6 +62,7 @@ python3 -m venv .venv
 ## Project Structure
 ```
 .
+├── examples/...
 ├── src
 │   ├── physics
 │   │   ├── geometry.py
@@ -78,6 +79,7 @@ python3 -m venv .venv
 │   └── surface.py
 ├── main.py
 ├── README.md
+├── LICENSE
 ├── requirements.txt
 ```
 ### Core Architecture:
@@ -91,3 +93,6 @@ See `main.py` for examples and comments on how to build custom surface maps and 
 
 ## References and Literature
 - (in Polish) Script for Lecture about [Radiative Processes in the Atmosphere](https://www.igf.fuw.edu.pl/~kmark/stacja/wyklady/ProcesyRadiacyjne/2013/WykladRadiacjaKlimat.pdf), Prof. K. Markowicz, Faculty of Physics, University of Warsaw, 2013.
+
+## Contributing:
+Feel free to open an Issue or submit a Pull Request if you'd like to contribute or report a bug.

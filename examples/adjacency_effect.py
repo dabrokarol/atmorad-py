@@ -1,3 +1,14 @@
+"""
+Adjacency Effect Simulation:
+This file shows how to set up adjacency effect simulation and generate plots seen in README.md
+
+Simulation structure:
+- Three atmospheric layers (air, clouds, air)
+- Surface split on half (x=0)
+    - x<0: albedo=0 (fully absorbent surface)
+    - x>0: albedo=1 (fully reflective surface, lambertian reflection)
+ """
+
 import time
 import numpy as np
 from pathlib import Path
@@ -9,7 +20,7 @@ _project_root = _script_dir if (_script_dir / 'src').exists() else _script_dir.p
 sys.path.append(str(_project_root))
 
 from src.simulation import MCRadiation
-from src.scene import Scene, Space
+from src.scene import Scene
 from src.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
 from src.surface import Surface, SurfaceMaterial, ProceduralMap
 from src.physics import SurfaceReflections, AtmosphereScatterings
@@ -43,8 +54,8 @@ def main():
 
     # 3. SURFACE
     # Format: SurfaceMaterial(albedo, reflection_object)
-    material0 = SurfaceMaterial(1, SurfaceReflections.MirrorReflection())
-    material1 = SurfaceMaterial(0, SurfaceReflections.LambertianReflection())
+    material0 = SurfaceMaterial(0, SurfaceReflections.LambertianReflection())
+    material1 = SurfaceMaterial(1, SurfaceReflections.LambertianReflection())
 
     # Procedural map takes in a function that takes in a np.array of shape (2, N) or (3, N) and outputs array of shape (N) with integers
     # The returned integer array represents material IDs.

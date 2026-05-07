@@ -1,16 +1,27 @@
+"""AtmoRad.py - a small usage example
+
+This script demonstrates basic simulation usage
+using the simplest possible setup (one layer of air, uniform Lambertian ground).
+
+To see more complex examples (e.g. mixed surface boundaries, multiple atmosphere layers, and cloudy layers)
+and learn how to generate the plots shown in README.md, check the script inside the `examples/` directory.
+
+Enjoy!
+"""
+
 import time
 import numpy as np
 import sys
 from pathlib import Path
 
-# if file ends up one dir upward from root directory, it will still include src
+# a script that will allow nested copies of this file to run properly, you can ignore it 
 _script_dir = Path(__file__).resolve().parent
 _project_root = _script_dir if (_script_dir / 'src').exists() else _script_dir.parent
 sys.path.append(str(_project_root))
 
 
 from src.simulation import MCRadiation
-from src.scene import Scene, Space
+from src.scene import Scene
 from src.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
 from src.surface import Surface, SurfaceMaterial, ProceduralMap
 from src.physics import SurfaceReflections, AtmosphereScatterings
@@ -20,39 +31,36 @@ from src.config import SimConfig
 
 def main():
 
-    # 1. SIMULATION PARAMETERS
+    #############################
+    # 1. SIMULATION PARAMETERS ##
+    #############################
     config = SimConfig(
-        num_photons=1_000_000,
-        num_track=200,
-        random_seed=42,
-        theta_sun_deg=60,
-        phi_sun_deg=0
+        theta_sun_deg=60
     )
     
-    # 2. ATMOSPHERE
-    # Format: AtmosphericMedium(optical_density_per_km, ssa, scattering_phase_function)
+    ###################
+    # 2. ATMOSPHERE ###
+    ###################
+    # format: AtmosphericMedium(optical_density_per_km, ssa, scattering_phase_function)
     air = AtmosphericMedium(0.01, 0.5, AtmosphereScatterings.HenyeyGreenstein(g=0.5))
-    clouds = AtmosphericMedium(5, 0.999999, AtmosphereScatterings.HenyeyGreenstein(g=0.85))
 
-    # Format: AtmosphericLayer(thickness_km, [(medium0, fraction0), (medium1, fraction1), ...])
-    # fractions should sum up to 1.0
-    # Eg. layer = AtmosphericLayer(50, [(air, 0.3), (clouds, 0.7)]) 
-    layer0 = AtmosphericLayer(5, [(air, 1)])
-    layer1 = AtmosphericLayer(2, [(clouds, 1)])
-    layer2 = AtmosphericLayer(10, [(air, 1)])
-    atm = Atmosphere([layer0, layer1, layer2])
+    # format: AtmosphericLayer(thickness_km, [(medium0, fraction0), ...])
+    layer0 = AtmosphericLayer(20, [(air, 1)])
 
-    # 3. SURFACE
-    # Format: SurfaceMaterial(albedo, reflection_object)
-    material0 = SurfaceMaterial(1, SurfaceReflections.MirrorReflection())
-    material1 = SurfaceMaterial(0, SurfaceReflections.LambertianReflection())
+    atm = Atmosphere([layer0])
 
-    # Procedural map takes in a function that takes in a np.array of shape (2, N) or (3, N) and outputs array of shape (N) with integers
-    # The returned integer array represents material IDs.
-    ground_map = ProceduralMap(ProceduralMap.split_half_x)
-    surface = Surface(ground_map, [material0, material1])
+    ###################
+    # 3. SURFACE ######
+    ###################
+    # format: SurfaceMaterial(albedo, reflection_object)
+    material0 = SurfaceMaterial(0.5, SurfaceReflections.LambertianReflection())
 
-    # 4. SCENE AND SIMULATION
+    ground_map = ProceduralMap(ProceduralMap.uniform_ground)
+    surface = Surface(ground_map, [material0])
+
+    ###############################
+    # 4. SCENE AND SIMULATION #####
+    ###############################
     hmax = atm.get_total_thickness() # height of the eintire atmospheric layer
     flux_measures_z = np.arange(0, hmax, 0.5) # heights at which flux will be measured (0 - top of atmosphere)
 
@@ -63,23 +71,23 @@ def main():
     sim.run()
     end_time = time.perf_counter_ns()
 
-    # 5. OUTPUTS
+    ####################
+    # 5. OUTPUTS #######
+    ####################
+    # generate a plot
     res = sim.get_results()
-    handler = OutputHandler('results', overwrite=False)
-
-    fig_surf = res.surface_flux_plot(title='Downward flux near the ground on the border\n of absorbant and reflective surfaces (border on X=0)')
-    fig_paths = res.plot_paths()
     fig_flux = res.plot_flux_profile()
-    fig_scat_hist = res.plot_scattering_histogram()
 
-    handler.save_plot(fig_paths, '3d_photon_paths.png')
-    handler.save_plot(fig_surf, 'surface_flux_map.png')
+    # save outputs to 'results' directory, overwrite=False will create a directory 'refults_timestamp'
+    handler = OutputHandler('results', overwrite=True)
     handler.save_plot(fig_flux, 'vertical_flux_profile.png')
-    handler.save_plot(fig_scat_hist, 'scattering_hist.png')
 
+    # print basic results to the terminal
+    handler.print_results(res)
+
+    # save raw simulation data for later
     handler.save_metadata(config, (end_time - start_time) / 1e9)
     handler.save_results(res)
-    handler.print_results(res)
 
 if __name__ == '__main__':
     main()
