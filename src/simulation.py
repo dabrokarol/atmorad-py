@@ -63,9 +63,11 @@ class MCRadiation:
             
             idx_start = np.searchsorted(self.measure_z, z1_down, side='right')
             idx_end = np.searchsorted(self.measure_z, z2_down, side='right')
+            start_bins = np.bincount(idx_start)
+            end_bins = np.bincount(idx_end)
 
-            self.diff_down[idx_start] += 1
-            self.diff_down[idx_end] -= 1
+            self.diff_down[0:start_bins.size] += start_bins
+            self.diff_down[0:end_bins.size] -= end_bins
 
         up_mask = new_z < old_z
         if np.any(up_mask):
@@ -74,10 +76,11 @@ class MCRadiation:
             
             idx_start = np.searchsorted(self.measure_z, z1_up, side='left')
             idx_end = np.searchsorted(self.measure_z, z2_up, side='left')
+            start_bins = np.bincount(idx_start)
+            end_bins = np.bincount(idx_end)
             
-            self.diff_up[idx_start] += 1
-            self.diff_down[idx_end] -= 1
-
+            self.diff_up[0:start_bins.size] += start_bins
+            self.diff_up[0:end_bins.size] -= end_bins
 
     def run(self):
         pos, direction, active_ids, scatter_counts, tracked_paths, final_positions, final_directions = self._init_arrays()
