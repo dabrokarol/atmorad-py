@@ -28,8 +28,8 @@ class Scene:
         ids = np.arange(0, pos.shape[1])
 
         final_pos = np.zeros_like(pos)
-        final_space_mask= np.zeros_like(ids, dtype=bool)
-        final_surface_mask= np.zeros_like(ids, dtype=bool)
+        final_space_mask = np.zeros_like(ids, dtype=bool)
+        final_surface_mask = np.zeros_like(ids, dtype=bool)
 
         rand_component = rng.uniform(0, 1, ids.size)
         medium_ids = self.atmosphere.get_mediums(pos, rand_component)
@@ -37,8 +37,8 @@ class Scene:
         while tau_to_travel.size:
             layer_idx = self.atmosphere.get_layer_idx(pos[2])
 
-            surface_mask= pos[2] > boundaries[-1]
-            space_mask= pos[2] < 0 
+            surface_mask = pos[2] > boundaries[-1]
+            space_mask = pos[2] < 0
             atmosphere_mask = (~space_mask) & (~surface_mask)
 
             pos = self.snap_to_boundaries(pos, direction, space_mask, surface_mask)
