@@ -75,7 +75,7 @@ def main():
 
     # 5. OUTPUTS
     res = sim.get_results()
-    handler = OutputHandler('results', overwrite=False)
+    handler = OutputHandler('results', overwrite=True)
 
     fig_surf = res.surface_flux_plot(title='Downward flux near the ground on the border\n of absorbant and reflective surfaces (border on X=0)')
     fig_paths = res.plot_paths()
