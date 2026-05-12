@@ -1,5 +1,6 @@
-import logging
 import numpy as np
+
+from tqdm import tqdm
 
 from src.physics import orientation, rotate, sun_elevation_rad_to_direction
 from src.scene import Scene
@@ -85,10 +86,15 @@ class MCRadiation:
         num_track = self.num_track
         scene = self.scene
 
+        pbar = tqdm(total=self.num_photons, desc="Absorbed / total photons")
+
         while active_ids.size:
             num_active_photons = active_ids.size
 
-            logging.info(f"{num_active_photons} photons left")
+            #### UPDATING PROGRESS BAR
+            pbar.n = self.num_photons - num_active_photons
+            pbar.refresh()
+
             for i, position in zip(active_ids[active_ids<num_track], pos[:, active_ids<num_track].copy().T):
                 tracked_paths[i].append(position)
 
@@ -119,6 +125,8 @@ class MCRadiation:
             pos = pos[:, active_mask]
             direction = direction[:, active_mask]
             active_ids = active_ids[active_mask]
+
+        pbar.close()
 
         for i, position in enumerate(final_positions[:, :self.num_track].T):
             tracked_paths[i].append(position.copy())
