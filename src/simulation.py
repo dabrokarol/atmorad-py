@@ -7,9 +7,6 @@ from src.scene import Scene
 from src.results import Results
 from src.config import SimConfig
 
-# TODO:
-# Sun position constant (could be taken from some database)
-
 class MCRadiation:
     def __init__(self, config: SimConfig, scene: Scene, measure_z):
 
