@@ -37,7 +37,7 @@ def main():
     air = AtmosphericMedium(0.01, 0.5, AtmosphereScatterings.HenyeyGreenstein(g=0.5))
 
     # format: AtmosphericLayer(thickness_km, [(medium0, fraction0), ...])
-    layer0 = AtmosphericLayer(20, [(air, 1)])
+    layer0 = AtmosphericLayer(20, air)
 
     atm = Atmosphere([layer0])
 
