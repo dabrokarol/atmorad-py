@@ -5,4 +5,9 @@ env/
 __pycache__/
 fig/*
 *egg-info
+build/
+dist/
+results*/
+*.png
+*.npz
 uv.lock
