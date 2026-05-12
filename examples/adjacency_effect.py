@@ -41,7 +41,7 @@ def main():
     # fractions should sum up to 1.0
     # Eg. layer = AtmosphericLayer(50, [(air, 0.3), (clouds, 0.7)]) 
     layer0 = AtmosphericLayer(5, air)
-    layer1 = AtmosphericLayer(2, clouds])
+    layer1 = AtmosphericLayer(2, clouds)
     layer2 = AtmosphericLayer(10, air)
     atm = Atmosphere([layer0, layer1, layer2])
 
