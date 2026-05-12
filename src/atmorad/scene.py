@@ -1,8 +1,8 @@
 import numpy as np
 
-from src.physics import rotate
-from src.atmosphere import Atmosphere
-from src.surface import Surface
+from atmorad.physics import rotate
+from atmorad.atmosphere import Atmosphere
+from atmorad.surface import Surface
 
 class Scene:
     def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:

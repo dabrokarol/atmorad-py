@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.physics.scattering import Scattering
+from atmorad.physics.scattering import Scattering
   
 class AtmosphericMedium:
     def __init__(self, extinction_coeff: float, ssa: float, phase_function: Scattering):

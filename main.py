@@ -11,22 +11,14 @@ Enjoy!
 
 import time
 import numpy as np
-import sys
-from pathlib import Path
 
-# a script that will allow nested copies of this file to run properly, you can ignore it 
-_script_dir = Path(__file__).resolve().parent
-_project_root = _script_dir if (_script_dir / 'src').exists() else _script_dir.parent
-sys.path.append(str(_project_root))
-
-
-from src.simulation import MCRadiation
-from src.scene import Scene
-from src.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
-from src.surface import Surface, SurfaceMaterial, ProceduralMap
-from src.physics import SurfaceReflections, AtmosphereScatterings
-from src.data_io import OutputHandler
-from src.config import SimConfig
+from atmorad.simulation import MCRadiation
+from atmorad.scene import Scene
+from atmorad.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
+from atmorad.surface import Surface, SurfaceMaterial, ProceduralMap
+from atmorad.physics import SurfaceReflections, AtmosphereScatterings
+from atmorad.data_io import OutputHandler
+from atmorad.config import SimConfig
 
 
 def main():

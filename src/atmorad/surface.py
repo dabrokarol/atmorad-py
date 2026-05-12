@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.physics.reflection import SurfaceReflection
+from atmorad.physics.reflection import SurfaceReflection
 
 class SurfaceMaterial:
     def __init__(self, albedo: float, reflection: SurfaceReflection):

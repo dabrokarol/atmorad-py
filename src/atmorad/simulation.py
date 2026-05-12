@@ -2,10 +2,10 @@ import numpy as np
 
 from tqdm import tqdm
 
-from src.physics import orientation, rotate, sun_elevation_rad_to_direction
-from src.scene import Scene
-from src.results import Results
-from src.config import SimConfig
+from atmorad.physics import orientation, rotate, sun_elevation_rad_to_direction
+from atmorad.scene import Scene
+from atmorad.results import Results
+from atmorad.config import SimConfig
 
 class MCRadiation:
     def __init__(self, config: SimConfig, scene: Scene, measure_z):

@@ -75,7 +75,8 @@ class Results:
         return self._2dhexplot(self.surface_hits, title, limit)
     
     def _2dhexplot(self, pos, title, limit):
-
+        if not pos.any():
+            return plt.figure()
         plot_mask = (pos[0] > -limit) & (pos[0] < limit) & (pos[1] > -limit) & (pos[1] < limit)
         pos = pos[:, plot_mask]
         color = cmo.cm.solar(2) # type: ignore
