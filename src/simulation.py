@@ -1,7 +1,7 @@
 import logging
 import numpy as np
 
-from src.physics import orientation, rotate
+from src.physics import orientation, rotate, sun_elevation_rad_to_direction
 from src.scene import Scene
 from src.results import Results
 from src.config import SimConfig
@@ -34,12 +34,7 @@ class MCRadiation:
         theta = self.rng.normal(theta_sun_rad, 1/60, size=(self.num_photons))
         phi = self.rng.normal(phi_sun_rad, 1/60, size=(self.num_photons))
 
-        cos_theta = np.cos(theta)
-        sin_theta = np.sin(theta)
-        cos_phi = np.cos(phi)
-        sin_phi = np.sin(phi)
-
-        direction = orientation(cos_theta, sin_theta, cos_phi, sin_phi)
+        direction = sun_elevation_rad_to_direction(theta, phi)
 
         pos_x = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[0]
         pos_y = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[1]
