@@ -33,7 +33,7 @@ class AtmosphericLayer:
         self.components = components
 
 class Atmosphere:
-    def __init__(self, layers: list[AtmosphericLayer]):
+    def __init__(self, layers: Sequence[AtmosphericLayer]):
         boundaries = [0]
         unique_mediums = []
         max_layer_components = 0
