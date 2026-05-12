@@ -91,7 +91,7 @@ class MCRadiation:
         while active_ids.size:
             num_active_photons = active_ids.size
 
-            #### UPDATING PROGRESS BAR
+            # Updating progress bar
             pbar.n = self.num_photons - num_active_photons
             pbar.refresh()
 
@@ -114,14 +114,14 @@ class MCRadiation:
             active_mask = (~space_mask) & (~absorbed_surface) & ~(absorbed_atmosphere)
             terminated_mask = ~active_mask
             
-            #### UPDATING SIMULATION MEASURES
+            # Appending simulation results
             final_positions[:, active_ids[terminated_mask]] = pos[:, terminated_mask]
             final_directions[:, active_ids[terminated_mask]] = direction[:, terminated_mask]
             scatter_counts[active_ids[scattered]] += 1
             if np.any(surface_mask):
                 surface_hits_pos.append(pos[:2, surface_mask].copy())
             
-            #### SHRINKING THE ARRAY TO ONLY ALIVE PHOTONS
+            # Shrinking arrays to alive photons
             pos = pos[:, active_mask]
             direction = direction[:, active_mask]
             active_ids = active_ids[active_mask]
