@@ -1,27 +1,39 @@
 import numpy as np
 
-from src.physics.scattering import Scattering
+from dataclasses import dataclass
+from typing import Sequence
+
+from atmorad.physics.scattering import Scattering
   
+@dataclass
 class AtmosphericMedium:
-    def __init__(self, extinction_coeff: float, ssa: float, phase_function: Scattering):
-        self.ssa = ssa
-        self.extinction_coeff = extinction_coeff
-        self.phase_function = phase_function
+    extinction_coeff: float
+    ssa: float
+    phase_function: Scattering
+    def __post_init__(self):
+        if self.extinction_coeff < 0:
+            raise ValueError(f"Extinction coefficient should be non-negative, got {self.extinction_coeff}.")
+        if not 0.0 <= self.ssa <= 1.0:
+            raise ValueError(f"SSA should be in [0.0, 1.0], got {self.ssa}.")
 
 class AtmosphericLayer:
-    def __init__(self, thickness, components: list[tuple[AtmosphericMedium, float]]):
+    def __init__(self, thickness, components: Sequence[tuple[AtmosphericMedium, float]] | AtmosphericMedium):
+        if thickness < 0:
+            raise ValueError(f"Thickness should be non-negative, got {thickness}.")
+        
         self.thickness = thickness
 
-        p = 0
-        for medium, probability in components:
-            p += probability
-        if not np.isclose(p, 1):
-            raise ValueError("Initialized layer probabilities don't sum to one. Check atmospheric layers initialization.")
+        if isinstance(components, AtmosphericMedium):
+            components = [(components, 1.0)]
+        else:
+            p_tot = sum(probability for _, probability in components)
+            if not np.isclose(p_tot, 1):
+                raise ValueError(f"Initialized layer probabilities don't sum to one, got {p_tot} Check atmospheric layers initialization.")
 
         self.components = components
 
 class Atmosphere:
-    def __init__(self, layers: list[AtmosphericLayer]):
+    def __init__(self, layers: Sequence[AtmosphericLayer]):
         boundaries = [0]
         unique_mediums = []
         max_layer_components = 0

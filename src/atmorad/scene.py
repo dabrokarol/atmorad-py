@@ -1,8 +1,8 @@
 import numpy as np
 
-from src.physics import rotate
-from src.atmosphere import Atmosphere
-from src.surface import Surface
+from atmorad.physics import rotate
+from atmorad.atmosphere import Atmosphere
+from atmorad.surface import Surface
 
 class Scene:
     def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:
@@ -21,6 +21,7 @@ class Scene:
             final_pos, surface_mask, space_mask
             """
         boundaries = self.atmosphere.boundaries
+        extinction_coeffs = self.atmosphere.extinction_coeffs
         ids = np.arange(0, pos.shape[1])
 
         final_pos = np.zeros_like(pos)
@@ -50,7 +51,7 @@ class Scene:
             pos = pos[:, atmosphere_mask]
             ids = ids[atmosphere_mask]
 
-            delta_z = pos[2] - self.atmosphere.boundaries[layer_idx]
+            delta_z = pos[2] - boundaries[layer_idx]
             travel_up = direction[2] < 0
             travel_down = direction[2] > 0
             travel_horizontal = direction[2] == 0
@@ -63,7 +64,7 @@ class Scene:
             delta_z[travel_down] = upper_bound[travel_down] - pos[2, travel_down]
             delta_z[travel_horizontal] = np.inf
 
-            excinction_coeff = self.atmosphere.extinction_coeffs[medium_ids[ids]]
+            excinction_coeff = extinction_coeffs[medium_ids[ids]]
             tau_to_boundary = (delta_z) / direction[2] * excinction_coeff
 
             new_tau_to_travel = np.where(tau_to_boundary < tau_to_travel, tau_to_boundary, tau_to_travel)
@@ -74,7 +75,7 @@ class Scene:
             tau_to_travel -= new_tau_to_travel
             finished_mask = np.isclose(tau_to_travel, 0)
 
-            in_atmosphere_mask = (pos[2] >= 0) & (pos[2] <   self.atmosphere.boundaries[-1])
+            in_atmosphere_mask = (pos[2] >= 0) & (pos[2] <   boundaries[-1])
             cross_layer_mask = ~finished_mask & in_atmosphere_mask
             n_cross_layer = np.count_nonzero(cross_layer_mask)
             rand_component = rng.uniform(0, 1, n_cross_layer)

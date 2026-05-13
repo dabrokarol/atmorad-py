@@ -1,13 +1,11 @@
-import logging
 import numpy as np
 
-from src.physics import orientation, rotate
-from src.scene import Scene
-from src.results import Results
-from src.config import SimConfig
+from tqdm import tqdm
 
-# TODO:
-# Sun position constant (could be taken from some database)
+from atmorad.physics import orientation, rotate, sun_elevation_rad_to_direction
+from atmorad.scene import Scene
+from atmorad.results import Results
+from atmorad.config import SimConfig
 
 class MCRadiation:
     def __init__(self, config: SimConfig, scene: Scene, measure_z):
@@ -34,12 +32,7 @@ class MCRadiation:
         theta = self.rng.normal(theta_sun_rad, 1/60, size=(self.num_photons))
         phi = self.rng.normal(phi_sun_rad, 1/60, size=(self.num_photons))
 
-        cos_theta = np.cos(theta)
-        sin_theta = np.sin(theta)
-        cos_phi = np.cos(phi)
-        sin_phi = np.sin(phi)
-
-        direction = orientation(cos_theta, sin_theta, cos_phi, sin_phi)
+        direction = sun_elevation_rad_to_direction(theta, phi)
 
         pos_x = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[0]
         pos_y = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[1]
@@ -90,10 +83,15 @@ class MCRadiation:
         num_track = self.num_track
         scene = self.scene
 
+        pbar = tqdm(total=self.num_photons, desc="Absorbed / total photons")
+
         while active_ids.size:
             num_active_photons = active_ids.size
 
-            logging.info(f"{num_active_photons} photons left")
+            # Updating progress bar
+            pbar.n = self.num_photons - num_active_photons
+            pbar.refresh()
+
             for i, position in zip(active_ids[active_ids<num_track], pos[:, active_ids<num_track].copy().T):
                 tracked_paths[i].append(position)
 
@@ -113,17 +111,19 @@ class MCRadiation:
             active_mask = (~space_mask) & (~absorbed_surface) & ~(absorbed_atmosphere)
             terminated_mask = ~active_mask
             
-            #### UPDATING SIMULATION MEASURES
+            # Appending simulation results
             final_positions[:, active_ids[terminated_mask]] = pos[:, terminated_mask]
             final_directions[:, active_ids[terminated_mask]] = direction[:, terminated_mask]
             scatter_counts[active_ids[scattered]] += 1
             if np.any(surface_mask):
                 surface_hits_pos.append(pos[:2, surface_mask].copy())
             
-            #### SHRINKING THE ARRAY TO ONLY ALIVE PHOTONS
+            # Shrinking arrays to alive photons
             pos = pos[:, active_mask]
             direction = direction[:, active_mask]
             active_ids = active_ids[active_mask]
+
+        pbar.close()
 
         for i, position in enumerate(final_positions[:, :self.num_track].T):
             tracked_paths[i].append(position.copy())

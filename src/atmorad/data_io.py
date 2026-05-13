@@ -1,29 +1,25 @@
 import logging
 import datetime
 import json
-import tomllib
 import numpy as np
 import shutil
 import sys
 
 from pathlib import Path
-from typing import Any
 from dataclasses import asdict
 from matplotlib.figure import Figure
 
-from src.results import Results
-from src.config import SimConfig
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+from atmorad.results import Results
+from atmorad.config import SimConfig
 
 class OutputHandler:
     def __init__(self, base_dir: str, overwrite = False) -> None:
-        self.base_dir = PROJECT_ROOT / base_dir
+        self.base_dir = Path.cwd() / base_dir
         if overwrite:
-            self.base_dir.mkdir(exist_ok=True)
+            self.base_dir.mkdir(parents=True, exist_ok=True)
         else:
             try:
-                self.base_dir.mkdir()
+                self.base_dir.mkdir(parents=True)
             except FileExistsError:
                 logging.info('directory exists, adding timestamp...')
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -36,7 +32,12 @@ class OutputHandler:
             config_dict['execution_time_s'] = execution_time_s
         with open(self.base_dir / 'metadata.json', 'w') as f:
             json.dump(config_dict, f, indent=4)
-        shutil.copy(sys.argv[0], self.base_dir / 'experiment_setup.py')
+
+        script_path = Path(sys.argv[0]).resolve()
+        if script_path.exists and script_path.suffix == '.py':
+            shutil.copy(script_path, self.base_dir / 'experiment_setup.py')
+        else:
+            logging.warning('Failed to copy script to metadata')
 
     def save_plot(self, fig: Figure, plot_name: str) -> None:
         fig.savefig(self.base_dir / plot_name, dpi=300, bbox_inches='tight')

@@ -1,7 +1,13 @@
 .venv
+env/
 .ruff_cache
 .provenance
 __pycache__/
 fig/*
 *egg-info
+build/
+dist/
+results*/
+*.png
+*.npz
 uv.lock

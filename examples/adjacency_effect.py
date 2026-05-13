@@ -11,21 +11,14 @@ Simulation structure:
 
 import time
 import numpy as np
-from pathlib import Path
-import sys
 
-# if file ends up one dir upward from root directory, it will still include src
-_script_dir = Path(__file__).resolve().parent
-_project_root = _script_dir if (_script_dir / 'src').exists() else _script_dir.parent
-sys.path.append(str(_project_root))
-
-from src.simulation import MCRadiation
-from src.scene import Scene
-from src.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
-from src.surface import Surface, SurfaceMaterial, ProceduralMap
-from src.physics import SurfaceReflections, AtmosphereScatterings
-from src.data_io import OutputHandler
-from src.config import SimConfig
+from atmorad.simulation import MCRadiation
+from atmorad.scene import Scene
+from atmorad.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
+from atmorad.surface import Surface, SurfaceMaterial, ProceduralMap
+from atmorad.physics import SurfaceReflections, AtmosphereScatterings
+from atmorad.data_io import OutputHandler
+from atmorad.config import SimConfig
 
 
 def main():
@@ -47,9 +40,9 @@ def main():
     # Format: AtmosphericLayer(thickness_km, [(medium0, fraction0), (medium1, fraction1), ...])
     # fractions should sum up to 1.0
     # Eg. layer = AtmosphericLayer(50, [(air, 0.3), (clouds, 0.7)]) 
-    layer0 = AtmosphericLayer(5, [(air, 1)])
-    layer1 = AtmosphericLayer(2, [(clouds, 1)])
-    layer2 = AtmosphericLayer(10, [(air, 1)])
+    layer0 = AtmosphericLayer(5, air)
+    layer1 = AtmosphericLayer(2, clouds)
+    layer2 = AtmosphericLayer(10, air)
     atm = Atmosphere([layer0, layer1, layer2])
 
     # 3. SURFACE
@@ -75,7 +68,7 @@ def main():
 
     # 5. OUTPUTS
     res = sim.get_results()
-    handler = OutputHandler('results', overwrite=False)
+    handler = OutputHandler('results', overwrite=True)
 
     fig_surf = res.surface_flux_plot(title='Downward flux near the ground on the border\n of absorbant and reflective surfaces (border on X=0)')
     fig_paths = res.plot_paths()
