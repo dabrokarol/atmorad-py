@@ -19,7 +19,8 @@ class Results:
     measure_z: np.ndarray
     flux_up: np.ndarray
     flux_down: np.ndarray
-    sim_duration_s: float
+    cpu_time_s: float
+    simulation_time_s: float = 0
 
     def __post_init__(self):
         self.atmosphere_mask = (~self.space_mask) & (~self.surface_mask)
@@ -51,7 +52,7 @@ class Results:
         flux_up = np.sum([r.flux_up for r in results_list], axis=0)
         flux_down = np.sum([r.flux_down for r in results_list], axis=0)
         
-        sim_duration_s = sum(r.sim_duration_s for r in results_list)
+        cpu_time_s = sum(r.cpu_time_s for r in results_list)
 
         return cls(
             final_positions=final_positions,
@@ -64,7 +65,7 @@ class Results:
             measure_z=results_list[0].measure_z,
             flux_up=flux_up,
             flux_down=flux_down,
-            sim_duration_s=sim_duration_s
+            cpu_time_s=cpu_time_s
         )
 
     def summary(self):

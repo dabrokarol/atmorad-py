@@ -17,8 +17,11 @@ class MCRadiation:
         self.scene = scene
 
     def run(self):
+        start_time = time.perf_counter()
         results = parallel_simulation(self.config, self.scene)
         self.results = Results.merge_all(results)
+        end_time = time.perf_counter()
+        self.results.simulation_time_s = end_time - start_time
 
     def get_results(self):
         return self.results
@@ -130,7 +133,7 @@ class Simulation:
         num_track = self.num_track
         scene = self.scene
 
-        start_time = time.perf_counter_ns()
+        start_time = time.process_time()
 
         while active_ids.size:
             num_active_photons = active_ids.size
@@ -166,7 +169,7 @@ class Simulation:
             direction = direction[:, active_mask]
             active_ids = active_ids[active_mask]
 
-        end_time = time.perf_counter_ns()
+        end_time = time.process_time()
 
         for i, position in enumerate(final_positions[:, :self.num_track].T):
             tracked_paths[i].append(position.copy())
@@ -192,7 +195,7 @@ class Simulation:
             measure_z=self.measure_z,
             flux_up=flux_up,
             flux_down=flux_down,
-            sim_duration_s=(end_time - start_time) / 1e9 
+            cpu_time_s=(end_time - start_time) 
         )
     
     def get_results(self):
