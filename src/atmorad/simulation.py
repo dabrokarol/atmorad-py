@@ -6,10 +6,7 @@ from atmorad.physics import orientation, rotate, sun_elevation_rad_to_direction
 from atmorad.scene import Scene
 from atmorad.results import Results
 from atmorad.config import SimConfig
-
-EPSILON_DETECTOR = 1e-5
-EPSILON_POS = 1e-10
-
+from atmorad.constants import DETECTOR_OFFSET, EPSILON, X, Y, Z
 
 class MCRadiation:
     def __init__(self, config: SimConfig, scene: Scene):
@@ -72,7 +69,7 @@ class Simulation:
         self.scene = scene
 
         self.measure_z = np.arange(0, self.scene.atmosphere.get_total_thickness(), config.flux_measure_spacing)
-        self.measure_z[self.measure_z==0] = EPSILON_DETECTOR # move the z=0 detector infinitesimally downwards
+        self.measure_z[self.measure_z==0] = DETECTOR_OFFSET # move the z=0 detector infinitesimally downwards
         self.diff_down = np.zeros(self.measure_z.size + 1)
         self.diff_up = np.zeros(self.measure_z.size + 1)
 
@@ -85,9 +82,9 @@ class Simulation:
         direction = sun_elevation_rad_to_direction(theta, phi)
 
         pos = np.empty(shape=(3, self.num_photons))
-        pos[0, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[0]
-        pos[1, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[1]
-        pos[2, :] = np.full(self.num_photons, EPSILON_POS)
+        pos[X, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[X]
+        pos[Y, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[Y]
+        pos[Z, :] = np.full(self.num_photons, EPSILON)
 
         ids = np.arange(0, self.num_photons)
         scatter_counts = np.zeros(self.num_photons)
@@ -144,9 +141,9 @@ class Simulation:
             transmission = self.rng.uniform(0, 1, num_active_photons)
             tau_to_travel = -np.log(transmission)
 
-            old_z = pos[2].copy()
+            old_z = pos[Z].copy()
             pos, surface_mask, space_mask, medium_ids = scene.move_photons(pos, direction, tau_to_travel, self.rng)
-            new_z = pos[2]
+            new_z = pos[Z]
             self.update_flux_counts(old_z, new_z)
             
             atmosphere_mask = (~surface_mask) & (~space_mask)

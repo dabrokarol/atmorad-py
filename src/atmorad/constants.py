@@ -1,2 +1,6 @@
-EPSILON_Z = 1e-6
-EPSILON_TAU = 1e-12
+DETECTOR_OFFSET = 1e-5
+EPSILON = 1e-10
+
+X = 0
+Y = 1
+Z = 2

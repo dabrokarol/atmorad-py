@@ -5,6 +5,8 @@ import cmocean as cmo
 
 from dataclasses import dataclass
 
+from atmorad.constants import X, Y, Z
+
 sns.set_theme(style="ticks", rc={"font.family": "serif"})
 
 @dataclass
@@ -122,10 +124,10 @@ class Results:
     def _2dhexplot(self, pos, title, limit):
         if not pos.any():
             return plt.figure()
-        plot_mask = (pos[0] > -limit) & (pos[0] < limit) & (pos[1] > -limit) & (pos[1] < limit)
+        plot_mask = (pos[X] > -limit) & (pos[X] < limit) & (pos[Y] > -limit) & (pos[Y] < limit)
         pos = pos[:, plot_mask]
         color = cmo.cm.solar(2) # type: ignore
-        joint_plot = sns.jointplot(x=pos[0], y=pos[1], kind="hex", cmap=cmo.cm.solar, color=color) # type: ignore
+        joint_plot = sns.jointplot(x=pos[X], y=pos[Y], kind="hex", cmap=cmo.cm.solar, color=color) # type: ignore
 
         joint_plot.ax_joint.set_xbound(-limit, limit)
         joint_plot.ax_joint.set_ybound(-limit, limit)
