@@ -2,15 +2,11 @@ import time
 import concurrent.futures
 import numpy as np
 
-from atmorad.physics import orientation, rotate, sun_elevation_rad_to_direction
+from atmorad.physics import orientation, rotate, sun_zenith_to_direction
 from atmorad.scene import Scene
 from atmorad.results import Results
 from atmorad.config import SimConfig
 from atmorad.constants import DETECTOR_OFFSET, EPSILON, MAX_SCATTERINGS, X, Y, Z
-
-EPSILON_DETECTOR = 1e-5
-EPSILON_POS = 1e-10
-
 
 class MCRadiation:
     def __init__(self, config: SimConfig, scene: Scene):
@@ -74,9 +70,10 @@ class Simulation:
 
         self.results = None
         self.scene = scene
+        self.top_of_atmosphere = scene.top_of_atmosphere
 
         self.measure_z = np.arange(0, self.scene.atmosphere.get_total_thickness(), config.flux_measure_spacing)
-        self.measure_z[self.measure_z==0] = DETECTOR_OFFSET # move the z=0 detector infinitesimally downwards
+        self.measure_z = np.append(self.measure_z, self.top_of_atmosphere - DETECTOR_OFFSET) # move the z=toa detector infinitesimally downwards
         self.diff_down = np.zeros(self.measure_z.size + 1)
         self.diff_up = np.zeros(self.measure_z.size + 1)
 
@@ -85,13 +82,12 @@ class Simulation:
         phi_sun_rad = self.phi_sun / 180 * np.pi
         theta = self.rng.normal(theta_sun_rad, 1/60, size=(self.num_photons))
         phi = self.rng.normal(phi_sun_rad, 1/60, size=(self.num_photons))
+        direction = sun_zenith_to_direction(theta, phi)
 
-        direction = sun_elevation_rad_to_direction(theta, phi)
-
-        pos = np.empty(shape=(3, self.num_photons))
+        pos = np.empty(shape=(3, self.num_photons), dtype=float)
         pos[X, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[X]
         pos[Y, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[Y]
-        pos[Z, :] = np.full(self.num_photons, EPSILON)
+        pos[Z, :] = np.full(self.num_photons, self.top_of_atmosphere - EPSILON)
 
         ids = np.arange(0, self.num_photons)
         scatter_counts = np.zeros(self.num_photons)
@@ -103,12 +99,12 @@ class Simulation:
         return pos, direction, ids, scatter_counts, tracked_paths, final_positions, final_directions
 
     def update_flux_counts(self, old_z: np.ndarray, new_z: np.ndarray):
-        down_mask = new_z > old_z
+        down_mask = new_z < old_z
         if np.any(down_mask):
-            z1_down = old_z[down_mask]
-            z2_down = new_z[down_mask]
+            z1_down = new_z[down_mask]
+            z2_down = old_z[down_mask]
             
-            idx_start = np.searchsorted(self.measure_z, z1_down, side='right')
+            idx_start = np.searchsorted(self.measure_z, z1_down, side='left')
             idx_end = np.searchsorted(self.measure_z, z2_down, side='right')
             start_bins = np.bincount(idx_start)
             end_bins = np.bincount(idx_end)
@@ -116,13 +112,13 @@ class Simulation:
             self.diff_down[0:start_bins.size] += start_bins
             self.diff_down[0:end_bins.size] -= end_bins
 
-        up_mask = new_z < old_z
+        up_mask = new_z > old_z
         if np.any(up_mask):
-            z1_up = new_z[up_mask] 
-            z2_up = old_z[up_mask]
+            z1_up = old_z[up_mask] 
+            z2_up = new_z[up_mask]
             
             idx_start = np.searchsorted(self.measure_z, z1_up, side='left')
-            idx_end = np.searchsorted(self.measure_z, z2_up, side='left')
+            idx_end = np.searchsorted(self.measure_z, z2_up, side='right')
             start_bins = np.bincount(idx_start)
             end_bins = np.bincount(idx_end)
             
@@ -169,7 +165,6 @@ class Simulation:
             scatter_counts[active_ids[scattered]] += 1
             if np.any(surface_mask):
                 surface_hits_pos.append(pos[:2, surface_mask].copy())
-            
             
             # Shrinking arrays to alive photons
             pos = pos[:, active_mask]

@@ -21,8 +21,7 @@ class SurfaceReflection:
     @staticmethod
     def lambertian_reflection_func(direction, rand_1, rand_2):
         phi = rand_2 * 2 * np.pi
-
-        cos_theta = -np.sqrt(rand_1) # cosine-weighted hemisphere sampling, minus because surface has the biggest height
+        cos_theta = np.sqrt(rand_1) # cosine-weighted hemisphere sampling
         sin_theta = np.sqrt(1 - rand_1)
         cos_phi = np.cos(phi)
         sin_phi = np.sin(phi)
@@ -34,7 +33,7 @@ class SurfaceReflection:
         theta = rand_1 * np.pi / 2
         phi = rand_2 * 2 * np.pi
 
-        cos_theta = -np.cos(theta) # uniform sampling
+        cos_theta = np.cos(theta)
         sin_theta = np.sin(theta)
         cos_phi = np.cos(phi)
         sin_phi = np.sin(phi)

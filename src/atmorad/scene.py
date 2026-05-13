@@ -6,13 +6,11 @@ from atmorad.surface import Surface
 from atmorad.constants import EPSILON, X, Y, Z
 
 
-EPSILON_DIR = 1e-10
-EPSILON_TAU = 1e-10
-
 class Scene:
     def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:
         self.surface = surface
         self.atmosphere = atmosphere
+        self.top_of_atmosphere = atmosphere.boundaries[-1]
 
     def move_photons(self, pos, direction, tau_to_travel, rng):
         """Function moves photons according to their tau_to_travel.
@@ -39,8 +37,8 @@ class Scene:
         while tau_to_travel.size:
             layer_idx = self.atmosphere.get_layer_idx(pos[Z])
 
-            surface_mask = pos[Z] > boundaries[-1]
-            space_mask = pos[Z] < 0
+            surface_mask = pos[Z] < 0
+            space_mask = pos[Z] > self.top_of_atmosphere
             atmosphere_mask = (~space_mask) & (~surface_mask)
 
             pos = self.snap_to_boundaries(pos, direction, space_mask, surface_mask)
@@ -57,30 +55,32 @@ class Scene:
             ids = ids[atmosphere_mask]
 
             delta_z = pos[Z] - boundaries[layer_idx]
-            travel_up = direction[Z] < 0
-            travel_down = direction[Z] > 0
+            travel_up = direction[Z] > 0
+            travel_down = direction[Z] < 0
             travel_horizontal = direction[Z] == 0
-            direction[Z, travel_horizontal] = EPSILON
 
             lower_bound = boundaries[layer_idx]
             upper_bound = boundaries[layer_idx + 1]
 
-            delta_z[travel_up] = lower_bound[travel_up] - pos[Z, travel_up]
-            delta_z[travel_down] = upper_bound[travel_down] - pos[Z, travel_down]
+            delta_z[travel_up] = upper_bound[travel_up] - pos[Z, travel_up]
+            delta_z[travel_down] = lower_bound[travel_down] - pos[Z, travel_down]
             delta_z[travel_horizontal] = np.inf
 
             excinction_coeff = extinction_coeffs[medium_ids[ids]]
-            tau_to_boundary = (delta_z) / direction[Z] * excinction_coeff
+
+            with np.errstate(divide='ignore', invalid='ignore'):
+                tau_to_boundary = np.abs(delta_z / direction[Z]) * excinction_coeff
 
             new_tau_to_travel = np.where(tau_to_boundary < tau_to_travel, tau_to_boundary, tau_to_travel)
-            dist = new_tau_to_travel / excinction_coeff
+            safe_ext = np.where(excinction_coeff == 0, EPSILON, excinction_coeff)
+            dist = new_tau_to_travel / safe_ext
             dist[tau_to_boundary < tau_to_travel] += EPSILON
             pos += direction * dist
 
             tau_to_travel -= new_tau_to_travel
             finished_mask = np.isclose(tau_to_travel, 0)
 
-            in_atmosphere_mask = (pos[Z] >= 0) & (pos[Z] < boundaries[-1])
+            in_atmosphere_mask = (pos[Z] >= 0) & (pos[Z] < self.top_of_atmosphere)
             cross_layer_mask = ~finished_mask & in_atmosphere_mask
             n_cross_layer = np.count_nonzero(cross_layer_mask)
             rand_component = rng.uniform(0, 1, n_cross_layer)
@@ -113,12 +113,12 @@ class Scene:
         return direction, absorbed_surface, absorbed_atmosphere, to_scat
     
     def snap_to_boundaries(self, pos, direction, reached_space, reached_surf):
-        pos[:, reached_space] += (0 - pos[Z, reached_space]) / direction[Z, reached_space] * direction[:, reached_space]
-        pos[:, reached_surf] += (self.atmosphere.boundaries[-1] - pos[Z, reached_surf]) / direction[Z, reached_surf] * direction[:, reached_surf]
+        pos[:, reached_space] += (self.top_of_atmosphere - pos[Z, reached_space]) / direction[Z, reached_space] * direction[:, reached_space]
+        pos[:, reached_surf] += (0 - pos[Z, reached_surf]) / direction[Z, reached_surf] * direction[:, reached_surf]
         return pos
     
     def get_photon_position_mask(self, pos_z):
-        space_mask= pos_z <= 0
-        surface_mask= pos_z >= self.atmosphere.boundaries[-1]
+        space_mask= pos_z >= self.top_of_atmosphere
+        surface_mask= pos_z <= 0
         layer_idx = self.atmosphere.get_layer_idx(pos_z)
         return space_mask, surface_mask, layer_idx

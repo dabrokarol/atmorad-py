@@ -38,9 +38,9 @@ def main():
     # Full format: AtmosphericLayer(thickness_km, [(medium0, fraction0), (medium1, fraction1), ...])
     # Eg. layer = AtmosphericLayer(50, [(air, 0.3), (clouds, 0.7)]), fractions should sum up to 1.0
     # Simplified format: AtmosphericLayer(thickness_km, medium)
-    layer0 = AtmosphericLayer(5, air)
+    layer0 = AtmosphericLayer(10, air)
     layer1 = AtmosphericLayer(2, clouds)
-    layer2 = AtmosphericLayer(10, air)
+    layer2 = AtmosphericLayer(5, air)
     atm = Atmosphere([layer0, layer1, layer2])
 
     # 3. SURFACE
