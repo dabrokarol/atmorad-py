@@ -100,8 +100,7 @@ class Scene:
         direction[:, to_scat] = rotate(direction[:, to_scat], cos_theta, sin_theta, cos_phi, sin_phi)
 
         to_reflect = np.zeros_like(rand_interaction).astype(bool)
-        to_reflect[surface_mask] = self.surface.check_reflection(pos[:, surface_mask], rand_interaction[surface_mask])
-        direction[:, to_reflect] = self.surface.reflect(pos[:, to_reflect], direction[:, to_reflect], rand_theta[to_reflect], rand_phi[to_reflect])
+        to_reflect[surface_mask], direction[:, surface_mask] = self.surface.process_reflection(pos[:, surface_mask], direction[:, surface_mask], rand_interaction[surface_mask], rand_theta[surface_mask], rand_phi[surface_mask])
 
         absorbed_surface = (~to_reflect) & surface_mask
         absorbed_atmosphere = (~to_scat) & atmosphere_mask
