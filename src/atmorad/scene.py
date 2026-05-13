@@ -74,8 +74,9 @@ class Scene:
             new_tau_to_travel = np.where(tau_to_boundary < tau_to_travel, tau_to_boundary, tau_to_travel)
             safe_ext = np.where(excinction_coeff == 0, EPSILON, excinction_coeff)
             dist = new_tau_to_travel / safe_ext
-            dist[tau_to_boundary < tau_to_travel] += EPSILON
             pos += direction * dist
+            pos[Z, (tau_to_boundary < tau_to_travel) & travel_up] += EPSILON # move photons through layer boundary
+            pos[Z, (tau_to_boundary < tau_to_travel) & travel_down] -= EPSILON
 
             tau_to_travel -= new_tau_to_travel
             finished_mask = np.isclose(tau_to_travel, 0)
@@ -110,7 +111,7 @@ class Scene:
         absorbed_surface = (~to_reflect) & surface_mask
         absorbed_atmosphere = (~to_scat) & atmosphere_mask
 
-        return direction, absorbed_surface, absorbed_atmosphere, to_scat
+        return direction, absorbed_surface, absorbed_atmosphere, to_scat|to_reflect
     
     def snap_to_boundaries(self, pos, direction, reached_space, reached_surf):
         pos[:, reached_space] += (self.top_of_atmosphere - pos[Z, reached_space]) / direction[Z, reached_space] * direction[:, reached_space]
@@ -118,7 +119,7 @@ class Scene:
         return pos
     
     def get_photon_position_mask(self, pos_z):
-        space_mask= pos_z >= self.top_of_atmosphere
-        surface_mask= pos_z <= 0
+        space_mask= pos_z > self.top_of_atmosphere
+        surface_mask= pos_z < 0
         layer_idx = self.atmosphere.get_layer_idx(pos_z)
         return space_mask, surface_mask, layer_idx
