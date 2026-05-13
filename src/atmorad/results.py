@@ -19,9 +19,53 @@ class Results:
     measure_z: np.ndarray
     flux_up: np.ndarray
     flux_down: np.ndarray
+    sim_duration_s: float
 
     def __post_init__(self):
         self.atmosphere_mask = (~self.space_mask) & (~self.surface_mask)
+    
+    @classmethod
+    def merge_all(cls, results_list: list['Results']) -> 'Results':
+        if len(results_list) == 1:
+            return results_list[0]
+
+        final_positions = np.concatenate([r.final_positions for r in results_list], axis=1)
+        space_mask = np.concatenate([r.space_mask for r in results_list])
+        surface_mask = np.concatenate([r.surface_mask for r in results_list])
+        layer_idx = np.concatenate([r.layer_idx for r in results_list])
+        scatter_counts = np.concatenate([r.scatter_counts for r in results_list])
+
+        sample_paths = {}
+        idx = 0
+        for r in results_list:
+            for path in r.sample_paths.values():
+                sample_paths[idx] = path
+                idx += 1
+
+        valid_hits = [r.surface_hits for r in results_list if r.surface_hits.size > 0]
+        if not valid_hits:
+            surface_hits = np.array([])
+        else:
+            surface_hits = np.concatenate(valid_hits, axis=1)
+
+        flux_up = np.sum([r.flux_up for r in results_list], axis=0)
+        flux_down = np.sum([r.flux_down for r in results_list], axis=0)
+        
+        sim_duration_s = sum(r.sim_duration_s for r in results_list)
+
+        return cls(
+            final_positions=final_positions,
+            space_mask=space_mask,
+            surface_mask=surface_mask,
+            layer_idx=layer_idx,
+            sample_paths=sample_paths,
+            surface_hits=surface_hits,
+            scatter_counts=scatter_counts,
+            measure_z=results_list[0].measure_z,
+            flux_up=flux_up,
+            flux_down=flux_down,
+            sim_duration_s=sim_duration_s
+        )
 
     def summary(self):
         return (

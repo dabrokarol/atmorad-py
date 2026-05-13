@@ -1,15 +1,62 @@
+import time
+import concurrent.futures
 import numpy as np
-
-from tqdm import tqdm
 
 from atmorad.physics import orientation, rotate, sun_elevation_rad_to_direction
 from atmorad.scene import Scene
 from atmorad.results import Results
 from atmorad.config import SimConfig
 
-class MCRadiation:
-    def __init__(self, config: SimConfig, scene: Scene, measure_z):
+EPSILON_DETECTOR = 1e-5
+EPSILON_POS = 1e-10
 
+
+class MCRadiation:
+    def __init__(self, config: SimConfig, scene: Scene):
+        self.config = config
+        self.scene = scene
+
+    def run(self):
+        results = parallel_simulation(self.config, self.scene)
+        self.results = Results.merge_all(results)
+
+    def get_results(self):
+        return self.results
+
+
+def parallel_simulation(config: SimConfig, scene: Scene):
+    chunk_size = config.num_photons // config.cpu_cores
+    remainder = config.num_photons % config.cpu_cores
+    seeds = np.random.SeedSequence(config.random_seed).spawn(config.cpu_cores)
+
+    futures = []
+    with concurrent.futures.ProcessPoolExecutor(max_workers=config.cpu_cores) as executor:
+        for i in range(config.cpu_cores):
+            future = executor.submit(run_chunk, chunk_size + (remainder if i==0 else 0), seeds[i], config, scene, i)
+            futures.append(future)
+
+    all_results = [future.result() for future in concurrent.futures.as_completed(futures)]
+
+    return all_results
+        
+
+def run_chunk(chunk_size: int, seed, config: SimConfig, scene: Scene, i):
+    chunk_config = SimConfig(
+        num_photons=chunk_size,
+        num_track=config.num_track if i == 0 else 0,
+        starting_pos=config.starting_pos,
+        random_seed=seed,
+        theta_sun_deg=config.theta_sun_deg,
+        phi_sun_deg=config.phi_sun_deg,
+        flux_measure_spacing=config.flux_measure_spacing
+    )
+    sim = Simulation(chunk_config, scene)
+    sim.run()
+    return sim.get_results()
+
+
+class Simulation:
+    def __init__(self, config: SimConfig, scene: Scene):
         self.num_photons = config.num_photons
         self.num_track = min(config.num_track, self.num_photons)
         self.starting_pos = np.array(config.starting_pos, dtype=np.float64).reshape(-1, 1)
@@ -21,10 +68,10 @@ class MCRadiation:
         self.results = None
         self.scene = scene
 
-        self.measure_z = np.array(measure_z)
-        self.measure_z[self.measure_z==0] = 1e-5 # move the z=0 detector infinitesimally downwards
-        self.diff_down = np.zeros(measure_z.size + 1)
-        self.diff_up = np.zeros(measure_z.size + 1)
+        self.measure_z = np.arange(0, self.scene.atmosphere.get_total_thickness(), config.flux_measure_spacing)
+        self.measure_z[self.measure_z==0] = EPSILON_DETECTOR # move the z=0 detector infinitesimally downwards
+        self.diff_down = np.zeros(self.measure_z.size + 1)
+        self.diff_up = np.zeros(self.measure_z.size + 1)
 
     def _init_arrays(self):
         theta_sun_rad = self.theta_sun / 180 * np.pi
@@ -34,10 +81,10 @@ class MCRadiation:
 
         direction = sun_elevation_rad_to_direction(theta, phi)
 
-        pos_x = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[0]
-        pos_y = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[1]
-        pos_z = np.full(self.num_photons, 1e-6)
-        pos = np.vstack((pos_x, pos_y, pos_z))
+        pos = np.empty(shape=(3, self.num_photons))
+        pos[0, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[0]
+        pos[1, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[1]
+        pos[2, :] = np.full(self.num_photons, EPSILON_POS)
 
         ids = np.arange(0, self.num_photons)
         scatter_counts = np.zeros(self.num_photons)
@@ -83,14 +130,10 @@ class MCRadiation:
         num_track = self.num_track
         scene = self.scene
 
-        pbar = tqdm(total=self.num_photons, desc="Absorbed / total photons")
+        start_time = time.perf_counter_ns()
 
         while active_ids.size:
             num_active_photons = active_ids.size
-
-            # Updating progress bar
-            pbar.n = self.num_photons - num_active_photons
-            pbar.refresh()
 
             for i, position in zip(active_ids[active_ids<num_track], pos[:, active_ids<num_track].copy().T):
                 tracked_paths[i].append(position)
@@ -123,7 +166,7 @@ class MCRadiation:
             direction = direction[:, active_mask]
             active_ids = active_ids[active_mask]
 
-        pbar.close()
+        end_time = time.perf_counter_ns()
 
         for i, position in enumerate(final_positions[:, :self.num_track].T):
             tracked_paths[i].append(position.copy())
@@ -149,11 +192,12 @@ class MCRadiation:
             measure_z=self.measure_z,
             flux_up=flux_up,
             flux_down=flux_down,
+            sim_duration_s=(end_time - start_time) / 1e9 
         )
     
     def get_results(self):
         if self.results is None:
-            raise KeyError("No results, use '.run()' first")
+            raise RuntimeError("No results, use '.run()' first")
         
         return self.results
 

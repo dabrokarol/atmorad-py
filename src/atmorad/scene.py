@@ -4,6 +4,9 @@ from atmorad.physics import rotate
 from atmorad.atmosphere import Atmosphere
 from atmorad.surface import Surface
 
+EPSILON_DIR = 1e-10
+EPSILON_TAU = 1e-10
+
 class Scene:
     def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:
         self.surface = surface
@@ -55,7 +58,7 @@ class Scene:
             travel_up = direction[2] < 0
             travel_down = direction[2] > 0
             travel_horizontal = direction[2] == 0
-            direction[2, travel_horizontal] = 1e-12 # to avoid dividing by zero
+            direction[2, travel_horizontal] = EPSILON_DIR
 
             lower_bound = boundaries[layer_idx]
             upper_bound = boundaries[layer_idx + 1]
@@ -69,7 +72,7 @@ class Scene:
 
             new_tau_to_travel = np.where(tau_to_boundary < tau_to_travel, tau_to_boundary, tau_to_travel)
             dist = new_tau_to_travel / excinction_coeff
-            dist[tau_to_boundary < tau_to_travel] += 1e-8
+            dist[tau_to_boundary < tau_to_travel] += EPSILON_TAU
             pos += direction * dist
 
             tau_to_travel -= new_tau_to_travel
