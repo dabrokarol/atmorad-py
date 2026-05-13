@@ -26,12 +26,13 @@ class MCRadiation:
 
 def parallel_simulation(config: SimConfig, scene: Scene):
     chunk_size = config.num_photons // config.num_cores
+    remainder = config.num_photons % config.num_cores
     seeds = np.random.SeedSequence(config.random_seed).spawn(config.num_cores)
 
     futures = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=config.num_cores) as executor:
         for i in range(config.num_cores):
-            future = executor.submit(run_chunk, chunk_size, seeds[i], config, scene, i)
+            future = executor.submit(run_chunk, chunk_size + (remainder if i==0 else 0), seeds[i], config, scene, i)
             futures.append(future)
 
     all_results = [future.result() for future in concurrent.futures.as_completed(futures)]
@@ -39,10 +40,10 @@ def parallel_simulation(config: SimConfig, scene: Scene):
     return all_results
         
 
-def run_chunk(chunk_size: int, seed, config: SimConfig, scene: Scene, id):
+def run_chunk(chunk_size: int, seed, config: SimConfig, scene: Scene, i):
     chunk_config = SimConfig(
         num_photons=chunk_size,
-        num_track=config.num_track if id == 0 else 0,
+        num_track=config.num_track if i == 0 else 0,
         starting_pos=config.starting_pos,
         random_seed=seed,
         theta_sun_deg=config.theta_sun_deg,
@@ -80,10 +81,10 @@ class Simulation:
 
         direction = sun_elevation_rad_to_direction(theta, phi)
 
-        pos_x = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[0]
-        pos_y = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[1]
-        pos_z = np.full(self.num_photons, EPSILON_POS)
-        pos = np.vstack((pos_x, pos_y, pos_z))
+        pos = np.empty(shape=(3, self.num_photons))
+        pos[0, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[0]
+        pos[1, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[1]
+        pos[2, :] = np.full(self.num_photons, EPSILON_POS)
 
         ids = np.arange(0, self.num_photons)
         scatter_counts = np.zeros(self.num_photons)
@@ -196,7 +197,7 @@ class Simulation:
     
     def get_results(self):
         if self.results is None:
-            raise KeyError("No results, use '.run()' first")
+            raise RuntimeError("No results, use '.run()' first")
         
         return self.results
 
