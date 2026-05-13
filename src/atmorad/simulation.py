@@ -73,6 +73,7 @@ class Simulation:
         self.top_of_atmosphere = scene.top_of_atmosphere
 
         self.measure_z = np.arange(0, self.scene.atmosphere.get_total_thickness(), config.flux_measure_spacing)
+        self.measure_z[self.measure_z == 0] += DETECTOR_OFFSET # move the z=0 detector infinitesimally upwards
         self.measure_z = np.append(self.measure_z, self.top_of_atmosphere - DETECTOR_OFFSET) # move the z=toa detector infinitesimally downwards
         self.diff_down = np.zeros(self.measure_z.size + 1)
         self.diff_up = np.zeros(self.measure_z.size + 1)
