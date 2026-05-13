@@ -7,6 +7,9 @@ from atmorad.scene import Scene
 from atmorad.results import Results
 from atmorad.config import SimConfig
 
+EPSILON_DETECTOR = 1e-5
+EPSILON_POS = 1e-10
+
 
 class MCRadiation:
     def __init__(self, config: SimConfig, scene: Scene):
@@ -28,7 +31,7 @@ def parallel_simulation(config: SimConfig, scene: Scene):
     futures = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=config.num_cores) as executor:
         for i in range(config.num_cores):
-            future = executor.submit(run_chunk, chunk_size, seeds[i], config, scene)
+            future = executor.submit(run_chunk, chunk_size, seeds[i], config, scene, i)
             futures.append(future)
 
     all_results = [future.result() for future in concurrent.futures.as_completed(futures)]
@@ -36,10 +39,10 @@ def parallel_simulation(config: SimConfig, scene: Scene):
     return all_results
         
 
-def run_chunk(chunk_size: int, seed, config: SimConfig, scene: Scene):
+def run_chunk(chunk_size: int, seed, config: SimConfig, scene: Scene, id):
     chunk_config = SimConfig(
         num_photons=chunk_size,
-        num_track=config.num_track,
+        num_track=config.num_track if id == 0 else 0,
         starting_pos=config.starting_pos,
         random_seed=seed,
         theta_sun_deg=config.theta_sun_deg,
@@ -65,7 +68,7 @@ class Simulation:
         self.scene = scene
 
         self.measure_z = np.arange(0, self.scene.atmosphere.get_total_thickness(), config.flux_measure_spacing)
-        self.measure_z[self.measure_z==0] = 1e-5 # move the z=0 detector infinitesimally downwards
+        self.measure_z[self.measure_z==0] = EPSILON_DETECTOR # move the z=0 detector infinitesimally downwards
         self.diff_down = np.zeros(self.measure_z.size + 1)
         self.diff_up = np.zeros(self.measure_z.size + 1)
 
@@ -79,7 +82,7 @@ class Simulation:
 
         pos_x = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[0]
         pos_y = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[1]
-        pos_z = np.full(self.num_photons, 1e-6)
+        pos_z = np.full(self.num_photons, EPSILON_POS)
         pos = np.vstack((pos_x, pos_y, pos_z))
 
         ids = np.arange(0, self.num_photons)

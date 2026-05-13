@@ -26,7 +26,7 @@ def main():
         random_seed=42,
         theta_sun_deg=60,
         phi_sun_deg=0,
-        flux_measure_spacing=0.5
+        flux_measure_spacing=0.3
     )
     
     # 2. ATMOSPHERE
