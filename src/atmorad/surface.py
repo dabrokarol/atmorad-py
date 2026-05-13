@@ -66,7 +66,7 @@ class Surface:
         self.albedos = np.array([material.albedo for material in self.ground_types])
         self.reflections = [material.reflection for material in self.ground_types]
     
-    def check_and_reflect(self, pos, direction, rand_albedo, rand_theta, rand_phi):
+    def process_reflection(self, pos, direction, rand_albedo, rand_theta, rand_phi):
         ground_ids = self.ground_map.get_material_ids(pos)
         
         albedos = self.albedos[ground_ids]
