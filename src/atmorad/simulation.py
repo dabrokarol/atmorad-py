@@ -6,7 +6,7 @@ from atmorad.physics import orientation, rotate, sun_elevation_rad_to_direction
 from atmorad.scene import Scene
 from atmorad.results import Results
 from atmorad.config import SimConfig
-from atmorad.constants import DETECTOR_OFFSET, EPSILON, X, Y, Z
+from atmorad.constants import DETECTOR_OFFSET, EPSILON, MAX_SCATTERINGS, X, Y, Z
 
 class MCRadiation:
     def __init__(self, config: SimConfig, scene: Scene):
@@ -25,19 +25,22 @@ class MCRadiation:
 
 
 def parallel_simulation(config: SimConfig, scene: Scene):
-    chunk_size = config.num_photons // config.cpu_cores
-    remainder = config.num_photons % config.cpu_cores
-    seeds = np.random.SeedSequence(config.random_seed).spawn(config.cpu_cores)
+    if config.cpu_cores > 1:
+        chunk_size = config.num_photons // config.cpu_cores
+        remainder = config.num_photons % config.cpu_cores
+        seeds = np.random.SeedSequence(config.random_seed).spawn(config.cpu_cores)
 
-    futures = []
-    with concurrent.futures.ProcessPoolExecutor(max_workers=config.cpu_cores) as executor:
-        for i in range(config.cpu_cores):
-            future = executor.submit(run_chunk, chunk_size + (remainder if i==0 else 0), seeds[i], config, scene, i)
-            futures.append(future)
+        futures = []
+        with concurrent.futures.ProcessPoolExecutor(max_workers=config.cpu_cores) as executor:
+            for i in range(config.cpu_cores):
+                future = executor.submit(run_chunk, chunk_size + (remainder if i == 0 else 0), seeds[i], config, scene, i)
+                futures.append(future)
 
-    all_results = [future.result() for future in concurrent.futures.as_completed(futures)]
+        all_results = [future.result() for future in concurrent.futures.as_completed(futures)]
 
-    return all_results
+        return all_results
+    else:
+        return [run_chunk(config.num_photons, config.random_seed, config, scene, 0)]
         
 
 def run_chunk(chunk_size: int, seed, config: SimConfig, scene: Scene, i):
@@ -151,7 +154,9 @@ class Simulation:
             rand_interaction, rand_theta, rand_phi = self.rng.uniform(0, 1, size=(3, active_ids.size))
             direction, absorbed_surface, absorbed_atmosphere, scattered = scene.scatter_photons(pos, direction, rand_interaction, rand_theta, rand_phi, surface_mask, atmosphere_mask, medium_ids)
 
-            active_mask = (~space_mask) & (~absorbed_surface) & ~(absorbed_atmosphere)
+            exceeded_scatterings_mask = scatter_counts[active_ids] > MAX_SCATTERINGS
+
+            active_mask = ~space_mask & ~absorbed_surface & ~absorbed_atmosphere & ~exceeded_scatterings_mask
             terminated_mask = ~active_mask
             
             # Appending simulation results
@@ -160,6 +165,7 @@ class Simulation:
             scatter_counts[active_ids[scattered]] += 1
             if np.any(surface_mask):
                 surface_hits_pos.append(pos[:2, surface_mask].copy())
+            
             
             # Shrinking arrays to alive photons
             pos = pos[:, active_mask]
@@ -176,7 +182,7 @@ class Simulation:
         else:
             surface_hits_pos = np.array([])
 
-        space_mask, surface_mask, layer_idx = scene.get_photon_position_mask(final_positions[2])
+        space_mask, surface_mask, layer_idx = scene.get_photon_position_mask(final_positions[Z])
 
         flux_down = np.cumsum(self.diff_down)[:-1]
         flux_up = np.cumsum(self.diff_up)[:-1]

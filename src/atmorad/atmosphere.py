@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from atmorad.physics.scattering import Scattering
+from atmorad.constants import X, Y, Z
   
 @dataclass
 class AtmosphericMedium:
