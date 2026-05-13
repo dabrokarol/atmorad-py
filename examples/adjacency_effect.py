@@ -9,9 +9,6 @@ Simulation structure:
     - x>0: albedo=1 (fully reflective surface, lambertian reflection)
  """
 
-import time
-import numpy as np
-
 from atmorad.simulation import MCRadiation
 from atmorad.scene import Scene
 from atmorad.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
@@ -19,7 +16,6 @@ from atmorad.surface import Surface, SurfaceMaterial, ProceduralMap
 from atmorad.physics import SurfaceReflections, AtmosphereScatterings
 from atmorad.data_io import OutputHandler
 from atmorad.config import SimConfig
-
 
 def main():
 
@@ -29,7 +25,8 @@ def main():
         num_track=200,
         random_seed=42,
         theta_sun_deg=60,
-        phi_sun_deg=0
+        phi_sun_deg=0,
+        flux_measure_spacing=0.5
     )
     
     # 2. ATMOSPHERE
@@ -56,15 +53,9 @@ def main():
     surface = Surface(ground_map, [material0, material1])
 
     # 4. SCENE AND SIMULATION
-    hmax = atm.get_total_thickness() # height of the eintire atmospheric layer
-    flux_measures_z = np.arange(0, hmax, 0.5) # heights at which flux will be measured (0 - top of atmosphere)
-
     scene = Scene(surface, atm)
-    sim = MCRadiation(config, scene, flux_measures_z)
-
-    start_time = time.perf_counter_ns() # for mesuring time
+    sim = MCRadiation(config, scene)
     sim.run()
-    end_time = time.perf_counter_ns()
 
     # 5. OUTPUTS
     res = sim.get_results()
@@ -80,7 +71,7 @@ def main():
     handler.save_plot(fig_flux, 'vertical_flux_profile.png')
     handler.save_plot(fig_scat_hist, 'scattering_hist.png')
 
-    handler.save_metadata(config, (end_time - start_time) / 1e9)
+    handler.save_metadata(config, res)
     handler.save_results(res)
     handler.print_results(res)
 

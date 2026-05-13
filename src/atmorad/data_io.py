@@ -26,12 +26,15 @@ class OutputHandler:
                 self.base_dir = Path.cwd() / f"{base_dir}_{timestamp}"
                 self.base_dir.mkdir()
     
-    def save_metadata(self, config: SimConfig, execution_time_s: float|None = None) -> None:
-        config_dict = asdict(config)
-        if execution_time_s:
-            config_dict['execution_time_s'] = execution_time_s
+    def save_metadata(self, config: SimConfig, results: Results) -> None:
+        metadata = asdict(config)
+
+        metadata['sim_duration_s'] = results.sim_duration_s
+        metadata['summary'] = results.summary()
+        metadata['total_surface_hits'] = results.surface_hits.shape[1]
+
         with open(self.base_dir / 'metadata.json', 'w') as f:
-            json.dump(config_dict, f, indent=4)
+            json.dump(metadata, f, indent=4)
 
         script_path = Path(sys.argv[0]).resolve()
         if script_path.exists and script_path.suffix == '.py':
@@ -73,7 +76,8 @@ def read_results(path: Path|str) -> Results:
             scatter_counts=data['scatter_counts'],
             measure_z=data['measure_z'],
             flux_up=data['flux_up'],
-            flux_down=data['flux_down']
+            flux_down=data['flux_down'],
+            sim_duration_s=data['sim_duration_s']
         )
 
     except FileNotFoundError:

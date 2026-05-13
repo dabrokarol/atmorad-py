@@ -9,7 +9,6 @@ and learn how to generate the plots shown in README.md, check the script inside 
 Enjoy!
 """
 
-import time
 import numpy as np
 
 from atmorad.simulation import MCRadiation
@@ -53,15 +52,10 @@ def main():
     ###############################
     # 4. SCENE AND SIMULATION #####
     ###############################
-    hmax = atm.get_total_thickness() # height of the eintire atmospheric layer
-    flux_measures_z = np.arange(0, hmax, 0.5) # heights at which flux will be measured (0 - top of atmosphere)
-
     scene = Scene(surface, atm)
-    sim = MCRadiation(config, scene, flux_measures_z)
+    sim = MCRadiation(config, scene)
 
-    start_time = time.perf_counter_ns() # for mesuring time
     sim.run()
-    end_time = time.perf_counter_ns()
 
     ####################
     # 5. OUTPUTS #######
@@ -78,7 +72,7 @@ def main():
     handler.print_results(res)
 
     # save raw simulation data for later
-    handler.save_metadata(config, (end_time - start_time) / 1e9)
+    handler.save_metadata(config, res)
     handler.save_results(res)
 
 if __name__ == '__main__':
