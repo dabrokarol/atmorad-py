@@ -1,6 +1,7 @@
 import numpy as np
 
 from atmorad.physics.geometry import orientation
+from atmorad.constants import X, Y, Z
 
 class SurfaceReflection:
     def __init__(self, reflection_func):
@@ -14,7 +15,7 @@ class SurfaceReflection:
     
     @staticmethod
     def mirror_reflection_func(direction, rand_1, rand_2):
-        direction[2] = -direction[2]
+        direction[Z] = -direction[Z]
         return direction
     
     @staticmethod

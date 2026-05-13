@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from atmorad.physics.reflection import SurfaceReflection
+from atmorad.constants import X, Y, Z
 
 @dataclass
 class SurfaceMaterial:
@@ -29,20 +30,20 @@ class ProceduralMap(SurfaceMap):
     #example map functions:
     @staticmethod
     def uniform_ground(pos):
-        return np.zeros_like(pos[0]).astype(int)
+        return np.zeros_like(pos[X]).astype(int)
     
     @staticmethod
     def split_half_x(pos):
-        return np.where(pos[0] < 0, 0, 1)
+        return np.where(pos[X] < 0, 0, 1)
     
     @staticmethod
     def circle(pos):
-        return np.where((pos[0]**2 + pos[1]**2) < 100, 0, 1)
+        return np.where((pos[X]**2 + pos[Y]**2) < 100, 0, 1)
     
     @staticmethod
     def checkerboard(pos):
-        x = np.mod(pos[0], 10)
-        y = np.mod(pos[1], 10)
+        x = np.mod(pos[X], 10)
+        y = np.mod(pos[Y], 10)
         return np.where(((x<5) & (y<5)) | ((x >= 5) & (y >= 5)), 0, 1)
 
 # class GridMap(SurfaceMap):

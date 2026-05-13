@@ -5,6 +5,8 @@ import cmocean as cmo
 
 from dataclasses import dataclass
 
+from atmorad.constants import X, Y, Z
+
 sns.set_theme(style="ticks", rc={"font.family": "serif"})
 
 @dataclass
@@ -19,7 +21,8 @@ class Results:
     measure_z: np.ndarray
     flux_up: np.ndarray
     flux_down: np.ndarray
-    sim_duration_s: float
+    cpu_time_s: float
+    simulation_time_s: float = 0
 
     def __post_init__(self):
         self.atmosphere_mask = (~self.space_mask) & (~self.surface_mask)
@@ -51,7 +54,7 @@ class Results:
         flux_up = np.sum([r.flux_up for r in results_list], axis=0)
         flux_down = np.sum([r.flux_down for r in results_list], axis=0)
         
-        sim_duration_s = sum(r.sim_duration_s for r in results_list)
+        cpu_time_s = sum(r.cpu_time_s for r in results_list)
 
         return cls(
             final_positions=final_positions,
@@ -64,7 +67,7 @@ class Results:
             measure_z=results_list[0].measure_z,
             flux_up=flux_up,
             flux_down=flux_down,
-            sim_duration_s=sim_duration_s
+            cpu_time_s=cpu_time_s
         )
 
     def summary(self):
@@ -121,10 +124,10 @@ class Results:
     def _2dhexplot(self, pos, title, limit):
         if not pos.any():
             return plt.figure()
-        plot_mask = (pos[0] > -limit) & (pos[0] < limit) & (pos[1] > -limit) & (pos[1] < limit)
+        plot_mask = (pos[X] > -limit) & (pos[X] < limit) & (pos[Y] > -limit) & (pos[Y] < limit)
         pos = pos[:, plot_mask]
         color = cmo.cm.solar(2) # type: ignore
-        joint_plot = sns.jointplot(x=pos[0], y=pos[1], kind="hex", cmap=cmo.cm.solar, color=color) # type: ignore
+        joint_plot = sns.jointplot(x=pos[X], y=pos[Y], kind="hex", cmap=cmo.cm.solar, color=color) # type: ignore
 
         joint_plot.ax_joint.set_xbound(-limit, limit)
         joint_plot.ax_joint.set_ybound(-limit, limit)

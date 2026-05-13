@@ -3,6 +3,8 @@ import numpy as np
 from atmorad.physics import rotate
 from atmorad.atmosphere import Atmosphere
 from atmorad.surface import Surface
+from atmorad.constants import EPSILON, X, Y, Z
+
 
 EPSILON_DIR = 1e-10
 EPSILON_TAU = 1e-10
@@ -35,10 +37,10 @@ class Scene:
         medium_ids = self.atmosphere.get_mediums(pos, rand_component)
 
         while tau_to_travel.size:
-            layer_idx = self.atmosphere.get_layer_idx(pos[2])
+            layer_idx = self.atmosphere.get_layer_idx(pos[Z])
 
-            surface_mask = pos[2] > boundaries[-1]
-            space_mask = pos[2] < 0
+            surface_mask = pos[Z] > boundaries[-1]
+            space_mask = pos[Z] < 0
             atmosphere_mask = (~space_mask) & (~surface_mask)
 
             pos = self.snap_to_boundaries(pos, direction, space_mask, surface_mask)
@@ -54,31 +56,31 @@ class Scene:
             pos = pos[:, atmosphere_mask]
             ids = ids[atmosphere_mask]
 
-            delta_z = pos[2] - boundaries[layer_idx]
-            travel_up = direction[2] < 0
-            travel_down = direction[2] > 0
-            travel_horizontal = direction[2] == 0
-            direction[2, travel_horizontal] = EPSILON_DIR
+            delta_z = pos[Z] - boundaries[layer_idx]
+            travel_up = direction[Z] < 0
+            travel_down = direction[Z] > 0
+            travel_horizontal = direction[Z] == 0
+            direction[Z, travel_horizontal] = EPSILON
 
             lower_bound = boundaries[layer_idx]
             upper_bound = boundaries[layer_idx + 1]
 
-            delta_z[travel_up] = lower_bound[travel_up] - pos[2, travel_up]
-            delta_z[travel_down] = upper_bound[travel_down] - pos[2, travel_down]
+            delta_z[travel_up] = lower_bound[travel_up] - pos[Z, travel_up]
+            delta_z[travel_down] = upper_bound[travel_down] - pos[Z, travel_down]
             delta_z[travel_horizontal] = np.inf
 
             excinction_coeff = extinction_coeffs[medium_ids[ids]]
-            tau_to_boundary = (delta_z) / direction[2] * excinction_coeff
+            tau_to_boundary = (delta_z) / direction[Z] * excinction_coeff
 
             new_tau_to_travel = np.where(tau_to_boundary < tau_to_travel, tau_to_boundary, tau_to_travel)
             dist = new_tau_to_travel / excinction_coeff
-            dist[tau_to_boundary < tau_to_travel] += EPSILON_TAU
+            dist[tau_to_boundary < tau_to_travel] += EPSILON
             pos += direction * dist
 
             tau_to_travel -= new_tau_to_travel
             finished_mask = np.isclose(tau_to_travel, 0)
 
-            in_atmosphere_mask = (pos[2] >= 0) & (pos[2] <   boundaries[-1])
+            in_atmosphere_mask = (pos[Z] >= 0) & (pos[Z] < boundaries[-1])
             cross_layer_mask = ~finished_mask & in_atmosphere_mask
             n_cross_layer = np.count_nonzero(cross_layer_mask)
             rand_component = rng.uniform(0, 1, n_cross_layer)
@@ -111,8 +113,8 @@ class Scene:
         return direction, absorbed_surface, absorbed_atmosphere, to_scat
     
     def snap_to_boundaries(self, pos, direction, reached_space, reached_surf):
-        pos[:, reached_space] += (0 - pos[2, reached_space]) / direction[2, reached_space] * direction[:, reached_space]
-        pos[:, reached_surf] += (self.atmosphere.boundaries[-1] - pos[2, reached_surf]) / direction[2, reached_surf] * direction[:, reached_surf]
+        pos[:, reached_space] += (0 - pos[Z, reached_space]) / direction[Z, reached_space] * direction[:, reached_space]
+        pos[:, reached_surf] += (self.atmosphere.boundaries[-1] - pos[Z, reached_surf]) / direction[Z, reached_surf] * direction[:, reached_surf]
         return pos
     
     def get_photon_position_mask(self, pos_z):

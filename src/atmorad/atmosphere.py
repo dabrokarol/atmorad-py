@@ -75,7 +75,7 @@ class Atmosphere:
         return layer_medium_idx
 
     def get_mediums(self, pos, rand_1):
-        layer_idx = self.get_layer_idx(pos[2])
+        layer_idx = self.get_layer_idx(pos[Z])
         component_idx = np.argmax(rand_1[:, np.newaxis] < self.layer_cdfs[layer_idx], axis=1)
         return self.layer_medium_ids[layer_idx, component_idx] # array of column numbers, array of row numbers
 

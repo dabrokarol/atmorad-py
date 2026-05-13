@@ -29,7 +29,8 @@ class OutputHandler:
     def save_metadata(self, config: SimConfig, results: Results) -> None:
         metadata = asdict(config)
 
-        metadata['sim_duration_s'] = results.sim_duration_s
+        metadata['cpu_time_s'] = results.cpu_time_s
+        metadata['simulation_time_s'] = results.simulation_time_s
         metadata['summary'] = results.summary()
         metadata['total_surface_hits'] = results.surface_hits.shape[1]
 
@@ -77,7 +78,7 @@ def read_results(path: Path|str) -> Results:
             measure_z=data['measure_z'],
             flux_up=data['flux_up'],
             flux_down=data['flux_down'],
-            sim_duration_s=data['sim_duration_s']
+            cpu_time_s=data['sim_duration_s']
         )
 
     except FileNotFoundError:
