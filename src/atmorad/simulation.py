@@ -8,6 +8,10 @@ from atmorad.results import Results
 from atmorad.config import SimConfig
 from atmorad.constants import DETECTOR_OFFSET, EPSILON, X, Y, Z
 
+EPSILON_DETECTOR = 1e-5
+EPSILON_POS = 1e-10
+
+
 class MCRadiation:
     def __init__(self, config: SimConfig, scene: Scene):
         self.config = config

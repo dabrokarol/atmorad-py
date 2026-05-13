@@ -6,6 +6,9 @@ from atmorad.surface import Surface
 from atmorad.constants import EPSILON, X, Y, Z
 
 
+EPSILON_DIR = 1e-10
+EPSILON_TAU = 1e-10
+
 class Scene:
     def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:
         self.surface = surface
