@@ -9,4 +9,4 @@ class SimConfig:
     theta_sun_deg: float = 60
     phi_sun_deg: float = 0
     flux_measure_spacing: float = 1
-    num_cores: int = 4
+    cpu_cores: int = 4

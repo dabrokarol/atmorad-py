@@ -25,13 +25,13 @@ class MCRadiation:
 
 
 def parallel_simulation(config: SimConfig, scene: Scene):
-    chunk_size = config.num_photons // config.num_cores
-    remainder = config.num_photons % config.num_cores
-    seeds = np.random.SeedSequence(config.random_seed).spawn(config.num_cores)
+    chunk_size = config.num_photons // config.cpu_cores
+    remainder = config.num_photons % config.cpu_cores
+    seeds = np.random.SeedSequence(config.random_seed).spawn(config.cpu_cores)
 
     futures = []
-    with concurrent.futures.ProcessPoolExecutor(max_workers=config.num_cores) as executor:
-        for i in range(config.num_cores):
+    with concurrent.futures.ProcessPoolExecutor(max_workers=config.cpu_cores) as executor:
+        for i in range(config.cpu_cores):
             future = executor.submit(run_chunk, chunk_size + (remainder if i==0 else 0), seeds[i], config, scene, i)
             futures.append(future)
 

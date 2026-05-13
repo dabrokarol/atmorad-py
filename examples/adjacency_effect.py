@@ -26,7 +26,8 @@ def main():
         random_seed=42,
         theta_sun_deg=60,
         phi_sun_deg=0,
-        flux_measure_spacing=0.3
+        flux_measure_spacing=0.3,
+        cpu_cores=4
     )
     
     # 2. ATMOSPHERE
@@ -34,9 +35,9 @@ def main():
     air = AtmosphericMedium(0.01, 0.5, AtmosphereScatterings.HenyeyGreenstein(g=0.5))
     clouds = AtmosphericMedium(5, 0.999999, AtmosphereScatterings.HenyeyGreenstein(g=0.85))
 
-    # Format: AtmosphericLayer(thickness_km, [(medium0, fraction0), (medium1, fraction1), ...])
-    # fractions should sum up to 1.0
-    # Eg. layer = AtmosphericLayer(50, [(air, 0.3), (clouds, 0.7)]) 
+    # Full format: AtmosphericLayer(thickness_km, [(medium0, fraction0), (medium1, fraction1), ...])
+    # Eg. layer = AtmosphericLayer(50, [(air, 0.3), (clouds, 0.7)]), fractions should sum up to 1.0
+    # Simplified format: AtmosphericLayer(thickness_km, medium)
     layer0 = AtmosphericLayer(5, air)
     layer1 = AtmosphericLayer(2, clouds)
     layer2 = AtmosphericLayer(10, air)
