@@ -26,7 +26,8 @@ def main():
     # 1. SIMULATION PARAMETERS ##
     #############################
     config = SimConfig(
-        theta_sun_deg=60
+        theta_sun_deg=0,
+        cpu_cores=1
     )
     
     ###################

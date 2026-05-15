@@ -1,4 +1,4 @@
-from atmorad.physics.geometry import orientation, rotate, sun_elevation_deg_to_direction, sun_elevation_rad_to_direction
+from atmorad.physics.geometry import orientation, rotate, sun_zenith_to_direction
 from atmorad.physics import scattering, reflection
 
 class AtmosphereScatterings:

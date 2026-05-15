@@ -5,12 +5,9 @@ from atmorad.constants import X, Y, Z
 def orientation(cos_theta, sin_theta, cos_phi, sin_phi):
     return np.array((sin_theta * cos_phi, sin_theta * sin_phi, cos_theta))
 
-def sun_elevation_deg_to_direction(theta_sun, phi_sun):
-    return sun_elevation_rad_to_direction(theta_sun*np.pi/180, phi_sun*np.pi/180)
-
-def sun_elevation_rad_to_direction(theta_sun, phi_sun):
-    cos_theta = np.cos(np.pi/2 - theta_sun)
-    sin_theta = np.sin(np.pi/2 - theta_sun)
+def sun_zenith_to_direction(theta_sun, phi_sun):
+    cos_theta = -np.cos(theta_sun) # minus as direction will face downwards
+    sin_theta = np.sin(theta_sun)
     cos_phi = np.cos(phi_sun + np.pi)
     sin_phi = np.sin(phi_sun + np.pi)
     return orientation(cos_theta, sin_theta, cos_phi, sin_phi)

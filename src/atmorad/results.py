@@ -110,8 +110,6 @@ class Results:
 
         ax.set_xlim(-limit_xy, limit_xy)
         ax.set_ylim(-limit_xy, limit_xy)
-
-        ax.invert_zaxis()
         ax.legend()
         return fig
 
@@ -150,8 +148,6 @@ class Results:
         ax.set_title(title, fontsize=18)
         ax.set_xlabel("Flux [photon count]", fontsize=12)
         ax.set_ylabel("Height (Z)", fontsize=12)
-
-        ax.invert_yaxis()
         ax.grid(True, linestyle=':', alpha=0.7)
         ax.legend(fontsize=11)
         
