@@ -11,8 +11,8 @@ Simulation structure:
 
 from atmorad.engine.runner import MCRadiation
 from atmorad.environment.scene import Scene
-from atmorad.environment.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
-from atmorad.environment.surface import Surface, SurfaceMaterial, ProceduralMap
+from atmorad.environment.atmosphere import LayeredAtmosphere, AtmosphericLayer, AtmosphericMedium
+from atmorad.environment.surface import FlatSurface, SurfaceMaterial, ProceduralMap
 from atmorad.physics import SurfaceReflections, AtmosphereScatterings
 from atmorad.io.data_io import OutputHandler
 from atmorad.config.config import SimConfig
@@ -41,7 +41,7 @@ def main():
     layer0 = AtmosphericLayer(10, air)
     layer1 = AtmosphericLayer(2, clouds)
     layer2 = AtmosphericLayer(5, air)
-    atm = Atmosphere([layer0, layer1, layer2])
+    atm = LayeredAtmosphere([layer0, layer1, layer2])
 
     # 3. SURFACE
     # Format: SurfaceMaterial(albedo, reflection_object)
@@ -51,7 +51,7 @@ def main():
     # Procedural map takes in a function that takes in a np.array of shape (2, N) or (3, N) and outputs array of shape (N) with integers
     # The returned integer array represents material IDs.
     ground_map = ProceduralMap(ProceduralMap.split_half_x)
-    surface = Surface(ground_map, [material0, material1])
+    surface = FlatSurface(ground_map, [material0, material1])
 
     # 4. SCENE AND SIMULATION
     scene = Scene(surface, atm)

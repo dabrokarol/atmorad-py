@@ -9,12 +9,10 @@ and learn how to generate the plots shown in README.md, check the script inside 
 Enjoy!
 """
 
-import numpy as np
-
 from atmorad.engine.runner import MCRadiation
 from atmorad.environment.scene import Scene
-from atmorad.environment.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
-from atmorad.environment.surface import Surface, SurfaceMaterial, ProceduralMap
+from atmorad.environment.atmosphere import LayeredAtmosphere, AtmosphericLayer, AtmosphericMedium
+from atmorad.environment.surface import FlatSurface, SurfaceMaterial, ProceduralMap
 from atmorad.physics import SurfaceReflections, AtmosphereScatterings
 from atmorad.io.data_io import OutputHandler
 from atmorad.config.config import SimConfig
@@ -39,7 +37,7 @@ def main():
     # format: AtmosphericLayer(thickness_km, [(medium0, fraction0), ...])
     layer0 = AtmosphericLayer(20, air)
 
-    atm = Atmosphere([layer0])
+    atm = LayeredAtmosphere([layer0])
 
     ###################
     # 3. SURFACE ######
@@ -48,7 +46,7 @@ def main():
     material0 = SurfaceMaterial(0.5, SurfaceReflections.LambertianReflection())
 
     ground_map = ProceduralMap(ProceduralMap.uniform_ground)
-    surface = Surface(ground_map, [material0])
+    surface = FlatSurface(ground_map, [material0])
 
     ###############################
     # 4. SCENE AND SIMULATION #####
