@@ -9,13 +9,13 @@ Simulation structure:
     - x>0: albedo=1 (fully reflective surface, lambertian reflection)
  """
 
-from atmorad.simulation import MCRadiation
-from atmorad.scene import Scene
-from atmorad.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
-from atmorad.surface import Surface, SurfaceMaterial, ProceduralMap
+from atmorad.engine.runner import MCRadiation
+from atmorad.environment.scene import Scene
+from atmorad.environment.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
+from atmorad.environment.surface import Surface, SurfaceMaterial, ProceduralMap
 from atmorad.physics import SurfaceReflections, AtmosphereScatterings
-from atmorad.data_io import OutputHandler
-from atmorad.config import SimConfig
+from atmorad.io.data_io import OutputHandler
+from atmorad.config.config import SimConfig
 
 def main():
 

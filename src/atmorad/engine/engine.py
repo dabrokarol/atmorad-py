@@ -1,68 +1,17 @@
 import time
-import concurrent.futures
 import numpy as np
 
 from atmorad.physics import orientation, rotate, sun_zenith_to_direction
-from atmorad.scene import Scene
-from atmorad.results import Results
-from atmorad.config import SimConfig
+from atmorad.environment.scene import Scene
+from atmorad.detectors.results import Results
+from atmorad.config.config import SimConfig
 from atmorad.constants import DETECTOR_OFFSET, EPSILON, MAX_SCATTERINGS, X, Y, Z
-
-class MCRadiation:
-    def __init__(self, config: SimConfig, scene: Scene):
-        self.config = config
-        self.scene = scene
-
-    def run(self):
-        start_time = time.perf_counter()
-        results = parallel_simulation(self.config, self.scene)
-        self.results = Results.merge_all(results)
-        end_time = time.perf_counter()
-        self.results.simulation_time_s = end_time - start_time
-
-    def get_results(self):
-        return self.results
-
-
-def parallel_simulation(config: SimConfig, scene: Scene):
-    if config.cpu_cores > 1:
-        chunk_size = config.num_photons // config.cpu_cores
-        remainder = config.num_photons % config.cpu_cores
-        seeds = np.random.SeedSequence(config.random_seed).spawn(config.cpu_cores)
-
-        futures = []
-        with concurrent.futures.ProcessPoolExecutor(max_workers=config.cpu_cores) as executor:
-            for i in range(config.cpu_cores):
-                future = executor.submit(run_chunk, chunk_size + (remainder if i == 0 else 0), seeds[i], config, scene, i)
-                futures.append(future)
-
-        all_results = [future.result() for future in concurrent.futures.as_completed(futures)]
-
-        return all_results
-    else:
-        return [run_chunk(config.num_photons, config.random_seed, config, scene, 0)]
-        
-
-def run_chunk(chunk_size: int, seed, config: SimConfig, scene: Scene, i):
-    chunk_config = SimConfig(
-        num_photons=chunk_size,
-        num_track=config.num_track if i == 0 else 0,
-        starting_pos=config.starting_pos,
-        random_seed=seed,
-        theta_sun_deg=config.theta_sun_deg,
-        phi_sun_deg=config.phi_sun_deg,
-        flux_measure_spacing=config.flux_measure_spacing
-    )
-    sim = Simulation(chunk_config, scene)
-    sim.run()
-    return sim.get_results()
 
 
 class Simulation:
     def __init__(self, config: SimConfig, scene: Scene):
         self.num_photons = config.num_photons
         self.num_track = min(config.num_track, self.num_photons)
-        self.starting_pos = np.array(config.starting_pos, dtype=np.float64).reshape(-1, 1)
         self.rng = np.random.default_rng(config.random_seed)
         
         self.theta_sun = config.theta_sun_deg
@@ -72,7 +21,7 @@ class Simulation:
         self.scene = scene
         self.top_of_atmosphere = scene.top_of_atmosphere
 
-        self.measure_z = np.arange(0, self.scene.atmosphere.get_total_thickness(), config.flux_measure_spacing)
+        self.measure_z = np.arange(0, self.scene.atmosphere.get_total_thickness(), config.flux_measure_spacing, dtype=float)
         self.measure_z[self.measure_z == 0] += DETECTOR_OFFSET # move the z=0 detector infinitesimally upwards
         self.measure_z = np.append(self.measure_z, self.top_of_atmosphere - DETECTOR_OFFSET) # move the z=toa detector infinitesimally downwards
         self.diff_down = np.zeros(self.measure_z.size + 1)
@@ -86,8 +35,8 @@ class Simulation:
         direction = sun_zenith_to_direction(theta, phi)
 
         pos = np.empty(shape=(3, self.num_photons), dtype=float)
-        pos[X, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[X]
-        pos[Y, :] = self.rng.uniform(-1, 1, self.num_photons) * 100 + self.starting_pos[Y]
+        pos[X, :] = self.rng.uniform(-1, 1, self.num_photons) * 100
+        pos[Y, :] = self.rng.uniform(-1, 1, self.num_photons) * 100
         pos[Z, :] = np.full(self.num_photons, self.top_of_atmosphere - EPSILON)
 
         ids = np.arange(0, self.num_photons)

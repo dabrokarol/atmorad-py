@@ -1,8 +1,8 @@
 import numpy as np
 
 from atmorad.physics import rotate
-from atmorad.atmosphere import Atmosphere
-from atmorad.surface import Surface
+from atmorad.environment.atmosphere import Atmosphere
+from atmorad.environment.surface import Surface
 from atmorad.constants import EPSILON, X, Y, Z
 
 
@@ -112,6 +112,10 @@ class Scene:
         absorbed_atmosphere = (~to_scat) & atmosphere_mask
 
         return direction, absorbed_surface, absorbed_atmosphere, to_scat|to_reflect
+    
+    def get_medium_properties(self, pos):
+        pass
+        
     
     def snap_to_boundaries(self, pos, direction, reached_space, reached_surf):
         pos[:, reached_space] += (self.top_of_atmosphere - pos[Z, reached_space]) / direction[Z, reached_space] * direction[:, reached_space]

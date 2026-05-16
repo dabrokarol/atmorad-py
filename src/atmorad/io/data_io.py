@@ -9,8 +9,8 @@ from pathlib import Path
 from dataclasses import asdict
 from matplotlib.figure import Figure
 
-from atmorad.results import Results
-from atmorad.config import SimConfig
+from atmorad.detectors.results import Results
+from atmorad.config.config import SimConfig
 
 class OutputHandler:
     def __init__(self, base_dir: str, overwrite = False) -> None:
