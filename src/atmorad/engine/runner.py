@@ -4,7 +4,7 @@ import concurrent.futures
 
 from atmorad.environment.scene import Scene
 from atmorad.engine.batch import PhotonBatch
-from atmorad.engine.engine import Simulation
+from atmorad.engine.engine import Engine
 from atmorad.config.config import SimConfig
 from atmorad.detectors.results import Results
 
@@ -52,6 +52,6 @@ def run_chunk(chunk_size: int, seed, config: SimConfig, scene: Scene, i):
         phi_sun_deg=config.phi_sun_deg,
         flux_measure_spacing=config.flux_measure_spacing
     )
-    sim = Simulation(chunk_config, scene)
+    sim = Engine(chunk_config, scene)
     sim.run()
     return sim.get_results()

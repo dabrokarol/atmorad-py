@@ -1,16 +1,16 @@
+from dataclasses import dataclass
+
 import numpy as np
 
+@dataclass 
 class PhotonBatch:
-    def __init__(self, num_photons):
-        self.pos = np.empty((3, num_photons), dtype=float)
-        self.direction = np.empty((3, num_photons), dtype=float)
-        self.tau = np.empty(num_photons, dtype=float)
-        self.is_active = np.ones(num_photons, dtype=bool)
-        
-        self.ids = np.arange(num_photons)
-        self.medium_ids = np.empty(num_photons, dtype=int)
-        self.scatter_counts = np.zeros(num_photons, dtype=int)
-    
+    pos: np.ndarray
+    direction: np.ndarray
+    tau_to_travel: np.ndarray
+    is_active: np.ndarray
+    ids: np.ndarray
+    material_ids: np.ndarray
+    scatter_counts: np.ndarray
     
     @property
     def active_count(self):
@@ -23,7 +23,8 @@ class PhotonBatch:
         self.ids = self.ids[self.is_active]
         self.pos = self.pos[:, self.is_active]
         self.direction = self.direction[:, self.is_active]
-        self.tau = self.tau[self.is_active]
-        self.medium_ids = self.medium_ids[self.is_active]
+        self.tau_to_travel = self.tau_to_travel[self.is_active]
+        self.material_ids = self.material_ids[self.is_active]
         self.scatter_counts = self.scatter_counts[self.is_active]
+        
         self.is_active = self.is_active[self.is_active]

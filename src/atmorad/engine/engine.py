@@ -1,14 +1,16 @@
 import time
+import logging
 import numpy as np
 
-from atmorad.physics import orientation, rotate, sun_zenith_to_direction
+from atmorad.physics import sun_zenith_to_direction
+from atmorad.engine.batch import PhotonBatch
 from atmorad.environment.scene import Scene
 from atmorad.detectors.results import Results
 from atmorad.config.config import SimConfig
 from atmorad.constants import DETECTOR_OFFSET, EPSILON, MAX_SCATTERINGS, X, Y, Z
 
-
-class Simulation:
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+class Engine:
     def __init__(self, config: SimConfig, scene: Scene):
         self.num_photons = config.num_photons
         self.num_track = min(config.num_track, self.num_photons)
@@ -38,15 +40,26 @@ class Simulation:
         pos[X, :] = self.rng.uniform(-1, 1, self.num_photons) * 100
         pos[Y, :] = self.rng.uniform(-1, 1, self.num_photons) * 100
         pos[Z, :] = np.full(self.num_photons, self.top_of_atmosphere - EPSILON)
+        
+        rand_component = self.rng.uniform(0, 1, self.num_photons)
+        initial_material_ids = self.scene.atmosphere.get_mediums(pos, rand_component)
+        
+        batch = PhotonBatch(
+            pos=pos,
+            direction=direction,
+            tau_to_travel=self.random_tau(self.num_photons),
+            is_active=np.ones(self.num_photons, dtype=bool),
+            ids=np.arange(self.num_photons),
+            material_ids=initial_material_ids,
+            scatter_counts=np.zeros(self.num_photons, dtype=int)
+        )
 
-        ids = np.arange(0, self.num_photons)
-        scatter_counts = np.zeros(self.num_photons)
+        self.tracked_paths = {i: [] for i in range(self.num_track)}
+        self.final_positions = np.zeros((3, self.num_photons))
+        self.final_directions = np.zeros((3, self.num_photons))
+        self.final_scatter_counts = np.zeros(self.num_photons, dtype=int)
 
-        tracked_paths = {i: [] for i in range(self.num_track)}
-        final_positions = np.zeros((3, self.num_photons))
-        final_directions = np.zeros((3, self.num_photons))
-
-        return pos, direction, ids, scatter_counts, tracked_paths, final_positions, final_directions
+        return batch
 
     def update_flux_counts(self, old_z: np.ndarray, new_z: np.ndarray):
         down_mask = new_z < old_z
@@ -75,75 +88,89 @@ class Simulation:
             self.diff_up[0:start_bins.size] += start_bins
             self.diff_up[0:end_bins.size] -= end_bins
 
+    def random_tau(self, size):
+        return self.rng.exponential(scale=1.0, size=size)
+
     def run(self):
-        pos, direction, active_ids, scatter_counts, tracked_paths, final_positions, final_directions = self._init_arrays()
+        batch = self._init_arrays()
 
         surface_hits_pos = []
-        
         num_track = self.num_track
         scene = self.scene
-
+        rng = self.rng
+        
         start_time = time.process_time()
 
-        while active_ids.size:
-            num_active_photons = active_ids.size
-
-            for i, position in zip(active_ids[active_ids<num_track], pos[:, active_ids<num_track].copy().T):
-                tracked_paths[i].append(position)
-
-            transmission = self.rng.uniform(0, 1, num_active_photons)
-            tau_to_travel = -np.log(transmission)
-
-            old_z = pos[Z].copy()
-            pos, surface_mask, space_mask, medium_ids = scene.move_photons(pos, direction, tau_to_travel, self.rng)
-            new_z = pos[Z]
-            self.update_flux_counts(old_z, new_z)
+        while batch.active_count > 0:
+            logging.info(f"Active photons: {batch.active_count}")
             
-            atmosphere_mask = (~surface_mask) & (~space_mask)
+            for i, position in zip(batch.ids[batch.ids<num_track], batch.pos[:, batch.ids<num_track].copy().T):
+                self.tracked_paths[i].append(position)
+
+            tau_to_boundary = scene.tau_to_boundary(batch)
+
+            new_tau_to_travel = np.where(tau_to_boundary < batch.tau_to_travel, tau_to_boundary, batch.tau_to_travel)
+  
+            old_pos_z = batch.pos[Z].copy()
             
-            rand_interaction, rand_theta, rand_phi = self.rng.uniform(0, 1, size=(3, active_ids.size))
-            direction, absorbed_surface, absorbed_atmosphere, scattered = scene.scatter_photons(pos, direction, rand_interaction, rand_theta, rand_phi, surface_mask, atmosphere_mask, medium_ids)
+            batch = scene.move_photons(batch, new_tau_to_travel)
+            self.update_flux_counts(old_pos_z, batch.pos[Z])
 
-            exceeded_scatterings_mask = scatter_counts[active_ids] > MAX_SCATTERINGS
+            batch.tau_to_travel -= new_tau_to_travel
+            scattering_event_mask = np.isclose(batch.tau_to_travel, 0)
 
-            active_mask = ~space_mask & ~absorbed_surface & ~absorbed_atmosphere & ~exceeded_scatterings_mask
+            in_atmosphere_mask = self.scene.in_atmosphere(batch.pos)
+            new_layer_mask = ~scattering_event_mask & in_atmosphere_mask
+            rand_component = rng.uniform(0, 1, np.count_nonzero(new_layer_mask))
+            batch.material_ids[new_layer_mask] = self.scene.atmosphere.get_mediums(batch.pos[:, new_layer_mask], rand_component)
+            
+            random_sample = self.rng.uniform(0, 1, size=(3, batch.active_count))
+            batch, absorbed_surface, absorbed_atmosphere, scattered = scene.process_interactions(batch, scattering_event_mask, random_sample)
+            batch.deactivate_photons(absorbed_surface | absorbed_atmosphere)
+
+            batch.scatter_counts[scattered] += 1
+            exceeded_scatterings_mask = batch.scatter_counts > MAX_SCATTERINGS
+            
+            new_tau_rand = self.random_tau(np.count_nonzero(scattered))
+            batch.tau_to_travel[scattered] = new_tau_rand
+
+            active_mask = ~self.scene.reached_space(batch.pos) & ~absorbed_surface & ~absorbed_atmosphere & ~exceeded_scatterings_mask
             terminated_mask = ~active_mask
             
             # Appending simulation results
-            final_positions[:, active_ids[terminated_mask]] = pos[:, terminated_mask]
-            final_directions[:, active_ids[terminated_mask]] = direction[:, terminated_mask]
-            scatter_counts[active_ids[scattered]] += 1
-            if np.any(surface_mask):
-                surface_hits_pos.append(pos[:2, surface_mask].copy())
+            self.final_positions[:, batch.ids[terminated_mask]] = batch.pos[:, terminated_mask]
+            self.final_directions[:, batch.ids[terminated_mask]] = batch.direction[:, terminated_mask]
+            self.final_scatter_counts[batch.ids[terminated_mask]] = batch.scatter_counts[terminated_mask]
             
-            # Shrinking arrays to alive photons
-            pos = pos[:, active_mask]
-            direction = direction[:, active_mask]
-            active_ids = active_ids[active_mask]
+            if np.any(self.scene.reached_surface(batch.pos)):
+                surface_hits_pos.append(batch.pos[:2, self.scene.reached_surface(batch.pos)].copy())
+            
+            batch.deactivate_photons(terminated_mask)
+            batch.shrink_to_active()
 
         end_time = time.process_time()
 
-        for i, position in enumerate(final_positions[:, :self.num_track].T):
-            tracked_paths[i].append(position.copy())
+        for i, position in enumerate(self.final_positions[:, :self.num_track].T):
+            self.tracked_paths[i].append(position.copy())
 
         if surface_hits_pos:
             surface_hits_pos = np.concatenate(surface_hits_pos, axis=1)
         else:
             surface_hits_pos = np.array([])
 
-        space_mask, surface_mask, layer_idx = scene.get_photon_position_mask(final_positions[Z])
+        space_mask, surface_mask, layer_idx = scene.get_final_photon_position_data(self.final_positions)
 
         flux_down = np.cumsum(self.diff_down)[:-1]
         flux_up = np.cumsum(self.diff_up)[:-1]
 
         self.results = Results(
-            final_positions=final_positions,
+            final_positions=self.final_positions,
             space_mask=space_mask,
             surface_mask=surface_mask,
             layer_idx=layer_idx,
-            sample_paths=tracked_paths,
+            sample_paths=self.tracked_paths,
             surface_hits=surface_hits_pos,
-            scatter_counts=scatter_counts,
+            scatter_counts=self.final_scatter_counts,
             measure_z=self.measure_z,
             flux_up=flux_up,
             flux_down=flux_down,

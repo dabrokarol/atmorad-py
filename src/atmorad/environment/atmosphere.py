@@ -3,8 +3,10 @@ import numpy as np
 from dataclasses import dataclass
 from typing import Sequence
 
+from atmorad.engine.batch import PhotonBatch
+from atmorad.physics.geometry import rotate
 from atmorad.physics.scattering import Scattering
-from atmorad.constants import X, Y, Z
+from atmorad.constants import EPSILON, X, Y, Z
   
 @dataclass
 class AtmosphericMedium:
@@ -33,7 +35,27 @@ class AtmosphericLayer:
 
         self.components = components
 
-class Atmosphere:
+from abc import ABC, abstractmethod
+
+class Atmosphere(ABC):
+    """Abstract Base Class for all atmospheric models."""
+    
+    @abstractmethod
+    def process_scattering(self, batch: PhotonBatch, atmosphere_mask: np.ndarray, random_samples: np.ndarray) -> tuple[PhotonBatch, np.ndarray]: ...
+
+    @abstractmethod
+    def tau_to_boundary(self, batch: PhotonBatch) -> np.ndarray: ...
+
+    @abstractmethod
+    def tau_to_distance(self, batch: PhotonBatch, tau: np.ndarray) -> np.ndarray: ...
+
+    @abstractmethod
+    def reached_space(self, pos: np.ndarray) -> np.ndarray: ...
+
+    @abstractmethod
+    def adjust_internal_boundaries(self, batch: PhotonBatch) -> PhotonBatch: ...
+
+class LayeredAtmosphere(Atmosphere):
     def __init__(self, layers: Sequence[AtmosphericLayer]):
         boundaries = [0]
         unique_mediums = []
@@ -64,19 +86,20 @@ class Atmosphere:
         self.ssas = np.array([medium.ssa for medium in unique_mediums])
         self.extinction_coeffs = np.array([medium.extinction_coeff for medium in unique_mediums])
         self.boundaries = np.cumsum(boundaries)
+        self.top_of_atmosphere = self.boundaries[-1]
 
         self.phase_functions = [medium.phase_function for medium in unique_mediums]
 
         self.layer_cdfs = layer_cdfs
         self.layer_medium_ids = layer_medium_ids
 
-    def get_layer_idx(self, pos_z):
-        layer_medium_idx = np.searchsorted(self.boundaries, pos_z, 'right') - 1
+    def _get_layer_idx(self, pos):
+        layer_medium_idx = np.searchsorted(self.boundaries, pos[Z], 'right') - 1
         layer_medium_idx = np.clip(layer_medium_idx, 0, len(self.boundaries) - 2) # clip to valid indexes
         return layer_medium_idx
 
     def get_mediums(self, pos, rand_1):
-        layer_idx = self.get_layer_idx(pos[Z])
+        layer_idx = self._get_layer_idx(pos)
         component_idx = np.argmax(rand_1[:, np.newaxis] < self.layer_cdfs[layer_idx], axis=1)
         return self.layer_medium_ids[layer_idx, component_idx] # array of column numbers, array of row numbers
 
@@ -93,3 +116,62 @@ class Atmosphere:
     
     def get_total_thickness(self):
         return self.boundaries[-1]
+    
+    def process_scattering(self, batch: PhotonBatch, atmosphere_mask: np.ndarray, random_samples: np.ndarray):
+        to_scat = np.zeros_like(random_samples[0], dtype=bool)
+        to_scat[atmosphere_mask] = self.is_scattered(batch.material_ids[atmosphere_mask], random_samples[0, atmosphere_mask])
+        cos_theta, sin_theta, cos_phi, sin_phi = self.scatter(batch.material_ids[to_scat], random_samples[1, to_scat], random_samples[2, to_scat])
+        batch.direction[:, to_scat] = rotate(batch.direction[:, to_scat], cos_theta, sin_theta, cos_phi, sin_phi)
+        
+        return batch, to_scat
+    
+    def distance_to_boundary(self, batch: PhotonBatch):
+        layer_idx = self._get_layer_idx(batch.pos)
+        
+        delta_z = batch.pos[Z] - self.boundaries[layer_idx]
+        travel_up = batch.direction[Z] > 0
+        travel_down = batch.direction[Z] < 0
+        travel_horizontal = batch.direction[Z] == 0
+
+        lower_bound = self.boundaries[layer_idx]
+        upper_bound = self.boundaries[layer_idx + 1]
+
+        delta_z[travel_up] = upper_bound[travel_up] - batch.pos[Z, travel_up]
+        delta_z[travel_down] = lower_bound[travel_down] - batch.pos[Z, travel_down]
+        delta_z[travel_horizontal] = np.inf
+        
+        return delta_z
+
+    def tau_to_boundary(self, batch: PhotonBatch):
+        delta_z = self.distance_to_boundary(batch)
+        extinction_coeff = self.extinction_coeffs[batch.material_ids]
+        with np.errstate(divide='ignore', invalid='ignore'):
+                tau_to_boundary = np.abs(delta_z / batch.direction[Z]) * extinction_coeff
+        return tau_to_boundary
+    
+    def tau_to_distance(self, batch: PhotonBatch, tau):
+        extinction_coeff = self.extinction_coeffs[batch.material_ids]
+        with np.errstate(divide='ignore', invalid='ignore'):
+                distance = tau / extinction_coeff
+        distance[extinction_coeff == 0] = np.inf
+        return distance
+    
+    def reached_space(self, pos):
+        return pos[Z] > self.top_of_atmosphere
+    
+    def adjust_internal_boundaries(self, batch: PhotonBatch):
+        escaped_atmosphere = self.reached_space(batch.pos)
+        batch.pos[:, escaped_atmosphere] += (
+            (self.top_of_atmosphere - batch.pos[Z, escaped_atmosphere]) 
+            / batch.direction[Z, escaped_atmosphere] 
+            * batch.direction[:, escaped_atmosphere]
+        )
+        batch.pos[Z, escaped_atmosphere] = self.top_of_atmosphere + EPSILON
+        
+        for boundary_z in self.boundaries:
+            on_boundary_mask = np.isclose(batch.pos[Z], boundary_z)
+            facing_up_mask = on_boundary_mask & (batch.direction[Z] > 0)
+            facing_down_mask = on_boundary_mask & (batch.direction[Z] < 0)
+            batch.pos[Z, facing_up_mask] += EPSILON
+            batch.pos[Z, facing_down_mask] -= EPSILON
+        return batch
