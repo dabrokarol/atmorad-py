@@ -129,5 +129,5 @@ class FlatSurface(Surface):
     def adjust_surface_boundary(self, batch: PhotonBatch):
         below_ground_mask = self.is_below_ground(batch.pos)
         batch.pos[:, below_ground_mask] += (0 - batch.pos[Z, below_ground_mask]) / batch.direction[Z, below_ground_mask] * batch.direction[:, below_ground_mask]
-        batch.pos[Z, below_ground_mask] = -EPSILON
+        batch.pos[Z, below_ground_mask] = EPSILON
         return batch
