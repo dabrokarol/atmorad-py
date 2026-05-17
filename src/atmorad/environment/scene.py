@@ -3,6 +3,8 @@ import numpy as np
 from atmorad.engine.batch import PhotonBatch
 from atmorad.environment.atmosphere import Atmosphere
 from atmorad.environment.surface import Surface
+from atmorad.constants import EPSILON, X, Y, Z
+from atmorad.physics.geometry import sun_zenith_to_direction
 class Scene:
     def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:
         self.surface = surface
@@ -49,6 +51,25 @@ class Scene:
         batch = self.atmosphere.adjust_internal_boundaries(batch)
         batch = self.surface.adjust_surface_boundary(batch)
         return batch
+    
+    def start_pos(self, num_photons, rng):
+        pos = np.empty(shape=(3, num_photons), dtype=float)
+        pos[X, :] = rng.uniform(-1, 1, num_photons) * 100
+        pos[Y, :] = rng.uniform(-1, 1, num_photons) * 100
+        pos[Z, :] = np.full(num_photons, self.atmosphere.top_of_atmosphere - EPSILON)
+        return pos
+    
+    def start_direction(self, num_photons, theta_sun, phi_sun, rng):
+        theta_sun_rad = theta_sun / 180 * np.pi
+        phi_sun_rad = phi_sun / 180 * np.pi
+        theta = rng.normal(theta_sun_rad, 1/60, size=num_photons)
+        phi = rng.normal(phi_sun_rad, 1/60, size=num_photons)
+        direction = sun_zenith_to_direction(theta, phi)
+        return direction
+    
+    def get_material_ids(self, pos, rng):
+        rand_component = rng.uniform(0, 1, pos.size[1])
+        return self.atmosphere.get_material_ids(pos, rand_component)
     
     def move_photons(self, batch: PhotonBatch, tau_to_move: np.ndarray):
         dist = self.atmosphere.tau_to_distance(batch, tau_to_move)

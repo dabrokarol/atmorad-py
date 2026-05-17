@@ -34,33 +34,7 @@ class AtmosphericLayer:
                 raise ValueError(f"Initialized layer probabilities don't sum to one, got {p_tot} Check atmospheric layers initialization.")
 
         self.components = components
-
-from abc import ABC, abstractmethod
-
-class Atmosphere(ABC):
-    """Abstract Base Class for all atmospheric models."""
-    
-    @abstractmethod
-    def process_scattering(self, batch: PhotonBatch, atmosphere_mask: np.ndarray, random_samples: np.ndarray) -> tuple[PhotonBatch, np.ndarray]: ...
-
-    @abstractmethod
-    def tau_to_boundary(self, batch: PhotonBatch) -> np.ndarray: ...
-
-    @abstractmethod
-    def tau_to_distance(self, batch: PhotonBatch, tau: np.ndarray) -> np.ndarray: ...
-
-    @abstractmethod
-    def reached_space(self, pos: np.ndarray) -> np.ndarray: ...
-
-    @abstractmethod
-    def adjust_internal_boundaries(self, batch: PhotonBatch) -> PhotonBatch: ...
-    
-    @abstractmethod
-    def get_spatial_indices(self, batch: PhotonBatch) -> np.ndarray: 
-        """Returns info about photons' last positions."""
-        ...
-
-class LayeredAtmosphere(Atmosphere):
+class Atmosphere:
     def __init__(self, layers: Sequence[AtmosphericLayer]):
         boundaries = [0]
         unique_mediums = []
@@ -91,7 +65,6 @@ class LayeredAtmosphere(Atmosphere):
         self.ssas = np.array([medium.ssa for medium in unique_mediums])
         self.extinction_coeffs = np.array([medium.extinction_coeff for medium in unique_mediums])
         self.boundaries = np.cumsum(boundaries)
-        self.top_of_atmosphere = self.boundaries[-1]
 
         self.phase_functions = [medium.phase_function for medium in unique_mediums]
 
@@ -103,7 +76,7 @@ class LayeredAtmosphere(Atmosphere):
         layer_medium_idx = np.clip(layer_medium_idx, 0, len(self.boundaries) - 2) # clip to valid indexes
         return layer_medium_idx
 
-    def get_mediums(self, pos, rand_1):
+    def get_material_ids(self, pos, rand_1):
         layer_idx = self._get_layer_idx(pos)
         component_idx = np.argmax(rand_1[:, np.newaxis] < self.layer_cdfs[layer_idx], axis=1)
         return self.layer_medium_ids[layer_idx, component_idx] # array of column numbers, array of row numbers
@@ -183,3 +156,7 @@ class LayeredAtmosphere(Atmosphere):
     
     def get_spatial_indices(self, batch: PhotonBatch):
         return self._get_layer_idx(batch.pos)
+    
+    @property
+    def top_of_atmosphere(self):
+        return self.boundaries[-1]
