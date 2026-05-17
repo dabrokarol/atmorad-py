@@ -26,7 +26,6 @@ num_full_paths = 200
 [output]
 save_flux_maps = true
 save_vertical_profile = true
-save_boundary_flux_maps = true
 save_photon_paths = true 
 save_heating_rates = true
 overwrite = true
