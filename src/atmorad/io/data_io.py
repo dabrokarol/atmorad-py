@@ -27,6 +27,14 @@ class OutputHandler:
         def _safe_serialize(obj):
             if dataclasses.is_dataclass(obj):
                 return dataclasses.asdict(obj)
+
+            if hasattr(obj, '__dict__'):
+                res = {"_class": obj.__class__.__name__}
+                for k, v in obj.__dict__.items():
+                    if not k.startswith('_'):
+                        res[k] = v
+                return res
+
             if hasattr(obj, '__class__'):
                 return str(obj.__class__.__name__)
             return str(obj)

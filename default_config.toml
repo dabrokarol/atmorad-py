@@ -3,7 +3,7 @@ experiment_name = "simulation001"
 description = "A demo simulation."
 
 [engine]
-num_photons = 10_000_000
+num_photons = 100_000
 batch_size = 100_000
 random_seed = 42
 cpu_cores = 4
