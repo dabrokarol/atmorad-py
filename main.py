@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 
 from atmorad.engine.runner import MCRadiationRunner
-from atmorad.io.data_io import OutputHandler
+from atmorad.io.data_io import DataIO
 from atmorad.config.parser import load_config
 from atmorad.results import ResultAnalyzer
 
@@ -22,18 +22,19 @@ def main():
     logging.info(f"Loading configuration from: {config_path.name}...")
     config = load_config(config_path)
     
+    logging.info("Generating output directory...")
+    handler = DataIO(config)
+    
     logging.info(f"Starting {config.engine.cpu_cores}-core simulation ({config.engine.num_photons} photons)...")
     runner = MCRadiationRunner(config)
     runner.run()
 
     results_dict = runner.get_results()
-    
     analyzer = ResultAnalyzer(results_dict, config)
 
     logging.info("\n" + analyzer.summary())
 
     logging.info("Saving results to disk...")
-    handler = OutputHandler(output_path=config.output.path, overwrite=config.output.overwrite)
     
     if config.output.save_boundary_flux_maps:
         fig_map = analyzer.plot_surface_flux_map()

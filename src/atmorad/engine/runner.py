@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import concurrent.futures
+from tqdm import tqdm
 from dataclasses import replace
 
 from atmorad.environment.scene import Scene
@@ -45,7 +46,7 @@ class MCRadiationRunner:
 
     def get_results(self):
         return self.results
-    
+
     def parallel_simulation(self, config: SimConfig, scene: Scene):
         total_photons = config.engine.num_photons
         batch_size = config.engine.batch_size
@@ -69,13 +70,13 @@ class MCRadiationRunner:
                     future = executor.submit(run_chunk, size, seed, config, scene, i)
                     futures.append(future)
                     
-                for future in concurrent.futures.as_completed(futures):
+                for future in tqdm(concurrent.futures.as_completed(futures), total=num_batches, desc="Simulating Batches"):
                     chunk_res = future.result()
                     all_results = self._merge_incremental(all_results, chunk_res)
 
             return all_results
         else:
-            for i, (size, seed) in enumerate(zip(batches, seeds)):
+            for i, (size, seed) in tqdm(enumerate(zip(batches, seeds)), total=num_batches, desc="Simulating Batches"):
                 res = run_chunk(size, seed, config, scene, i)
                 all_results = self._merge_incremental(all_results, res)
             return all_results

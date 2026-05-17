@@ -54,7 +54,7 @@ class Engine:
         start_time = time.process_time()
 
         while batch.active_count > 0:
-            logging.info(f"Active photons: {batch.active_count}")
+            logging.debug(f"Active photons: {batch.active_count}")
 
             tau_to_boundary = scene.tau_to_boundary(batch)
 

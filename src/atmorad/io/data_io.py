@@ -9,19 +9,21 @@ from pathlib import Path
 from matplotlib.figure import Figure
 from atmorad.config.config import SimConfig
 
-class OutputHandler:
-    def __init__(self, output_path: str = 'results', overwrite: bool = False) -> None:
-        self.base_dir = Path(output_path)
+class DataIO:
+    def __init__(self, config: SimConfig) -> None:
+        output_dir = Path(config.output.path) 
+        exp_name = config.metadata.experiment_name.replace(" ", "-")
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        overwrite = config.output.overwrite
         if overwrite:
-            self.base_dir.mkdir(parents=True, exist_ok=True)
+            self.base_dir = output_dir / f"{exp_name}"
+            if self.base_dir.exists():
+                import shutil
+                shutil.rmtree(self.base_dir)
         else:
-            try:
-                self.base_dir.mkdir(parents=True)
-            except FileExistsError:
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                self.base_dir = Path.cwd() / f"{output_path}_{timestamp}"
-                self.base_dir.mkdir(parents=True)
-                logging.info(f"Directory exists, saving to {self.base_dir}")
+            self.base_dir = output_dir / f"{exp_name}-{timestamp}"
+
+        self.base_dir.mkdir(parents=True, exist_ok=True)
     
     def save_metadata(self, config: SimConfig, results_dict: dict) -> None:
         def _safe_serialize(obj):
