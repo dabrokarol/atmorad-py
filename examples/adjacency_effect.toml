@@ -9,8 +9,8 @@ random_seed = 42
 cpu_cores = 4
 
 [source]
-theta_sun_deg = 0
-phi_sun_deg = 30
+theta_sun_deg = 30
+phi_sun_deg = 0
 wavelength_nm = 530
 
 [geometry]
