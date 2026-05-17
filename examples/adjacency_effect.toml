@@ -3,14 +3,14 @@ experiment_name = "simulation001"
 description = "A demo simulation."
 
 [engine]
-num_photons = 100_000
+num_photons = 10_000_000
 batch_size = 100_000
 random_seed = 42
 cpu_cores = 4
 
 [source]
-theta_sun_deg = 30
-phi_sun_deg = 0 
+theta_sun_deg = 0
+phi_sun_deg = 30
 wavelength_nm = 530
 
 [geometry]
@@ -45,7 +45,7 @@ path = 'results'
     [atmosphere_materials.air]
     extinction_coeff_per_km = 0.01
     ssa = 0.9
-    scattering = {type = "rayleigh"} # rayleigh, hg, isotropic
+    scattering = {type = "hg", g = 0}
     [atmosphere_materials.light-clouds]
     extinction_coeff_per_km = 1
     ssa = 0.999999
@@ -56,30 +56,21 @@ path = 'results'
     scattering = {type = "hg", g = 0.85}
 
 [[layer]]
-z_range_km = [0, 2]
-materials = [{type = "air", weight = 1.0}]
-
-[[layer]]
-z_range_km = [2, 4]
+z_range_km = [0, 10]
 materials = [
-    {type = "air", weight = 0.3},
-    {type = "dark-clouds", weight = 0.7}
+    {type = "dark-clouds", weight = 1.0}
 ]
 
-[[layer]]
-z_range_km = [4, 10]
-materials = [{type = "air", weight = 1.0}]
+[surface]
+name = "split-half-x"
+material_left = "snow"
+material_right = "ocean"
 
 # [surface]
-# name = "split-half-x"
-# material_left = "snow"
-# material_right = "ocean"
-
-[surface]
-name = "circle"
-radius_km = 20
-material_in = "snow"
-material_out = "ocean"
+# name = "circle"
+# radius_km = "20"
+# material_in = "snow"
+# material_out = "ocean"
 
 # [surface]
 # name = "checkerboard"

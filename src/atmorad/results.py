@@ -51,12 +51,26 @@ class ResultAnalyzer:
         fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(projection='3d')
         labeled_surface, labeled_space, labeled_atmosphere = False, False, False
+        
+        Lx = self.config.geometry.domain_size_x_km
+        Ly = self.config.geometry.domain_size_y_km
+        limit_x, limit_y = Lx / 2, Ly / 2
 
         for path_id, path_coords in self.data["sample_paths"].items():
             if not path_coords: continue
             
             coords = np.array(path_coords).T 
             X, Y, Z = coords[0], coords[1], coords[2]
+            
+            X_wrapped = ((X + limit_x) % Lx) - limit_x
+            Y_wrapped = ((Y + limit_y) % Ly) - limit_y
+
+            jump_mask = (np.abs(np.diff(X_wrapped)) > limit_x) | (np.abs(np.diff(Y_wrapped)) > limit_y)
+            jump_indices = np.where(jump_mask)[0] + 1
+
+            X = np.insert(X_wrapped.astype(float), jump_indices, np.nan)
+            Y = np.insert(Y_wrapped.astype(float), jump_indices, np.nan)
+            Z = np.insert(Z.astype(float), jump_indices, np.nan)
             
             last_z = Z[-1]
             if last_z <= EPSILON:
