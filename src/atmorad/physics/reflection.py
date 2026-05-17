@@ -28,7 +28,7 @@ class MirrorReflection(SurfaceReflection):
         self.roughness = roughness
         
     def reflect(self, direction, rand_1, rand_2):
-        new_direction = direction.copy()
+        new_direction = direction
         new_direction[Z] = np.abs(new_direction[Z])
         
         if self.roughness > 0.0:
