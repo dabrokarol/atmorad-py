@@ -1,167 +1,181 @@
+import logging
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import cmocean as cmo
-
-from dataclasses import dataclass
-
-from atmorad.constants import X, Y, Z
+from atmorad.config.config import SimConfig
+from atmorad.constants import EPSILON
 
 sns.set_theme(style="ticks", rc={"font.family": "serif"})
 
-@dataclass
-class Results:
-    final_positions: np.ndarray
-    space_mask: np.ndarray
-    surface_mask: np.ndarray
-    layer_idx: np.ndarray
-    sample_paths: dict
-    surface_hits: np.ndarray
-    scatter_counts: np.ndarray
-    measure_z: np.ndarray
-    flux_up: np.ndarray
-    flux_down: np.ndarray
-    cpu_time_s: float
-    simulation_time_s: float = 0
-
-    def __post_init__(self):
-        self.atmosphere_mask = (~self.space_mask) & (~self.surface_mask)
-    
-    @classmethod
-    def merge_all(cls, results_list: list['Results']) -> 'Results':
-        if len(results_list) == 1:
-            return results_list[0]
-
-        final_positions = np.concatenate([r.final_positions for r in results_list], axis=1)
-        space_mask = np.concatenate([r.space_mask for r in results_list])
-        surface_mask = np.concatenate([r.surface_mask for r in results_list])
-        layer_idx = np.concatenate([r.layer_idx for r in results_list])
-        scatter_counts = np.concatenate([r.scatter_counts for r in results_list])
-
-        sample_paths = {}
-        idx = 0
-        for r in results_list:
-            for path in r.sample_paths.values():
-                sample_paths[idx] = path
-                idx += 1
-
-        valid_hits = [r.surface_hits for r in results_list if r.surface_hits.size > 0]
-        if not valid_hits:
-            surface_hits = np.array([])
-        else:
-            surface_hits = np.concatenate(valid_hits, axis=1)
-
-        flux_up = np.sum([r.flux_up for r in results_list], axis=0)
-        flux_down = np.sum([r.flux_down for r in results_list], axis=0)
-        
-        cpu_time_s = sum(r.cpu_time_s for r in results_list)
-
-        return cls(
-            final_positions=final_positions,
-            space_mask=space_mask,
-            surface_mask=surface_mask,
-            layer_idx=layer_idx,
-            sample_paths=sample_paths,
-            surface_hits=surface_hits,
-            scatter_counts=scatter_counts,
-            measure_z=results_list[0].measure_z,
-            flux_up=flux_up,
-            flux_down=flux_down,
-            cpu_time_s=cpu_time_s
-        )
+class ResultAnalyzer:
+    def __init__(self, results_dict: dict, config: SimConfig):
+        self.data = results_dict
+        self.config = config
+        self.total_photons = config.engine.num_photons
+        self.toa_z = config.layers[-1].thickness if len(config.layers) == 1 else sum([l.thickness for l in config.layers])
 
     def summary(self):
-        return (
-            f"---- Simulation results ----\n"
-            f"photons left atmosphere: {np.count_nonzero(self.space_mask)}\n"
-            f"photons absorbed by surface: {np.count_nonzero(self.surface_mask)}\n"
-            f"photons absorbed by atmosphere {np.count_nonzero(self.atmosphere_mask)}\n"
-        )
+        summary_str = f"---- Simulation Summary ({self.config.metadata.experiment_name}) ----\n"
+        summary_str += f"Total photons simulated: {self.total_photons}\n"
+        
+        if "simulation_time_s" in self.data:
+            summary_str += f"Wall time: {self.data['simulation_time_s']:.2f} s\n"
+        if "cpu_time_s" in self.data:
+            summary_str += f"Total CPU time: {self.data['cpu_time_s']:.2f} s\n\n"
 
-    def plot_paths(self, title: str = "Sample 3D photon paths", limit_xy=100):    
-        fig = plt.figure(figsize=(10,10))
+        reflected, transmitted, absorbed = 0.0, 0.0, 0.0
+        
+        reflected = self.data["escaped_atmosphere"]
+        transmitted = self.data["absorbed_by_surface"]
+        absorbed = self.data["absorbed_by_atmosphere"]
+        
+        summary_str += f"Reflected (escaped to space): {reflected:.6f}\n"
+        summary_str += f"Transmitted (absorbed by surface): {transmitted:.6f}\n"
+        summary_str += f"Absorbed (absorbed by atmosphere): {absorbed:.6f}\n"
+
+        if reflected > 0 or transmitted > 0 or absorbed > 0:
+            total_energy = reflected + transmitted + absorbed
+            summary_str += f"-----------------------------------\n"
+            summary_str += f"Energy Balance Check: {total_energy:.6f} (Should be 1.0)\n"
+
+        return summary_str
+
+    def plot_paths(self, title: str = "Sample 3D photon paths"):
+        if "sample_paths" not in self.data or not self.data["sample_paths"]:
+            return None
+
+        fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(projection='3d')
-
         labeled_surface, labeled_space, labeled_atmosphere = False, False, False
+        
+        Lx = self.config.geometry.domain_size_x_km
+        Ly = self.config.geometry.domain_size_y_km
+        limit_x, limit_y = Lx / 2, Ly / 2
 
-        for i, h in self.sample_paths.items(): 
-            if self.surface_mask[i]:
-                color = 'tab:green'
-                alpha=0.3
+        for path_id, path_coords in self.data["sample_paths"].items():
+            if not path_coords: continue
+            
+            coords = np.array(path_coords).T 
+            X, Y, Z = coords[0], coords[1], coords[2]
+            
+            X_wrapped = ((X + limit_x) % Lx) - limit_x
+            Y_wrapped = ((Y + limit_y) % Ly) - limit_y
+
+            jump_mask = (np.abs(np.diff(X_wrapped)) > limit_x) | (np.abs(np.diff(Y_wrapped)) > limit_y)
+            jump_indices = np.where(jump_mask)[0] + 1
+
+            X = np.insert(X_wrapped.astype(float), jump_indices, np.nan)
+            Y = np.insert(Y_wrapped.astype(float), jump_indices, np.nan)
+            Z = np.insert(Z.astype(float), jump_indices, np.nan)
+            
+            last_z = Z[-1]
+            if last_z <= EPSILON:
+                color, alpha = 'tab:green', 0.3
                 lbl = 'Absorbed by surface' if not labeled_surface else None
                 labeled_surface = True
-            elif self.atmosphere_mask[i]:
-                color = 'tab:red'
-                alpha=0.3
-                lbl = 'Absorbed by atmosphere' if not labeled_atmosphere else None
-                labeled_atmosphere = True
-            else:
-                color = 'tab:grey'
-                alpha = 0.2
+            elif last_z >= self.toa_z - EPSILON:
+                color, alpha = 'tab:grey', 0.2
                 lbl = 'Escaped atmosphere' if not labeled_space else None
                 labeled_space = True
-            X, Y, Z = np.array(h).T
+            else:
+                color, alpha = 'tab:red', 0.3
+                lbl = 'Absorbed by atmosphere' if not labeled_atmosphere else None
+                labeled_atmosphere = True
+
             ax.plot3D(X, Y, Z, alpha=alpha, color=color, label=lbl)
 
-        ax.set_title(title, fontsize=20)
-        ax.set_xlabel('Pos x')
-        ax.set_ylabel('Pos y')
-        ax.set_zlabel('Pos z')
+        limit_x = self.config.geometry.domain_size_x_km / 2
+        limit_y = self.config.geometry.domain_size_y_km / 2
 
-        ax.set_xlim(-limit_xy, limit_xy)
-        ax.set_ylim(-limit_xy, limit_xy)
-        ax.legend()
+        ax.set_title(title, fontsize=20)
+        ax.set_xlabel('Pos x [km]')
+        ax.set_ylabel('Pos y [km]')
+        ax.set_zlabel('Pos z [km]')
+        ax.set_xlim(-limit_x, limit_x)
+        ax.set_ylim(-limit_y, limit_y)
+        ax.set_zlim(0, self.toa_z)
+        if labeled_surface or labeled_space or labeled_atmosphere:
+            ax.legend()
         return fig
 
-    def surface_absorption_plot(self, title: str = 'Photons absorbed by the ground', limit=40):
-        return self._2dhexplot(self.final_positions[:, self.surface_mask], title, limit)
+    def plot_2d_map(self, flux_map: np.ndarray, title: str):
+        x_edges = self.data["x_edges"]
+        y_edges = self.data["y_edges"]
         
-    def surface_flux_plot(self, title: str ='Downward flux near the ground', limit: float = 40):
-        return self._2dhexplot(self.surface_hits, title, limit)
-    
-    def _2dhexplot(self, pos, title, limit):
-        if not pos.any():
-            return plt.figure()
-        plot_mask = (pos[X] > -limit) & (pos[X] < limit) & (pos[Y] > -limit) & (pos[Y] < limit)
-        pos = pos[:, plot_mask]
-        color = cmo.cm.solar(2) # type: ignore
-        joint_plot = sns.jointplot(x=pos[X], y=pos[Y], kind="hex", cmap=cmo.cm.solar, color=color) # type: ignore
+        map_2d_norm = flux_map / self.total_photons
 
-        joint_plot.ax_joint.set_xbound(-limit, limit)
-        joint_plot.ax_joint.set_ybound(-limit, limit)
-        mappable = joint_plot.ax_joint.collections[0]
-        joint_plot.ax_joint.figure.colorbar(mappable, label='Photon count', ax=[joint_plot.ax_joint, joint_plot.ax_marg_x, joint_plot.ax_marg_y], orientation='horizontal')
-        joint_plot.ax_joint.set_xlabel('Position (X)')
-        joint_plot.ax_joint.set_ylabel('Position (Y)')
-        joint_plot.ax_joint.set_title(title, fontsize=14, pad=70)
+        fig, ax = plt.subplots(figsize=(8, 7))
+        X, Y = np.meshgrid(x_edges, y_edges)
+        
+        mesh = ax.pcolormesh(X, Y, map_2d_norm.T, cmap=cmo.cm.solar, shading='flat') # type: ignore
+        ax.set_aspect('equal')
+        fig.colorbar(mesh, ax=ax, label='Normalized Flux (Transmittance)', orientation='horizontal', pad=0.1)
+        ax.set_xlabel('Position X [km]')
+        ax.set_ylabel('Position Y [km]')
+        ax.set_title(title, fontsize=16)
 
-        return joint_plot.figure
+        return fig
     
-    def plot_flux_profile(self, title='Vertical flux profile'):
+    def plot_surface_absorption_map(self, title: str = 'Surface Absorption Map (Normalized)'):
+        flux_map = self.data.get("surface_absorption_map_2d")
+            
+        if flux_map is None:
+            logging.warning("Warning: No surface absorption map found in data.")
+            return None
+            
+        return self.plot_2d_map(flux_map, title)
+
+    def plot_toa_flux_map(self, title: str = 'Top of Atmosphere (TOA) Reflected Flux'):
+        flux_map = self.data.get("toa_flux_map_2d")
+        
+        if flux_map is None:
+            logging.warning("Warning: No TOA flux map found in data.")
+            return None
+            
+        return self.plot_2d_map(flux_map, title)
+
+    def plot_flux_profile(self, title='Vertical Flux Profile'):
+        if "flux_down" not in self.data or "flux_up" not in self.data:
+            return None
+
         fig, ax = plt.subplots(figsize=(8, 10))
-        net_flux = self.flux_down - self.flux_up
+        z = self.data["measure_z"]
+        flux_down = self.data["flux_down"] / self.total_photons
+        flux_up = self.data["flux_up"] / self.total_photons
+        net_flux = flux_down - flux_up
 
-        ax.plot(self.flux_down, self.measure_z, label=r'Downward flux ($F^\downarrow$)', color='tab:blue', linewidth=2)
-        ax.plot(self.flux_up, self.measure_z, label=r'Upward flux ($F^\uparrow$)', color='tab:orange', linewidth=2)
-        ax.plot(net_flux, self.measure_z, label=r'Net flux ($F_{net}$)', color='black', linestyle='--', linewidth=2.5)
+        ax.plot(flux_down, z, label=r'Downward flux ($F^\downarrow$)', color='tab:blue', linewidth=2)
+        ax.plot(flux_up, z, label=r'Upward flux ($F^\uparrow$)', color='tab:orange', linewidth=2)
+        ax.plot(net_flux, z, label=r'Net flux ($F_{net}$)', color='black', linestyle='--', linewidth=2.5)
 
         ax.set_title(title, fontsize=18)
-        ax.set_xlabel("Flux [photon count]", fontsize=12)
-        ax.set_ylabel("Height (Z)", fontsize=12)
+        ax.set_xlabel("Normalized Flux", fontsize=12)
+        ax.set_ylabel("Altitude Z [km]", fontsize=12)
         ax.grid(True, linestyle=':', alpha=0.7)
         ax.legend(fontsize=11)
-        
-        ax.fill_betweenx(self.measure_z, 0, net_flux, color='gray', alpha=0.1)
+        ax.fill_betweenx(z, 0, net_flux, color='gray', alpha=0.1)
 
         fig.tight_layout()
         return fig
 
-    def plot_scattering_histogram(self, title='Scattering Counts'):
-        fig, ax = plt.subplots(figsize=(10, 6))
-        color = cmo.cm.solar(2) # type: ignore
-        sns.histplot(self.scatter_counts, ax=ax, color=color, discrete=True)
-        ax.set_title(title, fontsize=20)
-        ax.set_xlabel('Number of scatterings')
-        ax.set_ylabel('Number of photons')
-        return fig    
-    
+    def plot_heating_rate(self, title='Atmospheric Absorption Profile'):
+        if "heating_profile_1d" not in self.data:
+            return None
+            
+        fig, ax = plt.subplots(figsize=(6, 8))
+        boundaries = self.data["layer_boundaries_z"]
+        profile = self.data["heating_profile_1d"] / self.total_photons
+        centers = (boundaries[:-1] + boundaries[1:]) / 2
+        
+        ax.barh(centers, profile, height=(boundaries[1:] - boundaries[:-1]), 
+                align='center', color='tab:red', alpha=0.6, edgecolor='black')
+                
+        ax.set_title(title, fontsize=16)
+        ax.set_xlabel("Normalized Absorption", fontsize=12)
+        ax.set_ylabel("Altitude Z [km]", fontsize=12)
+        ax.grid(True, linestyle=':', alpha=0.5)
+        
+        fig.tight_layout()
+        return fig

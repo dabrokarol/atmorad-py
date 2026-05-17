@@ -1,80 +1,49 @@
-"""AtmoRad.py - a small usage example
+import logging
+import argparse
+from pathlib import Path
 
-This script demonstrates basic simulation usage
-using the simplest possible setup (one layer of air, uniform Lambertian ground).
-
-To see more complex examples (e.g. mixed surface boundaries, multiple atmosphere layers, and cloudy layers)
-and learn how to generate the plots shown in README.md, check the script inside the `examples/` directory.
-
-Enjoy!
-"""
-
-import numpy as np
-
-from atmorad.simulation import MCRadiation
-from atmorad.scene import Scene
-from atmorad.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
-from atmorad.surface import Surface, SurfaceMaterial, ProceduralMap
-from atmorad.physics import SurfaceReflections, AtmosphereScatterings
-from atmorad.data_io import OutputHandler
-from atmorad.config import SimConfig
-
+from atmorad.engine.runner import MCRadiationRunner
+from atmorad.data_io import DataIO
+from atmorad.config.parser import load_config
+from atmorad.results import ResultAnalyzer
 
 def main():
+    parser = argparse.ArgumentParser(prog="AtmoRad", usage="uv run main.py <path-to-config>")
+    parser.add_argument("config", nargs="?", default="default_config.toml", help="path to config TOML", type=Path)
+    parser.add_argument("-v", "--verbose", action="store_true", help="increase output verbosity")
+    args = parser.parse_args()
 
-    #############################
-    # 1. SIMULATION PARAMETERS ##
-    #############################
-    config = SimConfig(
-        theta_sun_deg=0,
-        cpu_cores=1
-    )
+    config_path = Path.cwd() / args.config
+    if args.verbose:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    else:
+        logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
+
+    logging.info(f"Loading configuration from: {config_path.name}...")
+    config = load_config(config_path)
     
-    ###################
-    # 2. ATMOSPHERE ###
-    ###################
-    # format: AtmosphericMedium(optical_density_per_km, ssa, scattering_phase_function)
-    air = AtmosphericMedium(0.01, 0.5, AtmosphereScatterings.HenyeyGreenstein(g=0.5))
+    logging.info("Generating output directory...")
+    data_io = DataIO(config)
+    
+    logging.info(f"Starting {config.engine.cpu_cores}-core simulation ({config.engine.num_photons} photons)...")
+    runner = MCRadiationRunner(config)
+    runner.run()
 
-    # format: AtmosphericLayer(thickness_km, [(medium0, fraction0), ...])
-    layer0 = AtmosphericLayer(20, air)
+    results_dict = runner.get_results()
+    analyzer = ResultAnalyzer(results_dict, config)
 
-    atm = Atmosphere([layer0])
+    print("\n" + analyzer.summary())
 
-    ###################
-    # 3. SURFACE ######
-    ###################
-    # format: SurfaceMaterial(albedo, reflection_object)
-    material0 = SurfaceMaterial(0.5, SurfaceReflections.LambertianReflection())
+    logging.info("Saving results to disk...")
+    
+    data_io.save_metadata(config, results_dict)
+    data_io.save_results(results_dict)
+    
+    if config.output.save_plots:
+        logging.info("Generating and saving plots...")
+        data_io.save_all_artifacts(analyzer, results_dict)
 
-    ground_map = ProceduralMap(ProceduralMap.uniform_ground)
-    surface = Surface(ground_map, [material0])
-
-    ###############################
-    # 4. SCENE AND SIMULATION #####
-    ###############################
-    scene = Scene(surface, atm)
-    sim = MCRadiation(config, scene)
-
-    sim.run()
-
-    ####################
-    # 5. OUTPUTS #######
-    ####################
-    # generate a plot
-    res = sim.get_results()
-    fig_flux = res.plot_flux_profile()
-
-    # save outputs to 'results' directory, overwrite=False will create a directory 'refults_timestamp'
-    handler = OutputHandler('results', overwrite=True)
-    handler.save_plot(fig_flux, 'vertical_flux_profile.png')
-
-    # print basic results to the terminal
-    handler.print_results(res)
-
-    # save raw simulation data for later
-    handler.save_metadata(config, res)
-    handler.save_results(res)
+    logging.info("Done! Simulation artifacts saved successfully.")
 
 if __name__ == '__main__':
     main()

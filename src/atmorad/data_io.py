@@ -4,85 +4,114 @@ import json
 import numpy as np
 import shutil
 import sys
-
+import dataclasses
 from pathlib import Path
-from dataclasses import asdict
 from matplotlib.figure import Figure
+from atmorad.config.config import SimConfig
+from atmorad.results import ResultAnalyzer
 
-from atmorad.results import Results
-from atmorad.config import SimConfig
-
-class OutputHandler:
-    def __init__(self, base_dir: str, overwrite = False) -> None:
-        self.base_dir = Path.cwd() / base_dir
+class DataIO:
+    def __init__(self, config: SimConfig) -> None:
+        self.config = config
+        
+        output_dir = Path(config.output.path) 
+        exp_name = config.metadata.experiment_name.replace(" ", "-")
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        overwrite = config.output.overwrite
         if overwrite:
-            self.base_dir.mkdir(parents=True, exist_ok=True)
+            self.base_dir = output_dir / f"{exp_name}"
+            if self.base_dir.exists():
+                import shutil
+                shutil.rmtree(self.base_dir)
         else:
-            try:
-                self.base_dir.mkdir(parents=True)
-            except FileExistsError:
-                logging.info('directory exists, adding timestamp...')
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                self.base_dir = Path.cwd() / f"{base_dir}_{timestamp}"
-                self.base_dir.mkdir()
+            self.base_dir = output_dir / f"{exp_name}-{timestamp}"
+
+        self.base_dir.mkdir(parents=True, exist_ok=True)
     
-    def save_metadata(self, config: SimConfig, results: Results) -> None:
-        metadata = asdict(config)
+    def save_metadata(self, config: SimConfig, results_dict: dict) -> None:
+        def _safe_serialize(obj):
+            if dataclasses.is_dataclass(obj):
+                return dataclasses.asdict(obj)
 
-        metadata['cpu_time_s'] = results.cpu_time_s
-        metadata['simulation_time_s'] = results.simulation_time_s
-        metadata['summary'] = results.summary()
-        metadata['total_surface_hits'] = results.surface_hits.shape[1]
+            if hasattr(obj, '__dict__'):
+                res = {"_class": obj.__class__.__name__}
+                for k, v in obj.__dict__.items():
+                    if not k.startswith('_'):
+                        res[k] = v
+                return res
 
-        with open(self.base_dir / 'metadata.json', 'w') as f:
+            if hasattr(obj, '__class__'):
+                return str(obj.__class__.__name__)
+            return str(obj)
+
+        metadata = json.loads(json.dumps(dataclasses.asdict(config), default=_safe_serialize))
+
+        if 'cpu_time_s' in results_dict:
+            metadata['cpu_time_s'] = results_dict['cpu_time_s']
+        if 'simulation_time_s' in results_dict:
+            metadata['simulation_time_s'] = results_dict['simulation_time_s']
+
+        with open(self.base_dir / 'metadata.json', 'w', encoding='utf-8') as f:
             json.dump(metadata, f, indent=4)
 
         script_path = Path(sys.argv[0]).resolve()
-        if script_path.exists and script_path.suffix == '.py':
+        if script_path.exists() and script_path.suffix == '.py':
             shutil.copy(script_path, self.base_dir / 'experiment_setup.py')
         else:
             logging.warning('Failed to copy script to metadata')
 
-    def save_plot(self, fig: Figure, plot_name: str) -> None:
-        fig.savefig(self.base_dir / plot_name, dpi=300, bbox_inches='tight')
+    def save_plot(self, fig: Figure, plot_name: str, dpi: int = 300) -> None:
+        fig.savefig(self.base_dir / plot_name, dpi=dpi, bbox_inches='tight')
+        import matplotlib.pyplot as plt
+        plt.close(fig)
 
-    def save_results(self, results: Results) -> None:
-        np.savez_compressed(
-            self.base_dir / 'data_compressed',
-            final_positions=results.final_positions,
-            space_mask=results.space_mask,
-            surface_mask=results.surface_mask,
-            layer_idx=results.layer_idx,
-            sample_paths=np.array(results.sample_paths, dtype=object),
-            surface_hits=results.surface_hits,
-            scatter_counts=results.scatter_counts,
-            measure_z=results.measure_z,
-            flux_up=results.flux_up,
-            flux_down=results.flux_down
-        )
+    def save_results(self, results_dict: dict) -> None:
+        npz_ready_dict = {}
+        for k, v in results_dict.items():
+            if isinstance(v, dict):
+                npz_ready_dict[k] = np.array(v, dtype=object)
+            else:
+                npz_ready_dict[k] = v
+        np.savez_compressed(self.base_dir / 'data_compressed.npz', **npz_ready_dict)
+        
+    def save_all_artifacts(self, analyzer: ResultAnalyzer, results_dict: dict):
+        config = self.config
+        
+        if config.output.save_absorption_maps:
+            fig_map = analyzer.plot_surface_absorption_map()
+            if fig_map: self.save_plot(fig_map, 'surface_absorption_map.png')
+            else: logging.warning("2d surface absorption map not generated")
+            fig_toa_map = analyzer.plot_toa_flux_map()
+            if fig_toa_map: self.save_plot(fig_toa_map, 'toa_flux_map.png')
+            else: logging.warning("2d toa flux map not generated")
+            
+        if config.output.save_incident_flux_maps:
+            subfolder_name = "incident_flux"
+            subfolder_path = self.base_dir / subfolder_name
+            subfolder_path.mkdir(exist_ok=True)
 
-    def print_results(self, results: Results) -> None:
-        print(results.summary())
+            down_maps = results_dict.get("incident_flux_down_maps_2d", {})
+            for z_val, flux_map in down_maps.items():
+                title = f"Incident Downward Flux Map\nHeight: {z_val} km"
+                fig = analyzer.plot_2d_map(flux_map, title=title)
+                if fig: self.save_plot(fig, f"{subfolder_name}/downward_z_{z_val}km.png")
+                    
+            up_maps = results_dict.get("incident_flux_up_maps_2d", {})
+            for z_val, flux_map in up_maps.items():
+                title = f"Incident Upward Flux Map\nHeight: {z_val} km"
+                fig = analyzer.plot_2d_map(flux_map, title=title)
+                if fig: self.save_plot(fig, f"{subfolder_name}/upward_z_{z_val}km.png")  
+            
+        if config.output.save_vertical_profile:
+            fig_flux = analyzer.plot_flux_profile()
+            if fig_flux: self.save_plot(fig_flux, 'vertical_flux_profile.png')
+            
+            fig_heat = analyzer.plot_heating_rate()
+            if fig_heat: self.save_plot(fig_heat, 'heating_profile.png')
 
-def read_results(path: Path|str) -> Results:
-    try:
-        data = np.load(path, allow_pickle=True)
-        res = Results(
-            final_positions=data['final_positions'],
-            space_mask=data['space_mask'],
-            surface_mask=data['surface_mask'],
-            layer_idx=data['layer_idx'],
-            sample_paths=data['sample_paths'].item(), # .item() because it was a dict dumped to np.array
-            surface_hits=data['surface_hits'],
-            scatter_counts=data['scatter_counts'],
-            measure_z=data['measure_z'],
-            flux_up=data['flux_up'],
-            flux_down=data['flux_down'],
-            cpu_time_s=data['sim_duration_s']
-        )
+        if config.output.save_photon_paths:
+            fig_paths = analyzer.plot_paths()
+            if fig_paths: self.save_plot(fig_paths, '3d_photon_paths.png')
 
-    except FileNotFoundError:
-        raise FileNotFoundError(f"data file missing at {path}")
-    except KeyError as e:
-        raise KeyError(f"Outdated or broken data file. Missing key: {e}")
-    return res
+        self.save_metadata(config, results_dict)
+        self.save_results(results_dict)
