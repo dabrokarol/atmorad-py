@@ -1,7 +1,12 @@
+# Engine
 DETECTOR_OFFSET = 1e-5
 EPSILON = 1e-10
 MAX_SCATTERINGS = 100_000
 
+# Nametags
 X = 0
 Y = 1
 Z = 2
+
+# Scatterings
+PRECOMPUTED_RESOLUTION = 1000
