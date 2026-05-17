@@ -19,7 +19,6 @@ class DetectorConfig:
 class OutputConfig:
     save_flux_maps: bool
     save_vertical_profile: bool
-    save_boundary_flux_maps: bool
     save_heating_rates: bool
     save_photon_paths: bool
     overwrite: bool

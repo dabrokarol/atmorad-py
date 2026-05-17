@@ -22,23 +22,23 @@ class BoundaryMapDetector(BaseDetector):
         self.domain_x = config.geometry.domain_size_x_km
         self.domain_y = config.geometry.domain_size_y_km
         
-        self.x_edges = np.arange(-self.domain_x/2, self.domain_x/2 + self.resolution, self.resolution)
-        self.y_edges = np.arange(-self.domain_y/2, self.domain_y/2 + self.resolution, self.resolution)
+        num_bins_x = int(np.round(self.domain_x / self.resolution))
+        num_bins_y = int(np.round(self.domain_y / self.resolution))
+        
+        self.x_edges = np.linspace(-self.domain_x/2, self.domain_x/2, num_bins_x + 1)
+        self.y_edges = np.linspace(-self.domain_y/2, self.domain_y/2, num_bins_y + 1)
 
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         if not np.any(terminated_mask):
             return
 
         term_pos = batch.pos[:, terminated_mask]
-        
-        # MAGIA GEOMETRII: Zawijanie (wraparound) fotonów na krawędziach domeny.
-        # Foton, który ucieknie na X=60, zostanie "przeteleportowany" na X=-40.
+
         wrapped_x = np.mod(term_pos[X] + self.domain_x/2, self.domain_x) - self.domain_x/2
         wrapped_y = np.mod(term_pos[Y] + self.domain_y/2, self.domain_y) - self.domain_y/2
 
-        # Używamy EPSILON*2 aby uodpornić się na drobne wahania float
-        surface_mask = term_pos[Z] <= (EPSILON * 2)
-        space_mask = term_pos[Z] >= (self.toa_z - EPSILON * 2)
+        surface_mask = term_pos[Z] <= 0
+        space_mask = term_pos[Z] >= (self.toa_z)
         
         if np.any(surface_mask):
             self.surface_x.append(wrapped_x[surface_mask])

@@ -34,9 +34,6 @@ class MCRadiationRunner:
             elif key in ["flux_up", "flux_down", "surface_flux_map_2d", "toa_flux_map_2d", 
                         "heating_profile_1d", "scatter_counts", "cpu_time_s"]:
                 first[key] += second[key]
-            elif key in ["final_positions", "final_directions", "surface_hits"]:
-                if second[key].size > 0:
-                    first[key] = np.concatenate([first[key], second[key]], axis=1)
             elif key == "sample_paths":
                 for path_id, path_list in second[key].items():
                     if path_id not in first[key]:
