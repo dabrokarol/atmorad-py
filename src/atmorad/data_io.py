@@ -8,6 +8,7 @@ import dataclasses
 from pathlib import Path
 from matplotlib.figure import Figure
 from atmorad.config.config import SimConfig
+from atmorad.results import ResultAnalyzer
 
 class DataIO:
     def __init__(self, config: SimConfig) -> None:
@@ -73,14 +74,16 @@ class DataIO:
                 npz_ready_dict[k] = v
         np.savez_compressed(self.base_dir / 'data_compressed.npz', **npz_ready_dict)
         
-    def save_all_artifacts(self, analyzer, results_dict: dict):
+    def save_all_artifacts(self, analyzer: ResultAnalyzer, results_dict: dict):
         config = self.config
         
         if config.output.save_absorption_maps:
             fig_map = analyzer.plot_surface_absorption_map()
             if fig_map: self.save_plot(fig_map, 'surface_absorption_map.png')
+            else: logging.warning("2d surface absorption map not generated")
             fig_toa_map = analyzer.plot_toa_flux_map()
             if fig_toa_map: self.save_plot(fig_toa_map, 'toa_flux_map.png')
+            else: logging.warning("2d toa flux map not generated")
             
         if config.output.save_incident_flux_maps:
             subfolder_name = "incident_flux"
@@ -97,7 +100,7 @@ class DataIO:
             for z_val, flux_map in up_maps.items():
                 title = f"Incident Upward Flux Map\nHeight: {z_val} km"
                 fig = analyzer.plot_2d_map(flux_map, title=title)
-                if fig: self.save_plot(fig, f"{subfolder_name}/upward_z_{z_val}km.png")
+                if fig: self.save_plot(fig, f"{subfolder_name}/upward_z_{z_val}km.png")  
             
         if config.output.save_vertical_profile:
             fig_flux = analyzer.plot_flux_profile()

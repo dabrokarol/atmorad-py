@@ -62,9 +62,9 @@ class BoundaryAbsorptionDetector(BaseDetector):
                 all_surf_x, all_surf_y, 
                 bins=[self.x_edges, self.y_edges]
             )
-            results["surface_flux_map_2d"] = surf_map
+            results["surface_absorption_map_2d"] = surf_map
         else:
-            results["surface_flux_map_2d"] = np.zeros((len(self.x_edges)-1, len(self.y_edges)-1))
+            results["surface_absorption_map_2d"] = np.zeros((len(self.x_edges)-1, len(self.y_edges)-1))
 
         if self.space_x:
             all_space_x = np.concatenate(self.space_x)

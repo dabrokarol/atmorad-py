@@ -4,9 +4,9 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-| **2D Surface flux map** | **Sample photon paths** |
+| **2D Surface absorption map** | **Sample photon paths** |
 | :--- | :--- |
-| ![map](docs/img/surface_flux_map.png) | ![paths](docs/img/3d_photon_paths.png) |
+| ![map](docs/img/surface_absorption_map.png) | ![paths](docs/img/3d_photon_paths.png) |
 | **Vertical flux profile** | **Vertical absorption profile** |
 | ![profile](docs/img/vertical_flux_profile.png)| ![hist](docs/img/heating_profile.png) |
 

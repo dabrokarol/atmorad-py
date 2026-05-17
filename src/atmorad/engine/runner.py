@@ -34,7 +34,7 @@ class MCRadiationRunner:
             if key in ["measure_z", "layer_boundaries_z", "x_edges", "y_edges",
                        "incident_flux_heights_km"]:
                 continue
-            elif key in ["flux_up", "flux_down", "surface_flux_map_2d", "toa_flux_map_2d", 
+            elif key in ["flux_up", "flux_down", "surface_absorption_map_2d", "toa_flux_map_2d", 
                         "heating_profile_1d", "scatter_counts", "cpu_time_s",
                         "incident_flux_down_maps_2d", "incident_flux_up_maps_2d",
                         "absorbed_by_surface",  "absorbed_by_atmosphere", "escaped_atmosphere"]:
