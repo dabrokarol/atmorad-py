@@ -5,12 +5,6 @@ import numpy as np
 
 from atmorad.physics.geometry import orientation
 from atmorad.constants import X, Y, Z
-
-import numpy as np
-from abc import ABC, abstractmethod
-from atmorad.physics.geometry import orientation
-from atmorad.constants import Z
-
 class SurfaceReflection(ABC):
     @abstractmethod
     def reflect(self, direction: np.ndarray, rand_1: np.ndarray, rand_2: np.ndarray) -> np.ndarray:

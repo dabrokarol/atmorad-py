@@ -22,16 +22,11 @@ class AtmosphericHeatingRateDetector(BaseDetector):
 
         term_pos = batch.pos[:, terminated_mask]
         toa = self.layer_boundaries[-1]
-        
-        # POPRAWKA: Musimy wykluczyć wszystko z Z rzędu EPSILON,
-        # inaczej każdy foton pochłonięty przez Ziemię liczyłby się jako pochłonięty przez Gazy!
         in_atmosphere_mask = (term_pos[Z] > (EPSILON * 2)) & (term_pos[Z] < (toa - EPSILON * 2))
         
         if np.any(in_atmosphere_mask):
             absorbed_z = term_pos[Z, in_atmosphere_mask]
             layer_indices = np.searchsorted(self.layer_boundaries, absorbed_z, 'right') - 1
-            
-            # Ubezpieczenie na ułamki floatów, żeby bincount nie wyrzucił błędu indeksu
             layer_indices = np.clip(layer_indices, 0, self.num_layers - 1)
             
             layer_counts = np.bincount(layer_indices, minlength=self.num_layers)

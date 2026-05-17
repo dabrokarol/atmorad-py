@@ -28,7 +28,7 @@ class FateDetector(BaseDetector):
         absorbed_surface_mask = self.scene.reached_surface(batch.pos) & terminated_mask
         absorbed_atmosphere_mask = ~reached_space_mask & ~absorbed_surface_mask & terminated_mask
         
-        self.absorbed_by_surface += np.sum(reached_space_mask) 
+        self.reached_space_mask += np.sum(reached_space_mask) 
         self.absorbed_by_surface += np.sum(absorbed_surface_mask)
         self.absorbed_by_atmosphere += np.sum(absorbed_atmosphere_mask)
         
@@ -36,8 +36,8 @@ class FateDetector(BaseDetector):
     
     def get_results(self) -> dict:
         return {
-            "absorbed_by_surface": self.absorbed_by_surface,
-            "absorbed_by_atmosphere": self.absorbed_by_atmosphere,
-            "escaped_atmosphere": self.escaped_atmosphere,
+            "photons_absorbed_surface": self.absorbed_by_surface,
+            "photons_absorbed_atmosphere": self.absorbed_by_atmosphere,
+            "photons_reflected_toa": self.escaped_atmosphere,
         }
     
