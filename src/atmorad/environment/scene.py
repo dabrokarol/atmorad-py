@@ -58,9 +58,4 @@ class Scene:
         return batch
     
     def get_final_photon_position_data(self, pos):
-        print(pos)
-        print(self.top_of_atmosphere)
-        print(self.reached_space(pos))
-        print(self.reached_surface(pos))
-        print(self.atmosphere._get_layer_idx(pos))
         return self.reached_space(pos), self.reached_surface(pos), self.atmosphere._get_layer_idx(pos)
