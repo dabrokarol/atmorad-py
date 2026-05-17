@@ -9,5 +9,4 @@ build/
 dist/
 results*/
 *.png
-*.npz
-uv.lock
+*.npz   
