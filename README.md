@@ -88,7 +88,7 @@ uv run main.py <path-to-config.toml>
 - `engine/`: divides photons into batches and runs the simulation.
 - `Scene`: keeps track of the environment.
 - `Atmosphere` and `Surface`: keep track of optical properties, phase functions, reflection functions and layer structures.
-- `ResultsAnalyzer`: Generates plots based on simulation results.
+- `ResultAnalyzer`: Generates plots based on simulation results.
 
 ### Customization:
 See `main.py` for examples and comments on how to build custom surface maps and atmospheric layers.
