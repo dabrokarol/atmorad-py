@@ -19,44 +19,66 @@ class MCRadiationRunner:
 
     def run(self):
         start_time = time.perf_counter()
-        chunk_results = parallel_simulation(self.config, self.scene)
-        self.results = self._merge_results(chunk_results)
+        self.results = self.parallel_simulation(self.config, self.scene)
         end_time = time.perf_counter()
         self.results['simulation_time_s'] = end_time - start_time
         
-    def _merge_results(self, chunk_results: list[dict]) -> dict:
-        if not chunk_results:
-            return {}
+    def _merge_incremental(self, first: dict, second: dict) -> dict:
+        if not first:
+            return second
 
-        merged = {}
-        template = chunk_results[0]
-
-        for key in template.keys():
+        for key in first.keys():
             if key in ["measure_z", "layer_boundaries_z", "x_edges", "y_edges"]:
-                merged[key] = template[key]
+                continue
             elif key in ["flux_up", "flux_down", "surface_flux_map_2d", "toa_flux_map_2d", 
                         "heating_profile_1d", "scatter_counts", "cpu_time_s"]:
-                merged[key] = sum(chunk[key] for chunk in chunk_results)
+                first[key] += second[key]
             elif key in ["final_positions", "final_directions", "surface_hits"]:
-                arrays = [chunk[key] for chunk in chunk_results if chunk[key].size > 0]
-                if arrays:
-                    merged[key] = np.concatenate(arrays, axis=1)
-                else:
-                    merged[key] = template[key]
+                if second[key].size > 0:
+                    first[key] = np.concatenate([first[key], second[key]], axis=1)
             elif key == "sample_paths":
-                merged[key] = {}
-                for chunk in chunk_results:
-                    for path_id, path_list in chunk[key].items():
-                        if path_id not in merged[key]:
-                            merged[key][path_id] = []
-                        merged[key][path_id].extend(path_list)
-            else:
-                raise ValueError(f"Błąd łączenia: Nieznany klucz '{key}' w wynikach. Dodaj go do _merge_results!")
-
-        return merged
+                for path_id, path_list in second[key].items():
+                    if path_id not in first[key]:
+                        first[key][path_id] = []
+                    first[key][path_id].extend(path_list)
+        return first
 
     def get_results(self):
         return self.results
+    
+    def parallel_simulation(self, config: SimConfig, scene: Scene):
+        total_photons = config.engine.num_photons
+        batch_size = config.engine.batch_size
+        cores = config.engine.cpu_cores
+        
+        batches = []
+        while total_photons > 0:
+            current_batch = min(batch_size, total_photons)
+            batches.append(current_batch)
+            total_photons -= current_batch
+        num_batches = len(batches)
+            
+        seeds = np.random.SeedSequence(config.engine.random_seed).spawn(num_batches)
+        
+        all_results = {}
+        
+        if cores > 1:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=cores) as executor:
+                futures = []
+                for i, (size, seed) in enumerate(zip(batches, seeds)):
+                    future = executor.submit(run_chunk, size, seed, config, scene, i)
+                    futures.append(future)
+                    
+                for future in concurrent.futures.as_completed(futures):
+                    chunk_res = future.result()
+                    all_results = self._merge_incremental(all_results, chunk_res)
+
+            return all_results
+        else:
+            for i, (size, seed) in enumerate(zip(batches, seeds)):
+                res = run_chunk(size, seed, config, scene, i)
+                all_results = self._merge_incremental(all_results, res)
+            return all_results
 
 def build_detectors_from_config(config: SimConfig):
     detectors = []
@@ -73,25 +95,6 @@ def build_detectors_from_config(config: SimConfig):
         detectors.append(HeatingRateDetector())
     
     return detectors
-
-def parallel_simulation(config: SimConfig, scene: Scene):
-    if config.engine.cpu_cores > 1:
-        chunk_size = config.engine.num_photons // config.engine.cpu_cores
-        remainder = config.engine.num_photons % config.engine.cpu_cores
-        seeds = np.random.SeedSequence(config.engine.random_seed).spawn(config.engine.cpu_cores)
-
-        futures = []
-        with concurrent.futures.ProcessPoolExecutor(max_workers=config.engine.cpu_cores) as executor:
-            for i in range(config.engine.cpu_cores):
-                future = executor.submit(run_chunk, chunk_size + (remainder if i == 0 else 0), seeds[i], config, scene, i)
-                futures.append(future)
-
-        all_results = [future.result() for future in concurrent.futures.as_completed(futures)]
-
-        return all_results
-    else:
-        return [run_chunk(config.engine.num_photons, config.engine.random_seed, config, scene, 0)]
-        
 
 def run_chunk(chunk_size: int, seed, config: SimConfig, scene: Scene, i):
     new_engine_config = replace(

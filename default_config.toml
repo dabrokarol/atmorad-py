@@ -3,10 +3,10 @@ experiment_name = "simulation001"
 description = "A demo simulation."
 
 [engine]
-num_photons = 100
+num_photons = 10_000_000
 batch_size = 100_000
 random_seed = 42
-cpu_cores = 1
+cpu_cores = 4
 
 [source]
 theta_sun_deg = 0
@@ -38,7 +38,7 @@ path = 'results'
     reflection = {type = "lambertian"}
     [surface_materials.ocean]
     albedo = 0.01
-    reflection = {type = "mirror", roughness = 0.1}
+    reflection = {type = "mirror", roughness = 0.0}
 
 
 [atmosphere_materials]
@@ -48,11 +48,11 @@ path = 'results'
     scattering = {type = "hg", g = 0}
     [atmosphere_materials.light-clouds]
     extinction_coeff_per_km = 1
-    ssa = 0.9999
+    ssa = 0.999999
     scattering = {type = "hg", g = 0.85}
     [atmosphere_materials.dark-clouds]
     extinction_coeff_per_km = 5
-    ssa = 0.9999
+    ssa = 0.999999
     scattering = {type = "hg", g = 0.85}
 
 [[layer]]
@@ -63,7 +63,7 @@ materials = [{type = "air", weight = 1.0}]
 z_range_km = [2, 4]
 materials = [
     {type = "air", weight = 0.3},
-    {type = "light-clouds", weight = 0.7}
+    {type = "dark-clouds", weight = 0.7}
 ]
 
 [[layer]]

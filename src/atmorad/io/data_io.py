@@ -10,8 +10,8 @@ from matplotlib.figure import Figure
 from atmorad.config.config import SimConfig
 
 class OutputHandler:
-    def __init__(self, base_dir: str = 'results', overwrite: bool = False) -> None:
-        self.base_dir = Path.cwd() / base_dir
+    def __init__(self, output_path: str = 'results', overwrite: bool = False) -> None:
+        self.base_dir = Path(output_path)
         if overwrite:
             self.base_dir.mkdir(parents=True, exist_ok=True)
         else:
@@ -19,7 +19,7 @@ class OutputHandler:
                 self.base_dir.mkdir(parents=True)
             except FileExistsError:
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                self.base_dir = Path.cwd() / f"{base_dir}_{timestamp}"
+                self.base_dir = Path.cwd() / f"{output_path}_{timestamp}"
                 self.base_dir.mkdir(parents=True)
                 logging.info(f"Directory exists, saving to {self.base_dir}")
     

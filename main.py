@@ -33,7 +33,7 @@ def main():
     logging.info("\n" + analyzer.summary())
 
     logging.info("Saving results to disk...")
-    handler = OutputHandler(base_dir='results', overwrite=config.output.overwrite)
+    handler = OutputHandler(output_path=config.output.path, overwrite=config.output.overwrite)
     
     if config.output.save_boundary_flux_maps:
         fig_map = analyzer.plot_surface_flux_map()
