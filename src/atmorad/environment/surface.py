@@ -19,34 +19,32 @@ class SurfaceMaterial:
 class SurfaceMap(ABC):
     @abstractmethod
     def get_material_ids(self, pos: np.ndarray) -> np.ndarray:
-        ...
+        """Returns an array of material IDs corresponding to photon coordinates."""
+        pass
+class UniformMap(SurfaceMap):
+    def get_material_ids(self, pos: np.ndarray):
+        return np.zeros_like(pos[X], dtype=int)
 
-class ProceduralMap(SurfaceMap):
-    def __init__(self, procedure):
-        self.procedure = procedure
-
-    def get_material_ids(self, pos):
-        return self.procedure(pos)
-    
-    #example map functions:
-    @staticmethod
-    def uniform_ground(pos):
-        return np.zeros_like(pos[X]).astype(int)
-    
-    @staticmethod
-    def split_half_x(pos):
+class SplitHalfXMap(SurfaceMap):
+    def get_material_ids(self, pos: np.ndarray):
         return np.where(pos[X] < 0, 0, 1)
-    
-    @staticmethod
-    def circle(pos, radius):
-        return np.where((pos[X]**2 + pos[Y]**2) < radius**2, 0, 1)
-    
-    @staticmethod
-    def checkerboard(pos, tile_size):
-        x = np.mod(pos[X], tile_size)
-        y = np.mod(pos[Y], tile_size)
-        return np.where(((x<tile_size/2) & (y<tile_size/2)) | ((x >= tile_size/2) & (y >= tile_size/2)), 0, 1)
 
+class CircleMap(SurfaceMap):
+    def __init__(self, radius_km: float):
+        self.radius_sq = radius_km ** 2
+        
+    def get_material_ids(self, pos: np.ndarray):
+        return np.where((pos[X]**2 + pos[Y]**2) < self.radius_sq, 0, 1)
+
+class CheckerboardMap(SurfaceMap):
+    def __init__(self, tile_size_km: float):
+        self.tile_size = tile_size_km
+        
+    def get_material_ids(self, pos: np.ndarray):
+        x = np.mod(pos[X], self.tile_size)
+        y = np.mod(pos[Y], self.tile_size)
+        half = self.tile_size / 2.0
+        return np.where(((x < half) & (y < half)) | ((x >= half) & (y >= half)), 0, 1)
 class GridMap(SurfaceMap):    
     """
     Args:
@@ -58,9 +56,7 @@ class GridMap(SurfaceMap):
         self.matrix = np.asarray(ground_ids_matrix, dtype=int)
         self.cell_size = cell_size_km
         self.periodic = periodic
-        
-        self.n_x = self.matrix.shape[0]
-        self.n_y = self.matrix.shape[1]
+        self.n_x, self.n_y = self.matrix.shape
         
     def get_material_ids(self, pos: np.ndarray) -> np.ndarray:
         grid_x = pos[X] / self.cell_size
