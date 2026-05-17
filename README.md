@@ -17,7 +17,7 @@ This project simulates propagation of light through heterogenous, plane-parallel
 ### Physical model
 - **Discrete photons**: Photons are treated as discrete particles, not as variable packets of energy. Energy is counted as a fraction of total photons. 
 - **Plane-parallel approximation**: Atmosphere consists of horizontally uniform layers.
-- **Multi-material atmospheric layers**: layers can consist of a few atmospheric materials simultaneously (photon gets assigned material randomly upon each scattering event). Each material has its own optical density, single-scattering albedo and phase function.
+- **Multi-material atmospheric layers**: layers can consist of a few atmospheric materials simultaneously. A photon is assigned a material randomly when it is initialized and again when it crosses into a new layer. Each material has its own optical density, single-scattering albedo and phase function.
 - **Custom Phase-Functions**: Henyey-Greenstein and Rayleigh phase function are already implemented in the simulation, but any custom user-defined function can be constructed using the `Scattering` class.
 - **Surface Reflections**: Surface consists of materials, each of which having its albedo, a predefined reflection (`Lambertian`, `Mirror`) and a `ProceduralMap` that outputs material ID based on coordinates.
 - **Photon Properties**: Light is treated as monochromatic, non-polarized particles. During the simulation they can get scattered, reflected or absorbed. 
