@@ -49,6 +49,7 @@ uv run main.py <path-to-config.toml>
 .
 ├── default_config.toml
 ├── examples/
+├── tests/
 ├── LICENSE
 ├── main.py
 ├── pyproject.toml
