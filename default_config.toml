@@ -60,14 +60,14 @@ z_range_km = [0, 2]
 materials = [{type = "air", weight = 1.0}]
 
 [[layer]]
-z_range_km = [2, 4]
+z_range_km = [2, 6]
 materials = [
-    {type = "air", weight = 0.3},
-    {type = "dark-clouds", weight = 0.7}
+    {type = "air", weight = 0.1},
+    {type = "dark-clouds", weight = 0.9}
 ]
 
 [[layer]]
-z_range_km = [4, 10]
+z_range_km = [6, 10]
 materials = [{type = "air", weight = 1.0}]
 
 # [surface]

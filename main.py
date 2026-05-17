@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 
 from atmorad.engine.runner import MCRadiationRunner
-from atmorad.io.data_io import DataIO
+from atmorad.data_io import DataIO
 from atmorad.config.parser import load_config
 from atmorad.results import ResultAnalyzer
 
