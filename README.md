@@ -90,9 +90,6 @@ uv run main.py <path-to-config.toml>
 - `Atmosphere` and `Surface`: keep track of optical properties, phase functions, reflection functions and layer structures.
 - `ResultAnalyzer`: Generates plots based on simulation results.
 
-### Customization:
-See `main.py` for examples and comments on how to build custom surface maps and atmospheric layers.
-
 ## References and Literature
 - (in Polish) Script for Lecture about [Radiative Processes in the Atmosphere](https://www.igf.fuw.edu.pl/~kmark/stacja/wyklady/ProcesyRadiacyjne/2013/WykladRadiacjaKlimat.pdf), Prof. K. Markowicz, Faculty of Physics, University of Warsaw, 2013.
 
