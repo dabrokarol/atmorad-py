@@ -10,7 +10,7 @@ from atmorad.results import ResultAnalyzer
 def main():
     parser = argparse.ArgumentParser(prog="AtmoRad", usage="uv run main.py <path-to-config>")
     parser.add_argument("config", nargs="?", default="default_config.toml", help="path to config TOML", type=Path)
-    parser.add_argument("-v", "--verbose", action="store_true", help="increate output verbosity")
+    parser.add_argument("-v", "--verbose", action="store_true", help="increase output verbosity")
     args = parser.parse_args()
 
     config_path = Path.cwd() / args.config
@@ -32,7 +32,7 @@ def main():
     results_dict = runner.get_results()
     analyzer = ResultAnalyzer(results_dict, config)
 
-    logging.info("\n" + analyzer.summary())
+    print("\n" + analyzer.summary())
 
     logging.info("Saving results to disk...")
     
