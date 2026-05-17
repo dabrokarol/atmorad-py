@@ -1,13 +1,12 @@
 import numpy as np
 
 from atmorad.engine.batch import PhotonBatch
-from atmorad.environment.atmosphere import LayeredAtmosphere
-from atmorad.environment.surface import FlatSurface
+from atmorad.environment.atmosphere import Atmosphere
+from atmorad.environment.surface import Surface
 class Scene:
-    def __init__(self, surface: FlatSurface, atmosphere: LayeredAtmosphere) -> None:
+    def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:
         self.surface = surface
         self.atmosphere = atmosphere
-        self.top_of_atmosphere = atmosphere.boundaries[-1]
     
     def process_interactions(self, batch: PhotonBatch, to_scatter_mask: np.ndarray, random_sample: np.ndarray) -> tuple[PhotonBatch, np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -58,4 +57,4 @@ class Scene:
         return batch
     
     def get_final_photon_position_data(self, pos):
-        return self.reached_space(pos), self.reached_surface(pos), self.atmosphere._get_layer_idx(pos)
+        return self.reached_space(pos), self.reached_surface(pos), self.atmosphere.get_spatial_indices(pos)

@@ -54,6 +54,11 @@ class Atmosphere(ABC):
 
     @abstractmethod
     def adjust_internal_boundaries(self, batch: PhotonBatch) -> PhotonBatch: ...
+    
+    @abstractmethod
+    def get_spatial_indices(self, batch: PhotonBatch) -> np.ndarray: 
+        """Returns info about photons' last positions."""
+        ...
 
 class LayeredAtmosphere(Atmosphere):
     def __init__(self, layers: Sequence[AtmosphericLayer]):
@@ -175,3 +180,6 @@ class LayeredAtmosphere(Atmosphere):
             batch.pos[Z, facing_up_mask] += EPSILON
             batch.pos[Z, facing_down_mask] -= EPSILON
         return batch
+    
+    def get_spatial_indices(self, batch: PhotonBatch):
+        return self._get_layer_idx(batch.pos)
