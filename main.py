@@ -36,7 +36,7 @@ def main():
 
     logging.info("Saving results to disk...")
     
-    if config.output.save_boundary_flux_maps:
+    if config.output.save_flux_maps:
         fig_map = analyzer.plot_surface_flux_map()
         if fig_map: handler.save_plot(fig_map, 'surface_flux_map.png')
         

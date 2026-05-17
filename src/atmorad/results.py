@@ -25,17 +25,13 @@ class ResultAnalyzer:
 
         reflected, transmitted, absorbed = 0.0, 0.0, 0.0
         
-        if "toa_flux_map_2d" in self.data:
-            reflected = np.sum(self.data["toa_flux_map_2d"]) / self.total_photons
-            summary_str += f"Reflectance (TOA): {reflected:.4f} ({reflected*100:.2f}%)\n"
-            
-        if "surface_flux_map_2d" in self.data:
-            transmitted = np.sum(self.data["surface_flux_map_2d"]) / self.total_photons
-            summary_str += f"Transmittance (Surface Hits): {transmitted:.4f} ({transmitted*100:.2f}%)\n"
-            
-        if "heating_profile_1d" in self.data:
-            absorbed = np.sum(self.data["heating_profile_1d"]) / self.total_photons
-            summary_str += f"Atmospheric Absorption: {absorbed:.4f} ({absorbed*100:.2f}%)\n"
+        reflected = self.data["escaped_atmosphere"]
+        transmitted = self.data["absorbed_by_surface"]
+        absorbed = self.data["absorbed_by_atmosphere"]
+        
+        summary_str += f"Reflected (escaped to space): {reflected:.6f}\n"
+        summary_str += f"Transmitted (absorbed by surface): {transmitted:.6f}\n"
+        summary_str += f"Absorbed (absorbed by atmosphere): {absorbed:.6f}\n"
 
         if reflected > 0 or transmitted > 0 or absorbed > 0:
             total_energy = reflected + transmitted + absorbed

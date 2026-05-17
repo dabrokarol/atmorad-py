@@ -11,7 +11,8 @@ from atmorad.config.config import SimConfig
 from atmorad.detectors.heating import HeatingRateDetector
 from atmorad.detectors.flux import VerticalFluxDetector
 from atmorad.detectors.surface_hits import BoundaryMapDetector
-from atmorad.detectors.photon_paths import PathTrackingDetector
+from atmorad.detectors.paths import PathTrackingDetector
+from atmorad.detectors.fate import FateDetector
 
 class MCRadiationRunner:
     def __init__(self, config: SimConfig):
@@ -32,7 +33,8 @@ class MCRadiationRunner:
             if key in ["measure_z", "layer_boundaries_z", "x_edges", "y_edges"]:
                 continue
             elif key in ["flux_up", "flux_down", "surface_flux_map_2d", "toa_flux_map_2d", 
-                        "heating_profile_1d", "scatter_counts", "cpu_time_s"]:
+                        "heating_profile_1d", "scatter_counts", "cpu_time_s",
+                        "absorbed_by_surface",  "absorbed_by_atmosphere", "escaped_atmosphere"]:
                 first[key] += second[key]
             elif key == "sample_paths":
                 for path_id, path_list in second[key].items():
@@ -79,7 +81,9 @@ class MCRadiationRunner:
             return all_results
 
 def build_detectors_from_config(config: SimConfig):
-    detectors = []
+    detectors = [
+        FateDetector()
+    ]
     if config.detectors.num_full_paths > 0:
         detectors.append(PathTrackingDetector())
         
