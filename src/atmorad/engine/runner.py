@@ -81,9 +81,10 @@ class MCRadiationRunner:
             return all_results
 
 def build_detectors_from_config(config: SimConfig):
-    detectors = [
-        FateDetector()
-    ]
+    detectors = []
+    
+    detectors.append(FateDetector())
+
     if config.detectors.num_full_paths > 0:
         detectors.append(PathTrackingDetector())
         
