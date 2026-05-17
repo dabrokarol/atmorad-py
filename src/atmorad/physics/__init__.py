@@ -2,8 +2,8 @@ from atmorad.physics.geometry import orientation, rotate, sun_zenith_to_directio
 from atmorad.physics import scattering, reflection
 
 class AtmosphereScatterings:
-    HenyeyGreenstein = scattering.HenyeyGreenstein
-    Uniform = scattering.Uniform
+    HenyeyGreenstein = scattering.HenyeyGreensteinScattering
+    Uniform = scattering.IsotropicScattering
 
 class SurfaceReflections:
     MirrorReflection = reflection.MirrorReflection

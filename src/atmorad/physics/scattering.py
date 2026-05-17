@@ -1,20 +1,20 @@
 import numpy as np
+from atmorad.constants import PRECOMPUTED_RESOLUTION
 
 class Scattering:
-    def __init__(self, scatter_func, g, n_precomputed=1000):
-        """Computes normalized probability distribution of cos_theta and sums to obtain distribuant."""
-        cos_grid = np.linspace(-1, 1, n_precomputed)
-        dx = cos_grid[1] - cos_grid[0]
-
-        pdf = scatter_func(g, cos_grid)
-        pdf /= (np.sum(pdf) * dx)
-
-        self.distribuant = np.cumsum(pdf) * dx
-        self.cos_grid = cos_grid
-        self.n_precomputed = n_precomputed
+    def __init__(self, pdf_array, resolution):
+        """
+        Takes a raw probability density array, normalizes it, 
+        and computes the Cumulative Distribution Function (CDF) for fast sampling.
+        """
+        self.cos_grid = np.linspace(-1, 1, resolution)
+        dx = self.cos_grid[1] - self.cos_grid[0]
+        pdf_array = pdf_array / (np.sum(pdf_array) * dx)
+        self.distribuant = np.cumsum(pdf_array) * dx
+        self.n_precomputed = resolution
 
     def scatter(self, rand_1, rand_2):
-        """Computes sin and cos of theta, phi used for scattering. Uses `np.interp` to obtain reversed distribuant values for given rand_1. Samples phi from uniform distribution [0,2pi].
+        """Computes sin and cos of theta, phi used for scattering. Uses `np.interp` to obtain reversed cdf values for given rand_1. Samples phi from uniform distribution [0,2pi].
         
         Args:
             rand_1 - array of random numbers (uniform(0,1)) used to sample cos_theta
@@ -23,34 +23,44 @@ class Scattering:
         Returns:
             np.array((cos_theta, sin_theta, cos_phi, sin_phi)) - trigonometric functions of sampled angles
         """
-        phi = 2*np.pi*rand_2
+        phi = 2 * np.pi * rand_2
+        
         cos_theta = np.interp(rand_1, self.distribuant, self.cos_grid)
-        sin_theta = np.sqrt(1 - np.clip(cos_theta**2, 0, 1))
+        sin_theta = np.sqrt(1 - np.clip(cos_theta**2, 0.0, 1.0))
+        
         cos_phi = np.cos(phi)
         sin_phi = np.sin(phi)
+        
         return np.array((cos_theta, sin_theta, cos_phi, sin_phi))
     
     def __call__(self, rand_1, rand_2):
         return self.scatter(rand_1, rand_2)
-    
-    @staticmethod
-    def henyey_greenstein_func(g, cos_theta):
-        """Henyey-Greenstein function."""
-        if np.isclose(g, 1):
-            return (np.isclose(cos_theta, 1)).astype(float)
-        elif np.isclose(g, -1):
-            return (np.isclose(cos_theta, -1)).astype(float)
+
+
+class HenyeyGreensteinScattering(Scattering):
+    def __init__(self, g: float, resolution=PRECOMPUTED_RESOLUTION):
+        self.g = g
+        cos_grid = np.linspace(-1, 1, resolution)
+        
+        if np.isclose(g, 1.0):
+            pdf = np.isclose(cos_grid, 1.0).astype(float)
+        elif np.isclose(g, -1.0):
+            pdf = np.isclose(cos_grid, -1.0).astype(float)
         else:
-            return (1 - g**2) / (2) / (1 + g**2 - 2*g*cos_theta)**(3/2)
-    @staticmethod    
-    def uniform_func(g, cos_theta):
-        """Uniform scattering function."""
-        return np.ones_like(cos_theta, dtype=np.float64)
+            pdf = (1 - g**2) / (2 * (1 + g**2 - 2 * g * cos_grid)**1.5)
+            
+        super().__init__(pdf_array=pdf, resolution=resolution)
 
-class HenyeyGreenstein(Scattering):
-    def __init__(self, g, n_precomputed=1000):
-        super().__init__(self.henyey_greenstein_func, g, n_precomputed)
 
-class Uniform(Scattering):
-    def __init__(self, g, n_precomputed=1000):
-        super().__init__(self.henyey_greenstein_func, g, n_precomputed)
+class IsotropicScattering(Scattering):
+    def __init__(self, resolution=PRECOMPUTED_RESOLUTION):
+        cos_grid = np.linspace(-1, 1, resolution)
+        pdf = np.ones_like(cos_grid)
+        super().__init__(pdf_array=pdf, resolution=resolution)
+
+
+class RayleighScattering(Scattering):
+    def __init__(self, resolution=PRECOMPUTED_RESOLUTION):
+        cos_grid = np.linspace(-1, 1, resolution)
+        pdf = 1.0 + cos_grid**2
+        super().__init__(pdf_array=pdf, resolution=resolution)
