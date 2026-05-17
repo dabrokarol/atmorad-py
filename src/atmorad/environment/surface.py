@@ -89,14 +89,24 @@ class Surface(ABC):
         ...
 
 class FlatSurface(Surface):
-    def __init__(self, ground_map: SurfaceMap, ground_types: Sequence[SurfaceMaterial]):
+    def __init__(self, ground_map: SurfaceMap, ground_types: Sequence[SurfaceMaterial],
+                 domain_x_km: float, domain_y_km: float, is_periodic: bool = True):
         self.ground_map = ground_map
         self.ground_types = np.array(ground_types)
         self.albedos = np.array([material.albedo for material in self.ground_types])
         self.reflections = [material.reflection for material in self.ground_types]
+        
+        self.domain_x = domain_x_km
+        self.domain_y = domain_y_km
+        self.is_periodic = is_periodic
     
     def process_reflection(self, batch: PhotonBatch, surface_mask: np.ndarray, random_samples: np.ndarray):
         pos_hit = batch.pos[:, surface_mask]
+        
+        if self.is_periodic:
+            pos_hit[X] = np.mod(pos_hit[X] + self.domain_x/2, self.domain_x) - self.domain_x/2
+            pos_hit[Y] = np.mod(pos_hit[Y] + self.domain_y/2, self.domain_y) - self.domain_y/2
+            
         material_ids = self.ground_map.get_material_ids(pos_hit)
 
         rand_albedo = random_samples[0, surface_mask]
@@ -129,5 +139,5 @@ class FlatSurface(Surface):
     def adjust_surface_boundary(self, batch: PhotonBatch):
         below_ground_mask = self.is_below_ground(batch.pos)
         batch.pos[:, below_ground_mask] += (0 - batch.pos[Z, below_ground_mask]) / batch.direction[Z, below_ground_mask] * batch.direction[:, below_ground_mask]
-        batch.pos[Z, below_ground_mask] = EPSILON
+        batch.pos[Z, below_ground_mask] = -EPSILON
         return batch

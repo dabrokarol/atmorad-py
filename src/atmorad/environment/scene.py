@@ -68,7 +68,7 @@ class Scene:
         return direction
     
     def get_material_ids(self, pos, rng):
-        rand_component = rng.uniform(0, 1, pos.size[1])
+        rand_component = rng.uniform(0, 1, pos.shape[1])
         return self.atmosphere.get_material_ids(pos, rand_component)
     
     def move_photons(self, batch: PhotonBatch, tau_to_move: np.ndarray):

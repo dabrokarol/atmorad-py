@@ -1,55 +1,57 @@
 from dataclasses import dataclass
 
+from atmorad.environment.surface import Surface
+from atmorad.environment.atmosphere import AtmosphericLayer
+
+
+@dataclass
+class MetadataConfig:
+    experiment_name: str
+    description: str
+    
+@dataclass
+class DetectorConfig:
+    vertical_flux_resolution_km: float
+    map2d_resolution_km: float
+    num_full_paths: int
+    
+@dataclass
+class OutputConfig:
+    save_flux_maps: bool
+    save_vertical_profile: bool
+    save_boundary_flux_maps: bool
+    save_heating_rates: bool
+    save_photon_paths: bool
+    overwrite: bool
+    path: str
+    
+@dataclass
+class EngineConfig:
+    num_photons: int
+    batch_size: int
+    random_seed: int
+    cpu_cores: int
+
+@dataclass
+class SourceConfig:
+    theta_sun_deg: float
+    phi_sun_deg: float
+    wavelength_nm: float
+
+@dataclass
+class GeometryConfig:
+    domain_size_x_km: float
+    domain_size_y_km: float
+    boundary_condition: str
+    
 @dataclass
 class SimConfig:
-    num_photons: int = 100_000
-    num_track: int = 100
-    random_seed: int = 42
-    theta_sun_deg: float = 60
-    phi_sun_deg: float = 0
-    flux_measure_spacing: float = 1
-    cpu_cores: int = 4
-    
-    
-class LambertianReflection:
-    def __init__(self):
-        pass
-    
-class SpecularReflection:
-    def __init__(self, roughness: float):
-        self.roughness = roughness
+    engine: EngineConfig
+    source: SourceConfig
+    geometry: GeometryConfig
+    output: OutputConfig
+    metadata: MetadataConfig
+    detectors: DetectorConfig
 
-class SurfaceMaterial:
-    def __init__(self, albedo: float, reflection_model):
-        self.albedo = albedo
-        self.reflection_model = reflection_model
-        
-REFLECTION_MODELS = {
-    "lambertian": LambertianReflection,
-    "specular": SpecularReflection
-}
-
-import tomllib
-
-def parse_surface_materials(toml_dict):
-    parsed_materials = {}
-
-    for name, properties in toml_dict["surface_materials"].items():
-        albedo = properties["albedo"]
-        ref_data = properties["reflection"]
-
-        ref_type = ref_data.pop("type")
-
-        model_class = REFLECTION_MODELS[ref_type] 
-        reflection_instance = model_class(**ref_data) 
-        
-        parsed_materials[name] = SurfaceMaterial(albedo, reflection_instance)
-        
-    return parsed_materials
-
-# with open("config.toml", "rb") as f:
-#     config_data = tomllib.load(f)
-
-# materials = parse_surface_materials(config_data)
-
-# print(materials["ocean"].reflection_model.roughness)
+    layers: list[AtmosphericLayer]
+    surface: Surface
