@@ -61,10 +61,10 @@ uv run main.py <path-to-config.toml>
 │       ├── detectors
 │       │   ├── __init__.py
 │       │   ├── base.py
-│       │   ├── flux.py
-│       │   ├── heating.py
-│       │   ├── photon_paths.py
-│       │   └── surface_hits.py
+│       │   ├── atmosphere_heating.py
+│       │   ├── paths.py
+│       │   ├── plane_flux.py
+│       │   └── surface_toa_flux.py
 │       ├── engine
 │       │   ├── __init__.py
 │       │   ├── batch.py
