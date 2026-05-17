@@ -5,7 +5,7 @@ from atmorad.engine.batch import PhotonBatch
 from atmorad.config.config import SimConfig
 from atmorad.constants import X, Y, Z, EPSILON
 
-class BoundaryMapDetector(BaseDetector):
+class BoundaryAbsorptionDetector(BaseDetector):
     def __init__(self):
         self.resolution = None
         self.toa_z = None

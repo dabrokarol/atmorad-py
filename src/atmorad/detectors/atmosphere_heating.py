@@ -5,7 +5,7 @@ from atmorad.engine.batch import PhotonBatch
 from atmorad.config.config import SimConfig
 from atmorad.constants import Z, EPSILON
 
-class HeatingRateDetector(BaseDetector):
+class AtmosphericHeatingRateDetector(BaseDetector):
     def __init__(self):
         self.num_layers = None
         self.layer_boundaries = None

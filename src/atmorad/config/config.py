@@ -14,14 +14,17 @@ class DetectorConfig:
     vertical_flux_resolution_km: float
     map2d_resolution_km: float
     num_full_paths: int
+    incident_flux_heights_km: list[float]
     
 @dataclass
 class OutputConfig:
-    save_flux_maps: bool
+    save_absorption_maps: bool
+    save_incident_flux_maps: bool
     save_vertical_profile: bool
     save_heating_rates: bool
     save_photon_paths: bool
     overwrite: bool
+    save_plots: bool
     path: str
     
 @dataclass

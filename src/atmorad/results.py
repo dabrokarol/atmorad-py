@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -98,15 +100,11 @@ class ResultAnalyzer:
             ax.legend()
         return fig
 
-    def plot_surface_flux_map(self, title: str ='Normalized Surface Flux'):
-        if "surface_flux_map_2d" not in self.data:
-            return None
-            
-        map_2d = self.data["surface_flux_map_2d"]
+    def plot_2d_map(self, flux_map: np.ndarray, title: str):
         x_edges = self.data["x_edges"]
         y_edges = self.data["y_edges"]
         
-        map_2d_norm = map_2d / self.total_photons
+        map_2d_norm = flux_map / self.total_photons
 
         fig, ax = plt.subplots(figsize=(8, 7))
         X, Y = np.meshgrid(x_edges, y_edges)
@@ -120,27 +118,23 @@ class ResultAnalyzer:
 
         return fig
     
-    def plot_toa_flux_map(self, title: str ='Normalized TOA Flux'):
-        if "toa_flux_map_2d" not in self.data:
+    def plot_surface_absorption_map(self, title: str = 'Surface Absorption Map (Normalized)'):
+        flux_map = self.data.get("surface_absorption_map_2d")
+            
+        if flux_map is None:
+            logging.warning("Warning: No surface absorption map found in data.")
             return None
             
-        map_2d = self.data["toa_flux_map_2d"]
-        x_edges = self.data["x_edges"]
-        y_edges = self.data["y_edges"]
-        
-        map_2d_norm = map_2d / self.total_photons
+        return self.plot_2d_map(flux_map, title)
 
-        fig, ax = plt.subplots(figsize=(8, 7))
-        X, Y = np.meshgrid(x_edges, y_edges)
+    def plot_toa_flux_map(self, title: str = 'Top of Atmosphere (TOA) Reflected Flux'):
+        flux_map = self.data.get("toa_flux_map_2d")
         
-        mesh = ax.pcolormesh(X, Y, map_2d_norm.T, cmap=cmo.cm.solar, shading='flat') # type: ignore
-        ax.set_aspect('equal')
-        fig.colorbar(mesh, ax=ax, label='Normalized Flux (Transmittance)', orientation='horizontal', pad=0.1)
-        ax.set_xlabel('Position X [km]')
-        ax.set_ylabel('Position Y [km]')
-        ax.set_title(title, fontsize=16)
-
-        return fig
+        if flux_map is None:
+            logging.warning("Warning: No TOA flux map found in data.")
+            return None
+            
+        return self.plot_2d_map(flux_map, title)
 
     def plot_flux_profile(self, title='Vertical Flux Profile'):
         if "flux_down" not in self.data or "flux_up" not in self.data:

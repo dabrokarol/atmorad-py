@@ -23,7 +23,7 @@ def main():
     config = load_config(config_path)
     
     logging.info("Generating output directory...")
-    handler = DataIO(config)
+    data_io = DataIO(config)
     
     logging.info(f"Starting {config.engine.cpu_cores}-core simulation ({config.engine.num_photons} photons)...")
     runner = MCRadiationRunner(config)
@@ -36,23 +36,13 @@ def main():
 
     logging.info("Saving results to disk...")
     
-    if config.output.save_flux_maps:
-        fig_map = analyzer.plot_surface_flux_map()
-        if fig_map: handler.save_plot(fig_map, 'surface_flux_map.png')
-        
-    if config.output.save_vertical_profile:
-        fig_flux = analyzer.plot_flux_profile()
-        if fig_flux: handler.save_plot(fig_flux, 'vertical_flux_profile.png')
-        
-        fig_heat = analyzer.plot_heating_rate()
-        if fig_heat: handler.save_plot(fig_heat, 'heating_profile.png')
+    data_io.save_metadata(config, results_dict)
+    data_io.save_results(results_dict)
+    
+    if config.output.save_plots:
+        logging.info("Generating and saving plots...")
+        data_io.save_all_artifacts(analyzer, results_dict)
 
-    if config.output.save_photon_paths:
-        fig_paths = analyzer.plot_paths()
-        if fig_paths: handler.save_plot(fig_paths, '3d_photon_paths.png')
-
-    handler.save_metadata(config, results_dict)
-    handler.save_results(results_dict)
     logging.info("Done! Simulation artifacts saved successfully.")
 
 if __name__ == '__main__':

@@ -8,9 +8,10 @@ from atmorad.environment.scene import Scene
 from atmorad.environment.atmosphere import Atmosphere
 from atmorad.engine.engine import Engine
 from atmorad.config.config import SimConfig
-from atmorad.detectors.heating import HeatingRateDetector
+from atmorad.detectors.atmosphere_heating import AtmosphericHeatingRateDetector
 from atmorad.detectors.flux import VerticalFluxDetector
-from atmorad.detectors.surface_hits import BoundaryMapDetector
+from atmorad.detectors.surface_toa_flux import BoundaryAbsorptionDetector
+from atmorad.detectors.plane_flux import IncidentFluxMapDetector
 from atmorad.detectors.paths import PathTrackingDetector
 from atmorad.detectors.fate import FateDetector
 
@@ -30,10 +31,12 @@ class MCRadiationRunner:
             return second
 
         for key in first.keys():
-            if key in ["measure_z", "layer_boundaries_z", "x_edges", "y_edges"]:
+            if key in ["measure_z", "layer_boundaries_z", "x_edges", "y_edges",
+                       "incident_flux_heights_km"]:
                 continue
             elif key in ["flux_up", "flux_down", "surface_flux_map_2d", "toa_flux_map_2d", 
                         "heating_profile_1d", "scatter_counts", "cpu_time_s",
+                        "incident_flux_down_maps_2d", "incident_flux_up_maps_2d",
                         "absorbed_by_surface",  "absorbed_by_atmosphere", "escaped_atmosphere"]:
                 first[key] += second[key]
             elif key == "sample_paths":
@@ -91,11 +94,14 @@ def build_detectors_from_config(config: SimConfig):
     if config.output.save_vertical_profile:
         detectors.append(VerticalFluxDetector())
         
-    if config.output.save_flux_maps:
-        detectors.append(BoundaryMapDetector())
+    if config.output.save_absorption_maps:
+        detectors.append(BoundaryAbsorptionDetector())
+        
+    if config.output.save_incident_flux_maps:
+        detectors.append(IncidentFluxMapDetector())
 
     if config.output.save_heating_rates:
-        detectors.append(HeatingRateDetector())
+        detectors.append(AtmosphericHeatingRateDetector())
     
     return detectors
 

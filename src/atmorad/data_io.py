@@ -11,6 +11,8 @@ from atmorad.config.config import SimConfig
 
 class DataIO:
     def __init__(self, config: SimConfig) -> None:
+        self.config = config
+        
         output_dir = Path(config.output.path) 
         exp_name = config.metadata.experiment_name.replace(" ", "-")
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -70,17 +72,43 @@ class DataIO:
             else:
                 npz_ready_dict[k] = v
         np.savez_compressed(self.base_dir / 'data_compressed.npz', **npz_ready_dict)
+        
+    def save_all_artifacts(self, analyzer, results_dict: dict):
+        config = self.config
+        
+        if config.output.save_absorption_maps:
+            fig_map = analyzer.plot_surface_absorption_map()
+            if fig_map: self.save_plot(fig_map, 'surface_absorption_map.png')
+            fig_toa_map = analyzer.plot_toa_flux_map()
+            if fig_toa_map: self.save_plot(fig_toa_map, 'toa_flux_map.png')
+            
+        if config.output.save_incident_flux_maps:
+            subfolder_name = "incident_flux"
+            subfolder_path = self.base_dir / subfolder_name
+            subfolder_path.mkdir(exist_ok=True)
 
-def read_results(path: Path | str) -> dict:
-    try:
-        data = np.load(path, allow_pickle=True)
-        res_dict = {}
-        for key in data.files:
-            val = data[key]
-            if val.dtype == 'O' and val.shape == ():
-                res_dict[key] = val.item()
-            else:
-                res_dict[key] = val
-        return res_dict
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Data file missing at {path}")
+            down_maps = results_dict.get("incident_flux_down_maps_2d", {})
+            for z_val, flux_map in down_maps.items():
+                title = f"Incident Downward Flux Map\nHeight: {z_val} km"
+                fig = analyzer.plot_2d_map(flux_map, title=title)
+                if fig: self.save_plot(fig, f"{subfolder_name}/downward_z_{z_val}km.png")
+                    
+            up_maps = results_dict.get("incident_flux_up_maps_2d", {})
+            for z_val, flux_map in up_maps.items():
+                title = f"Incident Upward Flux Map\nHeight: {z_val} km"
+                fig = analyzer.plot_2d_map(flux_map, title=title)
+                if fig: self.save_plot(fig, f"{subfolder_name}/upward_z_{z_val}km.png")
+            
+        if config.output.save_vertical_profile:
+            fig_flux = analyzer.plot_flux_profile()
+            if fig_flux: self.save_plot(fig_flux, 'vertical_flux_profile.png')
+            
+            fig_heat = analyzer.plot_heating_rate()
+            if fig_heat: self.save_plot(fig_heat, 'heating_profile.png')
+
+        if config.output.save_photon_paths:
+            fig_paths = analyzer.plot_paths()
+            if fig_paths: self.save_plot(fig_paths, '3d_photon_paths.png')
+
+        self.save_metadata(config, results_dict)
+        self.save_results(results_dict)
