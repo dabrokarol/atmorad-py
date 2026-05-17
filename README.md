@@ -34,8 +34,7 @@ This project simulates the propagation of light through a heterogenous, plane-pa
 - If not installed, [install uv](https://docs.astral.sh/uv/getting-started/installation/), a very fast Python package manager.
 - Create a virtual environment and install dependencies:
 ```bash
-uv venv
-uv pip install -e .
+uv sync
 ```
 - Modify parameters `default_config.toml` or create a custom config.
 - Run the simulation:
