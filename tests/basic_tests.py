@@ -1,5 +1,5 @@
 from pathlib import Path
-from atmorad.config.parser import load_config
+from atmorad.config.models import load_config
 from atmorad.engine.runner import MCRadiationRunner
 
 def test_energy_conservation():
@@ -9,7 +9,7 @@ def test_energy_conservation():
     runner = MCRadiationRunner(config)
     runner.run()
     results = runner.get_results()
-    reflected = results.get("photons_reflected_toa", 0)
+    reflected = results.get("photons_escaped_toa", 0)
     transmitted = results.get("photons_absorbed_surface", 0)
     absorbed_atm = results.get("photons_absorbed_atmosphere", 0)
     
