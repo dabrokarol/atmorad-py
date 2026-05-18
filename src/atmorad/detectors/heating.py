@@ -1,8 +1,8 @@
 import numpy as np
-from atmorad.detectors.base import BaseDetector
-from atmorad.environment.scene import Scene
+from .base import BaseDetector
+from atmorad.environment import Scene
 from atmorad.engine.batch import PhotonBatch
-from atmorad.config.config import SimConfig
+from atmorad.config import SimConfig
 from atmorad.constants import Z, EPSILON
 
 class AtmosphericHeatingRateDetector(BaseDetector):
@@ -22,7 +22,7 @@ class AtmosphericHeatingRateDetector(BaseDetector):
 
         term_pos = batch.pos[:, terminated_mask]
         toa = self.layer_boundaries[-1]
-        in_atmosphere_mask = (term_pos[Z] > (EPSILON * 2)) & (term_pos[Z] < (toa - EPSILON * 2))
+        in_atmosphere_mask = (term_pos[Z] > 0) & (term_pos[Z] < toa)
         
         if np.any(in_atmosphere_mask):
             absorbed_z = term_pos[Z, in_atmosphere_mask]

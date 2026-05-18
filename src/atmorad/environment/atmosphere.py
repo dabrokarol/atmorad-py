@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from atmorad.engine.batch import PhotonBatch
-from atmorad.physics.geometry import rotate
-from atmorad.physics.scattering import Scattering
+from atmorad.physics import rotate
+from atmorad.physics import Scattering
 from atmorad.constants import EPSILON, X, Y, Z
   
 @dataclass
@@ -134,17 +134,17 @@ class Atmosphere:
         distance[extinction_coeff == 0] = np.inf
         return distance
     
-    def reached_space(self, pos):
+    def above_toa(self, pos):
         return pos[Z] > self.top_of_atmosphere
     
     def adjust_internal_boundaries(self, batch: PhotonBatch):
-        escaped_atmosphere = self.reached_space(batch.pos)
-        batch.pos[:, escaped_atmosphere] += (
-            (self.top_of_atmosphere - batch.pos[Z, escaped_atmosphere]) 
-            / batch.direction[Z, escaped_atmosphere] 
-            * batch.direction[:, escaped_atmosphere]
+        escaped_toa = self.above_toa(batch.pos)
+        batch.pos[:, escaped_toa] += (
+            (self.top_of_atmosphere - batch.pos[Z, escaped_toa]) 
+            / batch.direction[Z, escaped_toa] 
+            * batch.direction[:, escaped_toa]
         )
-        batch.pos[Z, escaped_atmosphere] = self.top_of_atmosphere + EPSILON
+        batch.pos[Z, escaped_toa] = self.top_of_atmosphere + EPSILON
         
         for boundary_z in self.boundaries:
             on_boundary_mask = np.isclose(batch.pos[Z], boundary_z)

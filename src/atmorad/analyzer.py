@@ -4,7 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import cmocean as cmo
-from atmorad.config.config import SimConfig
+
+from atmorad.config import SimConfig
 from atmorad.constants import EPSILON
 
 sns.set_theme(style="ticks", rc={"font.family": "serif"})
@@ -14,7 +15,6 @@ class ResultAnalyzer:
         self.data = results_dict
         self.config = config
         self.total_photons = config.engine.num_photons
-        self.toa_z = config.layers[-1].thickness if len(config.layers) == 1 else sum([l.thickness for l in config.layers])
 
     def summary(self):
         summary_str = f"---- Simulation Summary ({self.config.metadata.experiment_name}) ----\n"
@@ -27,11 +27,11 @@ class ResultAnalyzer:
 
         reflected, transmitted, absorbed = 0.0, 0.0, 0.0
         
-        reflected = self.data["photons_reflected_toa"]
+        reflected = self.data["photons_escaped_toa"]
         transmitted = self.data["photons_absorbed_surface"]
         absorbed = self.data["photons_absorbed_atmosphere"]
         
-        summary_str += f"Reflected (escaped to space): {reflected:.6f}\n"
+        summary_str += f"Reflected (escaped toa): {reflected:.6f}\n"
         summary_str += f"Transmitted (absorbed by surface): {transmitted:.6f}\n"
         summary_str += f"Absorbed (absorbed by atmosphere): {absorbed:.6f}\n"
 
@@ -48,7 +48,7 @@ class ResultAnalyzer:
 
         fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(projection='3d')
-        labeled_surface, labeled_space, labeled_atmosphere = False, False, False
+        labeled_surface, labeled_above_toa, labeled_atmosphere = False, False, False
         
         Lx = self.config.geometry.domain_size_x_km
         Ly = self.config.geometry.domain_size_y_km
@@ -71,14 +71,14 @@ class ResultAnalyzer:
             Z = np.insert(Z.astype(float), jump_indices, np.nan)
             
             last_z = Z[-1]
-            if last_z <= EPSILON:
+            if self.data["sample_absorbed_surface"][path_id]:
                 color, alpha = 'tab:green', 0.3
                 lbl = 'Absorbed by surface' if not labeled_surface else None
                 labeled_surface = True
-            elif last_z >= self.toa_z - EPSILON:
+            elif self.data["sample_escaped_toa"][path_id]:
                 color, alpha = 'tab:grey', 0.2
-                lbl = 'Escaped atmosphere' if not labeled_space else None
-                labeled_space = True
+                lbl = 'Escaped atmosphere' if not labeled_above_toa else None
+                labeled_above_toa = True
             else:
                 color, alpha = 'tab:red', 0.3
                 lbl = 'Absorbed by atmosphere' if not labeled_atmosphere else None
@@ -95,8 +95,8 @@ class ResultAnalyzer:
         ax.set_zlabel('Pos z [km]')
         ax.set_xlim(-limit_x, limit_x)
         ax.set_ylim(-limit_y, limit_y)
-        ax.set_zlim(0, self.toa_z)
-        if labeled_surface or labeled_space or labeled_atmosphere:
+        ax.set_zlim(0, self.data["toa_z"])
+        if labeled_surface or labeled_above_toa or labeled_atmosphere:
             ax.legend()
         return fig
 

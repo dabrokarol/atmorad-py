@@ -1,9 +1,5 @@
 from dataclasses import dataclass
 
-from atmorad.environment.surface import Surface
-from atmorad.environment.atmosphere import AtmosphericLayer
-
-
 @dataclass
 class MetadataConfig:
     experiment_name: str
@@ -54,6 +50,3 @@ class SimConfig:
     output: OutputConfig
     metadata: MetadataConfig
     detectors: DetectorConfig
-
-    layers: list[AtmosphericLayer]
-    surface: Surface

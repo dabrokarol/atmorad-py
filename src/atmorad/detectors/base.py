@@ -2,9 +2,9 @@ from abc import ABC
 
 import numpy as np
 
-from atmorad.environment.scene import Scene
+from atmorad.environment import Scene
 from atmorad.engine.batch import PhotonBatch
-from atmorad.config.config import SimConfig
+from atmorad.config.schema import SimConfig
 
 class BaseDetector(ABC):
     def initialize(self, scene: Scene, config: SimConfig):

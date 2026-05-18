@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from atmorad.engine.batch import PhotonBatch
-from atmorad.physics.reflection import SurfaceReflection
+from atmorad.physics import SurfaceReflection
 from atmorad.constants import EPSILON, X, Y, Z
 
 @dataclass

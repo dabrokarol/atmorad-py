@@ -3,9 +3,9 @@ import logging
 import numpy as np
 
 from atmorad.engine.batch import PhotonBatch
-from atmorad.environment.scene import Scene
-from atmorad.detectors.base import BaseDetector
-from atmorad.config.config import SimConfig
+from atmorad.environment import Scene
+from atmorad.detectors import BaseDetector
+from atmorad.config.schema import SimConfig
 from atmorad.constants import MAX_SCATTERINGS, X, Y, Z
 class Engine:
     def __init__(self, config: SimConfig, scene: Scene, detectors: list[BaseDetector]):
@@ -88,7 +88,7 @@ class Engine:
             new_tau_rand = self.random_tau(np.count_nonzero(scattered))
             batch.tau_to_travel[scattered] = new_tau_rand
 
-            active_mask = ~self.scene.reached_space(batch.pos) & ~absorbed_surface & ~absorbed_atmosphere & ~exceeded_scatterings_mask
+            active_mask = ~self.scene.above_toa(batch.pos) & ~absorbed_surface & ~absorbed_atmosphere & ~exceeded_scatterings_mask
             terminated_mask = ~active_mask
               
             for det in self.detectors:
@@ -105,6 +105,7 @@ class Engine:
 
         detector_results = {}
         for det in self.detectors:
+            det.finalize()
             detector_results.update(det.get_results())
         self.results = {**engine_results, **detector_results}
     

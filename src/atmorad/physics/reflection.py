@@ -4,6 +4,7 @@ import logging
 import numpy as np
 
 from atmorad.physics.geometry import orientation
+from atmorad.physics.registry import register_reflection
 from atmorad.constants import X, Y, Z
 class SurfaceReflection(ABC):
     @abstractmethod
@@ -16,7 +17,7 @@ class SurfaceReflection(ABC):
     def __call__(self, direction, rand_1, rand_2):
         return self.reflect(direction, rand_1, rand_2)
 
-
+@register_reflection("mirror")
 class MirrorReflection(SurfaceReflection):
     def __init__(self, roughness: float = 0.0):
         self.roughness = roughness
@@ -30,7 +31,7 @@ class MirrorReflection(SurfaceReflection):
 
         return new_direction
 
-
+@register_reflection("lambertian")
 class LambertianReflection(SurfaceReflection):
     def reflect(self, direction, rand_1, rand_2):
         phi = rand_2 * 2 * np.pi
@@ -43,7 +44,7 @@ class LambertianReflection(SurfaceReflection):
 
         return orientation(cos_theta, sin_theta, cos_phi, sin_phi)
 
-
+@register_reflection("uniform")
 class UniformReflection(SurfaceReflection):
     def reflect(self, direction, rand_1, rand_2):
         phi = rand_2 * 2 * np.pi

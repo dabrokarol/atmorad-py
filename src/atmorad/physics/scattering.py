@@ -1,5 +1,7 @@
-import numpy as np
 from atmorad.constants import PRECOMPUTED_RESOLUTION
+from atmorad.physics.registry import register_scattering
+
+import numpy as np
 
 class Scattering:
     def __init__(self, pdf_array, resolution):
@@ -36,7 +38,7 @@ class Scattering:
     def __call__(self, rand_1, rand_2):
         return self.scatter(rand_1, rand_2)
 
-
+@register_scattering("hg")
 class HenyeyGreensteinScattering(Scattering):
     def __init__(self, g: float, resolution=PRECOMPUTED_RESOLUTION):
         self.g = g
@@ -51,14 +53,14 @@ class HenyeyGreensteinScattering(Scattering):
             
         super().__init__(pdf_array=pdf, resolution=resolution)
 
-
+@register_scattering("isotropic")
 class IsotropicScattering(Scattering):
     def __init__(self, resolution=PRECOMPUTED_RESOLUTION):
         cos_grid = np.linspace(-1, 1, resolution)
         pdf = np.ones_like(cos_grid)
         super().__init__(pdf_array=pdf, resolution=resolution)
 
-
+@register_scattering("rayleigh")
 class RayleighScattering(Scattering):
     def __init__(self, resolution=PRECOMPUTED_RESOLUTION):
         cos_grid = np.linspace(-1, 1, resolution)

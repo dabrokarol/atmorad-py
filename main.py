@@ -4,8 +4,9 @@ from pathlib import Path
 
 from atmorad.engine.runner import MCRadiationRunner
 from atmorad.data_io import DataIO
-from atmorad.config.parser import load_config
-from atmorad.results import ResultAnalyzer
+from atmorad.config import load_config
+from atmorad.analyzer import ResultAnalyzer
+from atmorad.environment import Scene, Atmosphere
 
 def main():
     parser = argparse.ArgumentParser(prog="AtmoRad", usage="uv run main.py <path-to-config>")
@@ -20,13 +21,15 @@ def main():
         logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
 
     logging.info(f"Loading configuration from: {config_path.name}...")
-    config = load_config(config_path)
+    config, surface, layers = load_config(config_path)
+    
+    scene = Scene(surface=surface, atmosphere=Atmosphere(layers))
     
     logging.info("Generating output directory...")
     data_io = DataIO(config)
     
     logging.info(f"Starting {config.engine.cpu_cores}-core simulation ({config.engine.num_photons} photons)...")
-    runner = MCRadiationRunner(config)
+    runner = MCRadiationRunner(config, scene)
     runner.run()
 
     results_dict = runner.get_results()
