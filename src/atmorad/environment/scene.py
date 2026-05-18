@@ -56,7 +56,7 @@ class Scene:
         pos = np.empty(shape=(3, num_photons), dtype=float)
         pos[X, :] = rng.uniform(-nx/2, nx/2, num_photons)
         pos[Y, :] = rng.uniform(-ny/2, ny/2, num_photons)
-        pos[Z, :] = np.full(num_photons, self.atmosphere.top_of_atmosphere + EPSILON)
+        pos[Z, :] = np.full(num_photons, self.atmosphere.top_of_atmosphere - EPSILON)
         return pos
     
     def start_direction(self, num_photons, theta_sun, phi_sun):
