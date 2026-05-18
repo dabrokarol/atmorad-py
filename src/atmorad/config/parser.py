@@ -9,6 +9,9 @@ from atmorad.config.config import (
     MetadataConfig, EngineConfig, SourceConfig, GeometryConfig, OutputConfig, DetectorConfig, SimConfig
 )
 
+CURRENT_DIR = Path(__file__).parent
+DEFAULT_CONFIG_PATH = CURRENT_DIR / "default_config.toml"
+
 SCATTERING_MODELS = {
     "isotropic": IsotropicScattering,
     "rayleigh": RayleighScattering,
@@ -20,6 +23,14 @@ REFLECTION_MODELS = {
     "mirror": MirrorReflection,
     "uniform": UniformReflection,
 }
+
+def _deep_merge_dicts(base: dict, override: dict) -> dict:
+    for key, value in override.items():
+        if isinstance(value, dict) and key in base and isinstance(base[key], dict):
+            _deep_merge_dicts(base[key], value)
+        else:
+            base[key] = value
+    return base
 
 def _parse_atmosphere_materials(materials_data: dict) -> dict[str, AtmosphericMedium]:
     parsed = {}
@@ -91,9 +102,14 @@ def _parse_layers(raw_layers: list, atm_materials: dict[str, AtmosphericMedium])
         parsed_layers.append(AtmosphericLayer(thickness=thickness, components=components))
     return parsed_layers
 
-def load_config(filepath: Path) -> SimConfig:
-    with open(filepath, "rb") as f:
-        config_data = tomllib.load(f)
+def load_config(custom_config_path: Path) -> SimConfig:
+    with open(DEFAULT_CONFIG_PATH, "rb") as f:
+        default_config_data = tomllib.load(f)
+    
+    with open(custom_config_path, "rb") as f:
+        custom_config_data = tomllib.load(f)
+        
+    config_data = _deep_merge_dicts(default_config_data, custom_config_data)
 
     metadata = MetadataConfig(**config_data["metadata"])
     engine = EngineConfig(**config_data["engine"])

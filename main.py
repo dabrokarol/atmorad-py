@@ -9,7 +9,7 @@ from atmorad.results import ResultAnalyzer
 
 def main():
     parser = argparse.ArgumentParser(prog="AtmoRad", usage="uv run main.py <path-to-config>")
-    parser.add_argument("config", nargs="?", default="default_config.toml", help="path to config TOML", type=Path)
+    parser.add_argument("config", nargs="?", default="demo_config.toml", help="path to config TOML", type=Path)
     parser.add_argument("-v", "--verbose", action="store_true", help="increase output verbosity")
     args = parser.parse_args()
 
