@@ -87,6 +87,11 @@ class Surface(ABC):
     @abstractmethod
     def adjust_surface_boundary(self, batch: PhotonBatch) -> PhotonBatch:
         ...
+    
+    @property
+    @abstractmethod
+    def domain_size(self) -> tuple[float, float]:
+        ...
 
 class FlatSurface(Surface):
     def __init__(self, ground_map: SurfaceMap, ground_types: Sequence[SurfaceMaterial],
@@ -141,3 +146,7 @@ class FlatSurface(Surface):
         batch.pos[:, below_ground_mask] += (0 - batch.pos[Z, below_ground_mask]) / batch.direction[Z, below_ground_mask] * batch.direction[:, below_ground_mask]
         batch.pos[Z, below_ground_mask] = -EPSILON
         return batch
+    
+    @property
+    def domain_size(self):
+        return self.domain_x, self.domain_y

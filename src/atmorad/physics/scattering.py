@@ -1,4 +1,4 @@
-from atmorad.constants import PRECOMPUTED_RESOLUTION
+from atmorad.constants import PRECOMPUTED_RESOLUTION, EPSILON
 from atmorad.physics.registry import register_scattering
 
 import numpy as np
@@ -44,10 +44,10 @@ class HenyeyGreensteinScattering(Scattering):
         self.g = g
         cos_grid = np.linspace(-1, 1, resolution)
         
-        if np.isclose(g, 1.0):
-            pdf = np.isclose(cos_grid, 1.0).astype(float)
-        elif np.isclose(g, -1.0):
-            pdf = np.isclose(cos_grid, -1.0).astype(float)
+        if np.isclose(g, 1.0, atol=EPSILON):
+            pdf = np.isclose(cos_grid, 1.0, atol=EPSILON).astype(float)
+        elif np.isclose(g, -1.0, atol=EPSILON):
+            pdf = np.isclose(cos_grid, -1.0, atol=EPSILON).astype(float)
         else:
             pdf = (1 - g**2) / (2 * (1 + g**2 - 2 * g * cos_grid)**1.5)
             

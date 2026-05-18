@@ -6,7 +6,7 @@ from atmorad.engine.batch import PhotonBatch
 from atmorad.environment import Scene
 from atmorad.detectors import BaseDetector
 from atmorad.config import SimConfig
-from atmorad.constants import MAX_SCATTERINGS, X, Y, Z
+from atmorad.constants import MAX_SCATTERINGS, X, Y, Z, EPSILON
 class Engine:
     def __init__(self, config: SimConfig, scene: Scene, detectors: list[BaseDetector]):
         self.config = config
@@ -67,7 +67,7 @@ class Engine:
                 det.record_movement(batch, old_pos)
 
             batch.tau_to_travel -= new_tau_to_travel
-            scattering_event_mask = np.isclose(batch.tau_to_travel, 0)
+            scattering_event_mask = np.isclose(batch.tau_to_travel, 0, atol=EPSILON)
 
             in_atmosphere_mask = self.scene.in_atmosphere(batch.pos)
             new_layer_mask = ~scattering_event_mask & in_atmosphere_mask
