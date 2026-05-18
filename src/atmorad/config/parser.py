@@ -18,7 +18,7 @@ def _deep_merge_dicts(base: dict, override: dict) -> dict:
         if isinstance(value, dict) and key in base_copy and isinstance(base_copy[key], dict):
             base_copy[key] = _deep_merge_dicts(base_copy[key], value)
         else:
-            base_copy[key] = value
+            base_copy[key] = copy.deepcopy(value)
     return base_copy
 
 def _parse_atmosphere_materials(materials_data: dict) -> dict[str, AtmosphericMedium]:
