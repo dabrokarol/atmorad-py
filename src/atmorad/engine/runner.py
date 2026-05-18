@@ -46,13 +46,13 @@ class MCRadiationRunner:
                     future = executor.submit(run_chunk, size, seed, config, scene, i)
                     futures.append(future)
                     
-                for future in tqdm(concurrent.futures.as_completed(futures), total=num_batches, desc="Simulating Batches"):
+                for future in tqdm(concurrent.futures.as_completed(futures), total=num_batches, desc="Processed Photon Batches"):
                     chunk_res = future.result()
                     all_results = merge_incremental(all_results, chunk_res)
 
             return all_results
         else:
-            for i, (size, seed) in tqdm(enumerate(zip(batches, seeds)), total=num_batches, desc="Simulating Batches"):
+            for i, (size, seed) in tqdm(enumerate(zip(batches, seeds)), total=num_batches, desc="Processed Photon Batches"):
                 res = run_chunk(size, seed, config, scene, i)
                 all_results = merge_incremental(all_results, res)
             return all_results
