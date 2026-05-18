@@ -2,7 +2,7 @@ import numpy as np
 from .base import BaseDetector
 from atmorad.environment import Scene
 from atmorad.engine.batch import PhotonBatch
-from atmorad.config.classes import SimConfig
+from atmorad.config.schema import SimConfig
 from atmorad.constants import X, Y, Z
 
 class IncidentFluxMapDetector(BaseDetector):

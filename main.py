@@ -5,7 +5,7 @@ from pathlib import Path
 from atmorad.engine.runner import MCRadiationRunner
 from atmorad.data_io import DataIO
 from atmorad.config import load_config
-from atmorad.results import ResultAnalyzer
+from atmorad.analyzer import ResultAnalyzer
 from atmorad.environment import Scene, Atmosphere
 
 def main():

@@ -5,7 +5,7 @@ from tqdm import tqdm
 from dataclasses import replace
 
 from atmorad.environment import Scene, Atmosphere
-from atmorad.engine.engine import Engine
+from atmorad.engine.core import Engine
 from atmorad.config import SimConfig
 from atmorad.detectors import build_detectors_from_config, merge_incremental
 

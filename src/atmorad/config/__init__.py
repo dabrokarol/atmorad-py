@@ -1,2 +1,2 @@
-from atmorad.config.classes import SimConfig, EngineConfig, OutputConfig, SourceConfig, DetectorConfig, GeometryConfig
-from atmorad.config.parser import load_config
+from atmorad.config.schema import SimConfig, EngineConfig, OutputConfig, SourceConfig, DetectorConfig, GeometryConfig
+from atmorad.config.models import load_config

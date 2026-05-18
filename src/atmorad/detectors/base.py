@@ -4,7 +4,7 @@ import numpy as np
 
 from atmorad.environment import Scene
 from atmorad.engine.batch import PhotonBatch
-from atmorad.config.classes import SimConfig
+from atmorad.config.schema import SimConfig
 
 class BaseDetector(ABC):
     def initialize(self, scene: Scene, config: SimConfig):
