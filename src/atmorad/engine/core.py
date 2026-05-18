@@ -24,7 +24,7 @@ class Engine:
 
     def _init_arrays(self):        
         pos = self.scene.start_pos(self.num_photons, self.rng)
-        direction = self.scene.start_direction(self.num_photons, self.theta_sun, self.phi_sun, self.rng)
+        direction = self.scene.start_direction(self.num_photons, self.theta_sun, self.phi_sun)
         material_ids = self.scene.get_material_ids(pos, self.rng)
         
         batch = PhotonBatch(

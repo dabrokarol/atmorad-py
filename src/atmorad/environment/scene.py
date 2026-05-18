@@ -59,11 +59,9 @@ class Scene:
         pos[Z, :] = np.full(num_photons, self.atmosphere.top_of_atmosphere + EPSILON)
         return pos
     
-    def start_direction(self, num_photons, theta_sun, phi_sun, rng):
-        theta_sun_rad = theta_sun / 180 * np.pi
-        phi_sun_rad = phi_sun / 180 * np.pi
-        theta = rng.normal(theta_sun_rad, 1/60, size=num_photons)
-        phi = rng.normal(phi_sun_rad, 1/60, size=num_photons)
+    def start_direction(self, num_photons, theta_sun, phi_sun):
+        theta = theta_sun / 180 * np.pi
+        phi = phi_sun / 180 * np.pi
         direction = sun_zenith_to_direction(theta, phi) 
         return direction
     
