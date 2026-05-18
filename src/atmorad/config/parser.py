@@ -1,4 +1,5 @@
 import tomllib
+import copy
 from pathlib import Path
 
 from atmorad.environment.atmosphere import AtmosphericMedium, AtmosphericLayer
@@ -12,12 +13,13 @@ CURRENT_DIR = Path(__file__).parent
 DEFAULT_CONFIG_PATH = CURRENT_DIR / "default_config.toml"
 
 def _deep_merge_dicts(base: dict, override: dict) -> dict:
+    base_copy = copy.deepcopy(base)
     for key, value in override.items():
-        if isinstance(value, dict) and key in base and isinstance(base[key], dict):
-            _deep_merge_dicts(base[key], value)
+        if isinstance(value, dict) and key in base_copy and isinstance(base_copy[key], dict):
+            _deep_merge_dicts(base_copy[key], value)
         else:
-            base[key] = value
-    return base
+            base_copy[key] = value
+    return base_copy
 
 def _parse_atmosphere_materials(materials_data: dict) -> dict[str, AtmosphericMedium]:
     parsed = {}
