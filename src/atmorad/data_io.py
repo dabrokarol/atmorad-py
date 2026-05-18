@@ -7,7 +7,7 @@ import sys
 import dataclasses
 from pathlib import Path
 from matplotlib.figure import Figure
-from atmorad.config.schema import SimConfig
+from atmorad.config.models import SimConfig
 from atmorad.analyzer import ResultAnalyzer
 
 class DataIO:
