@@ -4,7 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import cmocean as cmo
-from atmorad.config.config import SimConfig
+
+from atmorad.config import SimConfig
 from atmorad.constants import EPSILON
 
 sns.set_theme(style="ticks", rc={"font.family": "serif"})

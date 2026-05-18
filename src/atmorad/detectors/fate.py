@@ -2,10 +2,10 @@
 
 import numpy as np
 
-from atmorad.environment.scene import Scene
+from atmorad.environment import Scene
 from atmorad.engine.batch import PhotonBatch
-from atmorad.config.config import SimConfig
-from atmorad.detectors.base import BaseDetector
+from atmorad.config.classes import SimConfig
+from .base import BaseDetector
 
 class FateDetector(BaseDetector):
     def __init__(self):

@@ -1,28 +1,15 @@
 import tomllib
 from pathlib import Path
 
-from atmorad.physics.scattering import IsotropicScattering, RayleighScattering, HenyeyGreensteinScattering
-from atmorad.physics.reflection import LambertianReflection, MirrorReflection, UniformReflection
 from atmorad.environment.atmosphere import AtmosphericMedium, AtmosphericLayer
 from atmorad.environment.surface import SurfaceMaterial, SplitHalfXMap, CircleMap, CheckerboardMap, UniformMap, FlatSurface
-from atmorad.config.config import (
+from atmorad.config.classes import (
     MetadataConfig, EngineConfig, SourceConfig, GeometryConfig, OutputConfig, DetectorConfig, SimConfig
 )
+from atmorad.physics import SCATTERING_MODELS, REFLECTION_MODELS
 
 CURRENT_DIR = Path(__file__).parent
 DEFAULT_CONFIG_PATH = CURRENT_DIR / "default_config.toml"
-
-SCATTERING_MODELS = {
-    "isotropic": IsotropicScattering,
-    "rayleigh": RayleighScattering,
-    "hg": HenyeyGreensteinScattering
-}
-
-REFLECTION_MODELS = {
-    "lambertian": LambertianReflection,
-    "mirror": MirrorReflection,
-    "uniform": UniformReflection,
-}
 
 def _deep_merge_dicts(base: dict, override: dict) -> dict:
     for key, value in override.items():
@@ -102,7 +89,7 @@ def _parse_layers(raw_layers: list, atm_materials: dict[str, AtmosphericMedium])
         parsed_layers.append(AtmosphericLayer(thickness=thickness, components=components))
     return parsed_layers
 
-def load_config(custom_config_path: Path) -> SimConfig:
+def load_config(custom_config_path: Path) -> tuple[SimConfig, FlatSurface, list[AtmosphericLayer]]:
     with open(DEFAULT_CONFIG_PATH, "rb") as f:
         default_config_data = tomllib.load(f)
     
@@ -134,6 +121,4 @@ def load_config(custom_config_path: Path) -> SimConfig:
         geometry=geometry,
         output=output,
         detectors=detectors,
-        layers=layers,
-        surface=surface
-    )
+    ), surface, layers

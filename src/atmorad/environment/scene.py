@@ -1,10 +1,9 @@
 import numpy as np
 
 from atmorad.engine.batch import PhotonBatch
-from atmorad.environment.atmosphere import Atmosphere
-from atmorad.environment.surface import Surface
+from atmorad.environment import Atmosphere, Surface
 from atmorad.constants import EPSILON, X, Y, Z
-from atmorad.physics.geometry import sun_zenith_to_direction
+from atmorad.physics import sun_zenith_to_direction
 class Scene:
     def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:
         self.surface = surface

@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from atmorad.engine.batch import PhotonBatch
-from atmorad.physics.geometry import rotate
-from atmorad.physics.scattering import Scattering
+from atmorad.physics import rotate
+from atmorad.physics import Scattering
 from atmorad.constants import EPSILON, X, Y, Z
   
 @dataclass

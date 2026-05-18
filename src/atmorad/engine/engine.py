@@ -3,9 +3,9 @@ import logging
 import numpy as np
 
 from atmorad.engine.batch import PhotonBatch
-from atmorad.environment.scene import Scene
-from atmorad.detectors.base import BaseDetector
-from atmorad.config.config import SimConfig
+from atmorad.environment import Scene
+from atmorad.detectors import BaseDetector
+from atmorad.config.classes import SimConfig
 from atmorad.constants import MAX_SCATTERINGS, X, Y, Z
 class Engine:
     def __init__(self, config: SimConfig, scene: Scene, detectors: list[BaseDetector]):
