@@ -15,7 +15,6 @@ class ResultAnalyzer:
         self.data = results_dict
         self.config = config
         self.total_photons = config.engine.num_photons
-        self.toa_z = config.layers[-1].thickness if len(config.layers) == 1 else sum([l.thickness for l in config.layers])
 
     def summary(self):
         summary_str = f"---- Simulation Summary ({self.config.metadata.experiment_name}) ----\n"
@@ -28,7 +27,7 @@ class ResultAnalyzer:
 
         reflected, transmitted, absorbed = 0.0, 0.0, 0.0
         
-        reflected = self.data["photons_reflected_toa"]
+        reflected = self.data["photons_escaped_toa"]
         transmitted = self.data["photons_absorbed_surface"]
         absorbed = self.data["photons_absorbed_atmosphere"]
         
@@ -72,11 +71,11 @@ class ResultAnalyzer:
             Z = np.insert(Z.astype(float), jump_indices, np.nan)
             
             last_z = Z[-1]
-            if last_z <= EPSILON:
+            if self.data["sample_absorbed_surface"][path_id]:
                 color, alpha = 'tab:green', 0.3
                 lbl = 'Absorbed by surface' if not labeled_surface else None
                 labeled_surface = True
-            elif last_z >= self.toa_z - EPSILON:
+            elif self.data["sample_escaped_toa"][path_id]:
                 color, alpha = 'tab:grey', 0.2
                 lbl = 'Escaped atmosphere' if not labeled_space else None
                 labeled_space = True
@@ -96,7 +95,7 @@ class ResultAnalyzer:
         ax.set_zlabel('Pos z [km]')
         ax.set_xlim(-limit_x, limit_x)
         ax.set_ylim(-limit_y, limit_y)
-        ax.set_zlim(0, self.toa_z)
+        ax.set_zlim(0, self.data["toa_z"])
         if labeled_surface or labeled_space or labeled_atmosphere:
             ax.legend()
         return fig

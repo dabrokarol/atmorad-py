@@ -8,7 +8,7 @@ def merge_incremental(first: dict, second: dict) -> dict:
             continue
         elif key in ["flux_up", "flux_down", "surface_absorption_map_2d", "toa_flux_map_2d", 
                     "heating_profile_1d", "scatter_counts", "cpu_time_s",
-                    "photons_absorbed_surface",  "photons_absorbed_atmosphere", "photons_reflected_toa"]:
+                    "photons_absorbed_surface",  "photons_absorbed_atmosphere", "photons_escaped_toa"]:
             first[key] += second[key]
         elif key == "sample_paths":
             for path_id, path_list in second[key].items():

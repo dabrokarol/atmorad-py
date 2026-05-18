@@ -12,6 +12,8 @@ class PathTrackingDetector(BaseDetector):
     def initialize(self, scene: Scene, config: SimConfig):
         self.num_track = min(config.detectors.num_full_paths, config.engine.num_photons)
         self.tracked_paths = {i: [] for i in range(self.num_track)}
+        self.scene = scene  
+        self.toa_z = self.scene.atmosphere.get_total_thickness()      
 
     def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
         tracked_mask = batch.ids < self.num_track
@@ -32,8 +34,17 @@ class PathTrackingDetector(BaseDetector):
             
             for i, pos in zip(term_ids, term_pos.T):
                 self.tracked_paths[i].append(pos.copy())
+                
+    def finalize(self):
+        self.sample_escaped_toa = {i: self.scene.reached_space(self.tracked_paths[i][-1]) for i in range(self.num_track)}
+        self.sample_absorbed_atmosphere = {i: self.scene.in_atmosphere(self.tracked_paths[i][-1]) for i in range(self.num_track)}
+        self.sample_absorbed_surface = {i: self.scene.reached_surface(self.tracked_paths[i][-1]) for i in range(self.num_track)}
 
     def get_results(self) -> dict:
         return {
-            "sample_paths": self.tracked_paths
+            "sample_paths": self.tracked_paths,
+            "sample_escaped_toa": self.sample_escaped_toa,
+            "sample_absorbed_atmosphere": self.sample_absorbed_atmosphere,
+            "sample_absorbed_surface": self.sample_absorbed_surface,
+            "toa_z": self.toa_z
         }

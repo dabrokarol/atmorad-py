@@ -105,6 +105,7 @@ class Engine:
 
         detector_results = {}
         for det in self.detectors:
+            det.finalize()
             detector_results.update(det.get_results())
         self.results = {**engine_results, **detector_results}
     

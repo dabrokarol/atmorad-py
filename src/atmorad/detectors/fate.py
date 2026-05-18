@@ -38,6 +38,6 @@ class FateDetector(BaseDetector):
         return {
             "photons_absorbed_surface": self.absorbed_by_surface,
             "photons_absorbed_atmosphere": self.absorbed_by_atmosphere,
-            "photons_reflected_toa": self.reached_space_mask,
+            "photons_escaped_toa": self.reached_space_mask,
         }
     
