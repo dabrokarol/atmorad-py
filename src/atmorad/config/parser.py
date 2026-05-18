@@ -3,7 +3,7 @@ from pathlib import Path
 
 from atmorad.environment.atmosphere import AtmosphericMedium, AtmosphericLayer
 from atmorad.environment.surface import SurfaceMaterial, SplitHalfXMap, CircleMap, CheckerboardMap, UniformMap, FlatSurface
-from atmorad.config.models import (
+from .models import (
     MetadataConfig, EngineConfig, SourceConfig, GeometryConfig, OutputConfig, DetectorConfig, SimConfig
 )
 from atmorad.physics import SCATTERING_MODELS, REFLECTION_MODELS

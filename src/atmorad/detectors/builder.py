@@ -4,7 +4,7 @@ from atmorad.detectors.boundary_flux import BoundaryAbsorptionDetector
 from atmorad.detectors.plane_flux import IncidentFluxMapDetector
 from atmorad.detectors.paths import PathTrackingDetector
 from atmorad.detectors.fate import FateDetector
-from atmorad.config.models import SimConfig
+from atmorad.config import SimConfig
 
 def build_detectors_from_config(config: SimConfig):
     detectors = []
