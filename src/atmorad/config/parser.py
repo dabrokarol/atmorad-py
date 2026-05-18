@@ -16,7 +16,7 @@ def _deep_merge_dicts(base: dict, override: dict) -> dict:
     base_copy = copy.deepcopy(base)
     for key, value in override.items():
         if isinstance(value, dict) and key in base_copy and isinstance(base_copy[key], dict):
-            _deep_merge_dicts(base_copy[key], value)
+            base_copy[key] = _deep_merge_dicts(base_copy[key], value)
         else:
             base_copy[key] = value
     return base_copy
