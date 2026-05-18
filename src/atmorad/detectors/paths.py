@@ -36,9 +36,9 @@ class PathTrackingDetector(BaseDetector):
                 self.tracked_paths[i].append(pos.copy())
                 
     def finalize(self):
-        self.sample_escaped_toa = {i: self.scene.reached_space(self.tracked_paths[i][-1]) for i in range(self.num_track)}
+        self.sample_escaped_toa = {i: self.scene.above_toa(self.tracked_paths[i][-1]) for i in range(self.num_track)}
         self.sample_absorbed_atmosphere = {i: self.scene.in_atmosphere(self.tracked_paths[i][-1]) for i in range(self.num_track)}
-        self.sample_absorbed_surface = {i: self.scene.reached_surface(self.tracked_paths[i][-1]) for i in range(self.num_track)}
+        self.sample_absorbed_surface = {i: self.scene.below_ground(self.tracked_paths[i][-1]) for i in range(self.num_track)}
 
     def get_results(self) -> dict:
         return {

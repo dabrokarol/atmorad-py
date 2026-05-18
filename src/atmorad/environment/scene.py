@@ -19,7 +19,7 @@ class Scene:
                             for interaction type, theta, and phi respectively.
         """
         atmosphere_mask = self.in_atmosphere(batch.pos) & to_scatter_mask
-        surface_mask = self.reached_surface(batch.pos)
+        surface_mask = self.below_ground(batch.pos)
         to_scat = np.zeros_like(random_sample[0], dtype=bool)
         to_reflect = np.zeros_like(random_sample[0], dtype=bool)
         
@@ -37,14 +37,14 @@ class Scene:
     def tau_to_boundary(self, batch: PhotonBatch):
         return self.atmosphere.tau_to_boundary(batch)
 
-    def reached_space(self, pos):
-        return self.atmosphere.reached_space(pos)
+    def above_toa(self, pos):
+        return self.atmosphere.above_toa(pos)
     
-    def reached_surface(self, pos):
+    def below_ground(self, pos):
         return self.surface.is_below_ground(pos)
     
     def in_atmosphere(self, pos):
-        return ~self.reached_space(pos) & ~self.reached_surface(pos)
+        return ~self.above_toa(pos) & ~self.below_ground(pos)
     
     def adjust_to_boundary_conditions(self, batch: PhotonBatch):
         batch = self.atmosphere.adjust_internal_boundaries(batch)
@@ -77,4 +77,4 @@ class Scene:
         return batch
     
     def get_final_photon_position_data(self, pos):
-        return self.reached_space(pos), self.reached_surface(pos), self.atmosphere.get_spatial_indices(pos)
+        return self.above_toa(pos), self.below_ground(pos), self.atmosphere.get_spatial_indices(pos)

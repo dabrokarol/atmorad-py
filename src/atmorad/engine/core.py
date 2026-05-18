@@ -88,7 +88,7 @@ class Engine:
             new_tau_rand = self.random_tau(np.count_nonzero(scattered))
             batch.tau_to_travel[scattered] = new_tau_rand
 
-            active_mask = ~self.scene.reached_space(batch.pos) & ~absorbed_surface & ~absorbed_atmosphere & ~exceeded_scatterings_mask
+            active_mask = ~self.scene.above_toa(batch.pos) & ~absorbed_surface & ~absorbed_atmosphere & ~exceeded_scatterings_mask
             terminated_mask = ~active_mask
               
             for det in self.detectors:

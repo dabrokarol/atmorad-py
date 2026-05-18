@@ -134,11 +134,11 @@ class Atmosphere:
         distance[extinction_coeff == 0] = np.inf
         return distance
     
-    def reached_space(self, pos):
+    def above_toa(self, pos):
         return pos[Z] > self.top_of_atmosphere
     
     def adjust_internal_boundaries(self, batch: PhotonBatch):
-        escaped_toa = self.reached_space(batch.pos)
+        escaped_toa = self.above_toa(batch.pos)
         batch.pos[:, escaped_toa] += (
             (self.top_of_atmosphere - batch.pos[Z, escaped_toa]) 
             / batch.direction[Z, escaped_toa] 

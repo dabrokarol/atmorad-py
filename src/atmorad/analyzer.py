@@ -31,7 +31,7 @@ class ResultAnalyzer:
         transmitted = self.data["photons_absorbed_surface"]
         absorbed = self.data["photons_absorbed_atmosphere"]
         
-        summary_str += f"Reflected (escaped to space): {reflected:.6f}\n"
+        summary_str += f"Reflected (escaped toa): {reflected:.6f}\n"
         summary_str += f"Transmitted (absorbed by surface): {transmitted:.6f}\n"
         summary_str += f"Absorbed (absorbed by atmosphere): {absorbed:.6f}\n"
 
@@ -48,7 +48,7 @@ class ResultAnalyzer:
 
         fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(projection='3d')
-        labeled_surface, labeled_space, labeled_atmosphere = False, False, False
+        labeled_surface, labeled_above_toa, labeled_atmosphere = False, False, False
         
         Lx = self.config.geometry.domain_size_x_km
         Ly = self.config.geometry.domain_size_y_km
@@ -77,8 +77,8 @@ class ResultAnalyzer:
                 labeled_surface = True
             elif self.data["sample_escaped_toa"][path_id]:
                 color, alpha = 'tab:grey', 0.2
-                lbl = 'Escaped atmosphere' if not labeled_space else None
-                labeled_space = True
+                lbl = 'Escaped atmosphere' if not labeled_above_toa else None
+                labeled_above_toa = True
             else:
                 color, alpha = 'tab:red', 0.3
                 lbl = 'Absorbed by atmosphere' if not labeled_atmosphere else None
@@ -96,7 +96,7 @@ class ResultAnalyzer:
         ax.set_xlim(-limit_x, limit_x)
         ax.set_ylim(-limit_y, limit_y)
         ax.set_zlim(0, self.data["toa_z"])
-        if labeled_surface or labeled_space or labeled_atmosphere:
+        if labeled_surface or labeled_above_toa or labeled_atmosphere:
             ax.legend()
         return fig
 
