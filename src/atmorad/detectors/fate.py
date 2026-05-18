@@ -11,13 +11,13 @@ class FateDetector(BaseDetector):
     def __init__(self):
         self.absorbed_by_surface = None
         self.absorbed_by_atmosphere = None
-        self.escaped_atmosphere = None
+        self.reached_space_mask = None
         self.scene = None
     
     def initialize(self, scene: Scene, config: SimConfig):
         self.absorbed_by_surface = 0
         self.absorbed_by_atmosphere = 0
-        self.escaped_atmosphere = 0
+        self.reached_space_mask = 0
         self.scene = scene
         
     def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
@@ -38,6 +38,6 @@ class FateDetector(BaseDetector):
         return {
             "photons_absorbed_surface": self.absorbed_by_surface,
             "photons_absorbed_atmosphere": self.absorbed_by_atmosphere,
-            "photons_reflected_toa": self.escaped_atmosphere,
+            "photons_reflected_toa": self.reached_space_mask,
         }
     

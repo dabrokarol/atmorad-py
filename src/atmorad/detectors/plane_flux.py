@@ -88,5 +88,5 @@ class IncidentFluxMapDetector(BaseDetector):
             "y_edges": self.y_edges,
             "incident_flux_down_maps_2d": self._build_maps(self.hit_p_down, self.hit_x_down, self.hit_y_down),
             "incident_flux_up_maps_2d": self._build_maps(self.hit_p_up, self.hit_x_up, self.hit_y_up),
-            "incident_flux_heights_km": list(self.target_z_array)
+            "incident_flux_heights_km": self.target_z_array
         }

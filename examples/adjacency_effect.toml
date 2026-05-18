@@ -4,7 +4,7 @@ description = "Demo showcasing adjacency effect"
 
 [engine]
 num_photons = 1_000_000
-batch_size = 100_000
+batch_size = 10_000
 cpu_cores = 4
 
 [source]

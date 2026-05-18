@@ -27,9 +27,9 @@ class ResultAnalyzer:
 
         reflected, transmitted, absorbed = 0.0, 0.0, 0.0
         
-        reflected = self.data["escaped_atmosphere"]
-        transmitted = self.data["absorbed_by_surface"]
-        absorbed = self.data["absorbed_by_atmosphere"]
+        reflected = self.data["photons_reflected_toa"]
+        transmitted = self.data["photons_absorbed_surface"]
+        absorbed = self.data["photons_absorbed_atmosphere"]
         
         summary_str += f"Reflected (escaped to space): {reflected:.6f}\n"
         summary_str += f"Transmitted (absorbed by surface): {transmitted:.6f}\n"
