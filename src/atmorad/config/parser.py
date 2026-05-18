@@ -35,13 +35,13 @@ def _parse_atmosphere_materials(materials_data: dict) -> dict[str, AtmosphericMe
 
 def _parse_surface(surface_config: dict, materials_config: dict, geom_config: GeometryConfig) -> FlatSurface:
     parsed_materials = {}
-    for mat_name, mat_data in materials_config.items():
-        ref_data = mat_data.pop("reflection")
+    for material_name, material_data in materials_config.items():
+        ref_data = material_data.pop("reflection")
         ref_type = ref_data.pop("type")
         reflection_model = REFLECTION_MODELS[ref_type](**ref_data)
         
-        parsed_materials[mat_name] = SurfaceMaterial(
-            albedo=mat_data["albedo"],
+        parsed_materials[material_name] = SurfaceMaterial(
+            albedo=material_data["albedo"],
             reflection=reflection_model
         )
 
