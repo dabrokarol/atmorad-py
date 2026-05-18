@@ -2,8 +2,8 @@ import numpy as np
 from .base import BaseDetector
 from atmorad.environment import Scene
 from atmorad.engine.batch import PhotonBatch
-from atmorad.config.schema import SimConfig
-from atmorad.constants import X, Y, Z
+from atmorad.config import SimConfig
+from atmorad.constants import X, Y, Z, DETECTOR_OFFSET
 
 class IncidentFluxMapDetector(BaseDetector):
     def __init__(self):
@@ -28,6 +28,10 @@ class IncidentFluxMapDetector(BaseDetector):
         
         self.x_edges = np.arange(-self.domain_x/2, self.domain_x/2 + self.resolution, self.resolution)
         self.y_edges = np.arange(-self.domain_y/2, self.domain_y/2 + self.resolution, self.resolution)
+        
+        toa = scene.atmosphere.get_total_thickness()
+        self.target_z_array[self.target_z_array == toa] -= DETECTOR_OFFSET
+        self.target_z_array[self.target_z_array == 0] += DETECTOR_OFFSET
 
     def _process_hits(self, batch: PhotonBatch, old_pos: np.ndarray, crossed_mask: np.ndarray, 
                       p_list: list, x_list: list, y_list: list):

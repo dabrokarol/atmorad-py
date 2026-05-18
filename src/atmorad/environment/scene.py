@@ -52,18 +52,17 @@ class Scene:
         return batch
     
     def start_pos(self, num_photons, rng):
+        nx, ny = self.surface.domain_size
         pos = np.empty(shape=(3, num_photons), dtype=float)
-        pos[X, :] = rng.uniform(-1, 1, num_photons) * 100
-        pos[Y, :] = rng.uniform(-1, 1, num_photons) * 100
-        pos[Z, :] = np.full(num_photons, self.atmosphere.top_of_atmosphere + EPSILON)
+        pos[X, :] = rng.uniform(-nx/2, nx/2, num_photons)
+        pos[Y, :] = rng.uniform(-ny/2, ny/2, num_photons)
+        pos[Z, :] = np.full(num_photons, self.atmosphere.top_of_atmosphere - EPSILON)
         return pos
     
-    def start_direction(self, num_photons, theta_sun, phi_sun, rng):
-        theta_sun_rad = theta_sun / 180 * np.pi
-        phi_sun_rad = phi_sun / 180 * np.pi
-        theta = rng.normal(theta_sun_rad, 1/60, size=num_photons)
-        phi = rng.normal(phi_sun_rad, 1/60, size=num_photons)
-        direction = sun_zenith_to_direction(theta, phi)
+    def start_direction(self, num_photons, theta_sun, phi_sun):
+        theta = theta_sun / 180 * np.pi
+        phi = phi_sun / 180 * np.pi
+        direction = np.repeat(sun_zenith_to_direction(theta, phi)[:, np.newaxis], num_photons, axis=1)
         return direction
     
     def get_material_ids(self, pos, rng):

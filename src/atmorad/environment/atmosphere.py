@@ -6,7 +6,7 @@ from typing import Sequence
 from atmorad.engine.batch import PhotonBatch
 from atmorad.physics import rotate
 from atmorad.physics import Scattering
-from atmorad.constants import EPSILON, X, Y, Z
+from atmorad.constants import EPSILON, X, Y, Z, SAFE_INF
   
 @dataclass
 class AtmosphericMedium:
@@ -30,7 +30,7 @@ class AtmosphericLayer:
             components = [(components, 1.0)]
         else:
             p_tot = sum(probability for _, probability in components)
-            if not np.isclose(p_tot, 1):
+            if not np.isclose(p_tot, 1, atol=EPSILON):
                 raise ValueError(f"Initialized layer probabilities don't sum to one, got {p_tot} Check atmospheric layers initialization.")
 
         self.components = components
@@ -116,7 +116,7 @@ class Atmosphere:
 
         delta_z[travel_up] = upper_bound[travel_up] - batch.pos[Z, travel_up]
         delta_z[travel_down] = lower_bound[travel_down] - batch.pos[Z, travel_down]
-        delta_z[travel_horizontal] = np.inf
+        delta_z[travel_horizontal] = SAFE_INF
         
         return delta_z
 
@@ -131,7 +131,7 @@ class Atmosphere:
         extinction_coeff = self.extinction_coeffs[batch.material_ids]
         with np.errstate(divide='ignore', invalid='ignore'):
                 distance = tau / extinction_coeff
-        distance[extinction_coeff == 0] = np.inf
+        distance[extinction_coeff == 0] = SAFE_INF
         return distance
     
     def above_toa(self, pos):
@@ -147,7 +147,7 @@ class Atmosphere:
         batch.pos[Z, escaped_toa] = self.top_of_atmosphere + EPSILON
         
         for boundary_z in self.boundaries:
-            on_boundary_mask = np.isclose(batch.pos[Z], boundary_z)
+            on_boundary_mask = np.isclose(batch.pos[Z], boundary_z, atol=EPSILON)
             facing_up_mask = on_boundary_mask & (batch.direction[Z] > 0)
             facing_down_mask = on_boundary_mask & (batch.direction[Z] < 0)
             batch.pos[Z, facing_up_mask] += EPSILON

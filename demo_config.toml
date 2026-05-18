@@ -88,3 +88,7 @@ material_out = "ocean"
 # tile_size_km = 10
 # material_a = "snow"
 # material_b = "ocean"
+
+# [surface]
+# name = "uniform"
+# material = "snow"

@@ -1,5 +1,5 @@
 from pathlib import Path
-from atmorad.config.models import load_config
+from atmorad.config import load_config
 from atmorad.engine.runner import MCRadiationRunner
 from atmorad.environment import Scene, Atmosphere
 

@@ -3,7 +3,7 @@ from .base import BaseDetector
 from atmorad.environment import Scene
 from atmorad.engine.batch import PhotonBatch
 from atmorad.config import SimConfig
-from atmorad.constants import X, Y, Z, EPSILON
+from atmorad.constants import X, Y, Z, EPSILON, DETECTOR_OFFSET
 
 class BoundaryAbsorptionDetector(BaseDetector):
     def __init__(self):
@@ -37,8 +37,8 @@ class BoundaryAbsorptionDetector(BaseDetector):
         wrapped_x = np.mod(term_pos[X] + self.domain_x/2, self.domain_x) - self.domain_x/2
         wrapped_y = np.mod(term_pos[Y] + self.domain_y/2, self.domain_y) - self.domain_y/2
 
-        surface_mask = term_pos[Z] <= 0
-        above_toa_mask = term_pos[Z] >= (self.toa_z)
+        surface_mask = term_pos[Z] <= DETECTOR_OFFSET
+        above_toa_mask = term_pos[Z] >= (self.toa_z - DETECTOR_OFFSET)
         
         if np.any(surface_mask):
             self.surface_x.append(wrapped_x[surface_mask])
