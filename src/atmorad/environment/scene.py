@@ -62,7 +62,7 @@ class Scene:
     def start_direction(self, num_photons, theta_sun, phi_sun):
         theta = theta_sun / 180 * np.pi
         phi = phi_sun / 180 * np.pi
-        direction = sun_zenith_to_direction(theta, phi) 
+        direction = np.repeat(sun_zenith_to_direction(theta, phi)[:, np.newaxis], num_photons, axis=1)
         return direction
     
     def get_material_ids(self, pos, rng):
