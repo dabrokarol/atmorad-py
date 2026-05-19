@@ -83,7 +83,8 @@ class Engine:
 
             batch.scatter_counts[scattered] += 1
             exceeded_scatterings_mask = batch.scatter_counts > MAX_SCATTERINGS
-            logging.warning(f"Killing {np.count_nonzero(exceeded_scatterings_mask)} photons. Scattered more than {MAX_SCATTERINGS} times.")
+            if exceeded_scatterings_mask.any():
+                logging.warning(f"Killing {np.count_nonzero(exceeded_scatterings_mask)} photons. Scattered more than {MAX_SCATTERINGS} times.")
             
             new_tau_rand = self.random_tau(np.count_nonzero(scattered))
             batch.tau_to_travel[scattered] = new_tau_rand
