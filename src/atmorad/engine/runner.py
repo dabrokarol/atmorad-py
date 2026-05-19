@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import concurrent.futures
+import multiprocessing
 from tqdm import tqdm
 from dataclasses import replace
 
@@ -40,7 +41,8 @@ class MCRadiationRunner:
         all_results = {}
         
         if cores > 1:
-            with concurrent.futures.ProcessPoolExecutor(max_workers=cores) as executor:
+            ctx = multiprocessing.get_context("forkserver")
+            with concurrent.futures.ProcessPoolExecutor(max_workers=cores, mp_context=ctx) as executor:
                 futures = []
                 for i, (size, seed) in enumerate(zip(batches, seeds)):
                     future = executor.submit(run_chunk, size, seed, config, scene, i)
