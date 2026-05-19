@@ -1,0 +1,48 @@
+[metadata]
+experiment_name = "test001"
+description = "Test config."
+
+[engine]
+num_photons = 5000
+batch_size = 5000
+random_seed = 42
+cpu_cores = 16
+
+[source]
+theta_sun_deg = 30
+phi_sun_deg = 0 
+wavelength_nm = 530
+
+[geometry]
+domain_size_x_km = 100
+domain_size_y_km = 100
+boundary_condition = "periodic"
+
+[detectors]
+vertical_flux_resolution_km = 1.0
+map2d_resolution_km = 1.0
+
+[output]
+save_absorption_maps = true
+overwrite = true
+path = 'results'
+
+[surface_materials]
+    [surface_materials.snow]
+    albedo = 0.85
+    reflection = {type = "lambertian"}
+
+[atmosphere_materials]
+    [atmosphere_materials.air]
+    extinction_coeff_per_km = 0.01
+    ssa = 0.9
+    scattering = {type = "rayleigh"}
+
+[[layer]]
+z_range_km = [0, 10]
+materials = [{type = "air", weight = 1.0}]
+
+[surface]
+name = "uniform"
+radius_km = 20
+material = "snow"

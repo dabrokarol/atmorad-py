@@ -4,8 +4,10 @@ from pathlib import Path
 
 from atmorad.environment.atmosphere import AtmosphericMedium, AtmosphericLayer
 from atmorad.environment.surface import SurfaceMaterial, SplitHalfXMap, CircleMap, CheckerboardMap, UniformMap, FlatSurface
+from atmorad.environment.scene import Scene
+from atmorad.environment.atmosphere import Atmosphere
 from .models import (
-    MetadataConfig, EngineConfig, SourceConfig, GeometryConfig, OutputConfig, DetectorConfig, SimConfig
+    MetadataConfig, EngineConfig, SourceConfig, GeometryConfig, OutputConfig, DetectorConfig, SimConfig, SimContext
 )
 from atmorad.physics import SCATTERING_MODELS, REFLECTION_MODELS
 
@@ -91,7 +93,7 @@ def _parse_layers(raw_layers: list, atm_materials: dict[str, AtmosphericMedium])
         parsed_layers.append(AtmosphericLayer(thickness=thickness, components=components))
     return parsed_layers
 
-def load_config(custom_config_path: Path) -> tuple[SimConfig, FlatSurface, list[AtmosphericLayer]]:
+def parse_config(custom_config_path: Path) -> SimContext:
     with open(DEFAULT_CONFIG_PATH, "rb") as f:
         default_config_data = tomllib.load(f)
     
@@ -115,12 +117,20 @@ def load_config(custom_config_path: Path) -> tuple[SimConfig, FlatSurface, list[
         config_data.get("surface_materials", {}),
         geometry
     )
+    
+    atmosphere = Atmosphere(layers)
+    scene = Scene(surface, atmosphere)
 
-    return SimConfig(
+    config = SimConfig(
         metadata=metadata,
         engine=engine,
         source=source,
         geometry=geometry,
         output=output,
         detectors=detectors,
-    ), surface, layers
+    )
+    
+    return SimContext(
+        config=config,
+        scene=scene
+    )
