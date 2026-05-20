@@ -4,10 +4,10 @@ import sys
 import traceback
 from pathlib import Path
 
-from atmorad.analyzer import ResultAnalyzer
-from atmorad.config import parse_config
-from atmorad.data_io import DataIO
-from atmorad.engine.runner import MCRadiationRunner
+from atmorad.builder import build_context
+from atmorad.output import DataIO, ResultAnalyzer
+
+from atmorad.engine import MCRadiationRunner
 
 
 def main():
@@ -35,7 +35,7 @@ def main():
             logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
 
         logging.info(f"Loading configuration from: {config_path.name}...")
-        context = parse_config(config_path)
+        context = build_context(config_path)
 
         logging.info("Generating output directory...")
         data_io = DataIO(context.config)
