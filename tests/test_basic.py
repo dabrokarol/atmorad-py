@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from atmorad.engine.runner import MCRadiationRunner
+from atmorad.engine import MCRadiationRunner
 
 CONFIG_DIR = Path(__file__).parent / "configs"
 CONFIG_FILES = list(str(filename) for filename in CONFIG_DIR.glob("*.toml"))
@@ -24,7 +24,7 @@ def test_energy_conservation(sim_context):
 
     total_out = reflected + transmitted + absorbed_atm
 
-    assert total_out == 5000
+    assert total_out == sim_context.config.engine.num_photons
 
 
 @pytest.mark.parametrize(
