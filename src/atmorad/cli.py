@@ -1,13 +1,14 @@
-import logging
 import argparse
+import logging
 import sys
 import traceback
 from pathlib import Path
 
-from atmorad.engine.runner import MCRadiationRunner
-from atmorad.data_io import DataIO
-from atmorad.config import parse_config
 from atmorad.analyzer import ResultAnalyzer
+from atmorad.config import parse_config
+from atmorad.data_io import DataIO
+from atmorad.engine.runner import MCRadiationRunner
+
 
 def main():
     parser = argparse.ArgumentParser(prog="atmorad")
@@ -16,7 +17,7 @@ def main():
     group.add_argument("-v", "--verbose", action="store_true", help="increase output verbosity")
     group.add_argument("-q", "--quiet", action="store_true", help="suppress all output")
     args = parser.parse_args()
-    
+
     if args.quiet:
         logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
     elif args.verbose:
@@ -38,8 +39,10 @@ def main():
 
         logging.info("Generating output directory...")
         data_io = DataIO(context.config)
-        
-        logging.info(f"Starting {context.config.engine.cpu_cores}-core simulation ({context.config.engine.num_photons} photons)...")
+
+        logging.info(
+            f"Starting {context.config.engine.cpu_cores}-core simulation ({context.config.engine.num_photons} photons)..."
+        )
         runner = MCRadiationRunner(context)
         runner.run()
 
@@ -52,13 +55,13 @@ def main():
         logging.info("Saving results to disk...")
         data_io.save_metadata(context.config, results_dict)
         data_io.save_results(results_dict)
-        
+
         if context.config.output.save_plots:
             logging.info("Generating and saving plots...")
             data_io.save_all_artifacts(analyzer, results_dict)
 
         logging.info("Done! Simulation artifacts saved successfully.")
-        
+
     except KeyboardInterrupt:
         print("\nSimulation aborted by user.")
         sys.exit(130)
@@ -69,16 +72,17 @@ def main():
 
     except Exception as e:
         print(f"\nCRITICAL ERROR: {e}")
-        
+
         if args.verbose:
             print("\n--- Detailed Stack Trace ---")
             traceback.print_exc()
         else:
             print("\n(Run with --verbose to see the full stack trace for debugging)")
-            
+
         sys.exit(1)
-        
+
     sys.exit(0)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

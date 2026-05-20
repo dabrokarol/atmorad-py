@@ -1,8 +1,9 @@
-import pytest
-
 from pathlib import Path
 
+import pytest
+
 from atmorad.config.parser import parse_config
+
 
 @pytest.fixture
 def sim_context(request):
