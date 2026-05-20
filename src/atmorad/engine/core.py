@@ -5,13 +5,12 @@ import numpy as np
 
 from atmorad.config import SimConfig
 from atmorad.constants import EPSILON, MAX_SCATTERINGS
-from atmorad.detectors import BaseDetector
-from atmorad.engine.batch import PhotonBatch
-from atmorad.environment import Scene
+from atmorad.models import PhotonBatch
+from atmorad.environment.scene import Scene
 
 
 class Engine:
-    def __init__(self, config: SimConfig, scene: Scene, detectors: list[BaseDetector]):
+    def __init__(self, config: SimConfig, scene: Scene, detectors: list):
         self.config = config
         self.scene = scene
         self.detectors = detectors

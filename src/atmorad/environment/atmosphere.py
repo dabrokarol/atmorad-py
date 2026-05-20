@@ -4,7 +4,7 @@ from typing import Sequence
 import numpy as np
 
 from atmorad.constants import EPSILON, SAFE_INF, Z
-from atmorad.engine.batch import PhotonBatch
+from atmorad.models import PhotonBatch
 from atmorad.physics import Scattering, rotate
 
 
