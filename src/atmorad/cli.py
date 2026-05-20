@@ -28,10 +28,6 @@ def main():
             raise FileNotFoundError(f"Configuration file '{args.config}' not found.")
 
         config_path = args.config.resolve()
-        if args.verbose:
-            logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-        else:
-            logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
 
         logging.info(f"Loading configuration from: {config_path.name}...")
         context = build_context(config_path)
