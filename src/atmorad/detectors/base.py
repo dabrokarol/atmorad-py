@@ -2,7 +2,7 @@ from abc import ABC
 
 import numpy as np
 
-from atmorad.config.models import SimConfig
+from atmorad.config import SimConfig
 from atmorad.engine.batch import PhotonBatch
 from atmorad.environment import Scene
 

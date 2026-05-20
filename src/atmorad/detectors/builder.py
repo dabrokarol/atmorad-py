@@ -1,10 +1,10 @@
 from atmorad.config import SimConfig
-from atmorad.detectors.boundary_flux import BoundaryAbsorptionDetector
-from atmorad.detectors.fate import FateDetector
-from atmorad.detectors.flux import VerticalFluxDetector
-from atmorad.detectors.heating import AtmosphericHeatingRateDetector
-from atmorad.detectors.paths import PathTrackingDetector
-from atmorad.detectors.plane_flux import IncidentFluxMapDetector
+from .boundary_flux import BoundaryAbsorptionDetector
+from .fate import FateDetector
+from .flux import VerticalFluxDetector
+from .heating import AtmosphericHeatingRateDetector
+from .paths import PathTrackingDetector
+from .plane_flux import IncidentFluxMapDetector
 
 
 def build_detectors_from_config(config: SimConfig):
