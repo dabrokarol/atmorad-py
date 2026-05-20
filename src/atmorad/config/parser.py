@@ -14,7 +14,7 @@ from .models import (
 )
 
 CURRENT_DIR = Path(__file__).parent
-DEFAULT_CONFIG_PATH = CURRENT_DIR / "default_config.toml"
+DEFAULT_CONFIG_PATH = CURRENT_DIR / "defaults.toml"
 
 
 def _deep_merge_dicts(base: dict, override: dict) -> dict:
