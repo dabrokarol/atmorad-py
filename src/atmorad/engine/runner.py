@@ -41,7 +41,9 @@ class MCRadiationRunner:
         all_results = {}
 
         if cores > 1:
-            ctx = multiprocessing.get_context("forkserver")
+            start_methods = multiprocessing.get_all_start_methods()
+            start_method = "forkserver" if "forkserver" in start_methods else "spawn"
+            ctx = multiprocessing.get_context(start_method)
             with concurrent.futures.ProcessPoolExecutor(
                 max_workers=cores, mp_context=ctx
             ) as executor:
