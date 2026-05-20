@@ -9,29 +9,39 @@ on:
 jobs:
   test-and-lint:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        resolution: ["locked", "lowest-direct"]
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version-file: "pyproject.toml"
 
       - name: Install Dependencies
-        run: uv sync --all-extras --dev
+        run: |
+          if [ "${{ matrix.resolution }}" = "lowest-direct" ]; then
+            uv venv
+            uv pip install -e ".[dev]" --resolution lowest-direct
+          else
+            uv sync --all-extras --dev
+          fi
 
-      - name: Lint and Format (Ruff)
+      - name: Ruff
+        if: matrix.resolution == 'locked'
         run: |
           uv run ruff check .
           uv run ruff format --check .
 
-      - name: Run Physics and Engine Tests (Pytest)
+      - name: Pytests
         run: uv run pytest tests/
