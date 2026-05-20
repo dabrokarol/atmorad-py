@@ -5,9 +5,8 @@ import traceback
 from pathlib import Path
 
 from atmorad.builder import build_context
-from atmorad.output import DataIO, ResultAnalyzer
-
 from atmorad.engine import MCRadiationRunner
+from atmorad.output import DataIO, ResultAnalyzer
 
 
 def main():

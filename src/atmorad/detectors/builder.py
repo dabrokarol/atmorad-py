@@ -1,4 +1,5 @@
 from atmorad.config import SimConfig
+
 from .boundary_flux import BoundaryAbsorptionDetector
 from .fate import FateDetector
 from .flux import VerticalFluxDetector

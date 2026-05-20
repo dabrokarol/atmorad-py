@@ -3,8 +3,8 @@ from abc import ABC
 import numpy as np
 
 from atmorad.config import SimConfig
-from atmorad.models import PhotonBatch
 from atmorad.environment import Scene
+from atmorad.models import PhotonBatch
 
 
 class BaseDetector(ABC):

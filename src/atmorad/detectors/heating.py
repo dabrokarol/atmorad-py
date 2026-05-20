@@ -2,8 +2,8 @@ import numpy as np
 
 from atmorad.config import SimConfig
 from atmorad.constants import Z
-from atmorad.engine.batch import PhotonBatch
 from atmorad.environment import Scene
+from atmorad.models import PhotonBatch
 
 from .base import BaseDetector
 

@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 
-from atmorad.environment.scene import Scene
-
 
 @dataclass
 class MetadataConfig:
@@ -59,9 +57,3 @@ class SimConfig:
     output: OutputConfig
     metadata: MetadataConfig
     detectors: DetectorConfig
-
-
-@dataclass
-class SimContext:
-    config: SimConfig
-    scene: Scene

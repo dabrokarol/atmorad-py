@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from atmorad.constants import Z
+
 from .geometry import orientation
 from .registry import register_reflection
 

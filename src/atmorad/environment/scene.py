@@ -1,10 +1,11 @@
 import numpy as np
 
 from atmorad.constants import EPSILON, X, Y, Z
-from atmorad.engine.batch import PhotonBatch
+from atmorad.models import PhotonBatch
+from atmorad.physics import sun_zenith_to_direction
+
 from .atmosphere import Atmosphere
 from .surface import Surface
-from atmorad.physics import sun_zenith_to_direction
 
 
 class Scene:

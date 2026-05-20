@@ -5,8 +5,8 @@ import numpy as np
 
 from atmorad.config import SimConfig
 from atmorad.constants import EPSILON, MAX_SCATTERINGS
-from atmorad.models import PhotonBatch
 from atmorad.environment.scene import Scene
+from atmorad.models import PhotonBatch
 
 
 class Engine:

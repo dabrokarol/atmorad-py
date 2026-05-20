@@ -1,17 +1,15 @@
 import concurrent.futures
 import multiprocessing
 import time
-from dataclasses import dataclass, replace
+from dataclasses import replace
 
 import numpy as np
 from tqdm import tqdm
 
 from atmorad.detectors import build_detectors_from_config, merge_incremental
-
-from .core import Engine
 from atmorad.models import SimContext
 
-
+from .core import Engine
 
 
 class MCRadiationRunner:

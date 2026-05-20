@@ -4,18 +4,16 @@ from atmorad.config.models import (
     GeometryConfig,
     OutputConfig,
     SimConfig,
-    SimContext,
     SourceConfig,
 )
-from atmorad.config.parser import parse_config
+from atmorad.config.parser import load_config
 
 __all__ = [
     "SimConfig",
-    "SimContext",
     "GeometryConfig",
     "SourceConfig",
     "DetectorConfig",
     "EngineConfig",
     "OutputConfig",
-    "parse_config",
+    "load_config",
 ]

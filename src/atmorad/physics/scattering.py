@@ -1,6 +1,7 @@
 import numpy as np
 
 from atmorad.constants import EPSILON, PRECOMPUTED_RESOLUTION
+
 from .registry import register_scattering
 
 
