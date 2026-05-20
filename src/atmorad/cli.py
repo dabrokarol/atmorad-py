@@ -6,13 +6,15 @@ from atmorad.engine.runner import MCRadiationRunner
 from atmorad.data_io import DataIO
 from atmorad.config import parse_config
 from atmorad.analyzer import ResultAnalyzer
-from atmorad.environment import Scene, Atmosphere
 
 def main():
-    parser = argparse.ArgumentParser(prog="AtmoRad", usage="uv run main.py <path-to-config>")
-    parser.add_argument("config", nargs="?", default="demo_config.toml", help="path to config TOML", type=Path)
+    parser = argparse.ArgumentParser(prog="atmorad", usage="uv run main.py <path-to-config>")
+    parser.add_argument("config", help="path to the simulation config TOML file", type=Path)
     parser.add_argument("-v", "--verbose", action="store_true", help="increase output verbosity")
     args = parser.parse_args()
+    
+    if not args.config.exists():
+        raise FileNotFoundError(f"Error: Configuration file '{args.config}' not found.")
 
     config_path = Path.cwd() / args.config
     if args.verbose:

@@ -39,7 +39,7 @@ uv sync
 - Modify parameters `default_config.toml` or create a custom config.
 - Run the simulation:
 ```bash
-uv run main.py <path-to-config.toml>
+uv run atmorad <path-to-config.toml>
 ```
 - Check `results/` directory for simulation outputs and plots
 

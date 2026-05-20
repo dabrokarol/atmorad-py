@@ -16,6 +16,9 @@ dependencies = [
     "tqdm>=4.67.3",
 ]
 
+[project.scripts]
+atmorad = "atmorad.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
