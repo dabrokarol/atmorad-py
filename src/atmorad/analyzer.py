@@ -27,13 +27,14 @@ class ResultAnalyzer:
 
         reflected, transmitted, absorbed = 0.0, 0.0, 0.0
         
-        reflected = self.data["photons_escaped_toa"]
-        transmitted = self.data["photons_absorbed_surface"]
-        absorbed = self.data["photons_absorbed_atmosphere"]
+        num_photons = self.config.engine.num_photons
+        reflected = self.data["photons_escaped_toa"] / num_photons
+        transmitted = self.data["photons_absorbed_surface"] / num_photons
+        absorbed = self.data["photons_absorbed_atmosphere"] / num_photons
         
-        summary_str += f"Reflected (escaped toa): {reflected:.6f}\n"
-        summary_str += f"Transmitted (absorbed by surface): {transmitted:.6f}\n"
-        summary_str += f"Absorbed (absorbed by atmosphere): {absorbed:.6f}\n"
+        summary_str += f"Reflected (escaped toa): {reflected:.6f} ({reflected*100:.2f}%)\n"
+        summary_str += f"Transmitted (absorbed by surface): {transmitted:.6f} ({transmitted*100:.2f}%)\n"
+        summary_str += f"Absorbed (absorbed by atmosphere): {absorbed:.6f} ({absorbed*100:.2f}%)\n"
 
         if reflected > 0 or transmitted > 0 or absorbed > 0:
             total_energy = reflected + transmitted + absorbed
