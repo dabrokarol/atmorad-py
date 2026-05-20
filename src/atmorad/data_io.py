@@ -54,12 +54,6 @@ class DataIO:
         with open(self.base_dir / 'metadata.json', 'w', encoding='utf-8') as f:
             json.dump(metadata, f, indent=4)
 
-        script_path = Path(sys.argv[0]).resolve()
-        if script_path.exists() and script_path.suffix == '.py':
-            shutil.copy(script_path, self.base_dir / 'experiment_setup.py')
-        else:
-            logging.warning('Failed to copy script to metadata')
-
     def save_plot(self, fig: Figure, plot_name: str, dpi: int = 300) -> None:
         fig.savefig(self.base_dir / plot_name, dpi=dpi, bbox_inches='tight')
         import matplotlib.pyplot as plt
