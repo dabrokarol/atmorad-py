@@ -39,51 +39,65 @@ uv sync
 - Modify parameters `default_config.toml` or create a custom config.
 - Run the simulation:
 ```bash
-uv run main.py <path-to-config.toml>
+uv run atmorad <path-to-config.toml>
 ```
 - Check `results/` directory for simulation outputs and plots
 
 ## Project Structure
 ```
 .
-├── default_config.toml
-├── examples/
+├── src/atmorad
+│       ├── config
+│       │   ├── __init__.py
+│       │   ├── default_config.toml
+│       │   ├── models.py
+│       │   └── parser.py
+│       ├── detectors
+│       │   ├── __init__.py
+│       │   ├── base.py
+│       │   ├── boundary_flux.py
+│       │   ├── builder.py
+│       │   ├── fate.py
+│       │   ├── flux.py
+│       │   ├── heating.py
+│       │   ├── paths.py
+│       │   ├── plane_flux.py
+│       │   └── results.py
+│       ├── engine
+│       │   ├── __init__.py
+│       │   ├── core.py
+│       │   └── runner.py
+│       ├── environment
+│       │   ├── __init__.py
+│       │   ├── atmosphere.py
+│       │   ├── scene.py
+│       │   └── surface.py
+│       ├── models
+│       │   └── __init__.py
+│       │   ├── batch.py
+│       │   ├── context.py
+│       ├── output
+│       │   └── __init__.py
+│       │   ├── analyzer.py
+│       │   ├── data_io.py
+│       └── physics
+│       │   ├── __init__.py
+│       │   ├── geometry.py
+│       │   ├── reflection.py
+│       │   ├── registry.py
+│       │   └── scattering.py
+│       ├── __init__.py
+│       ├── constants.py
+│       ├── builder.py
+│       ├── cli.py
 ├── tests/
-├── LICENSE
-├── main.py
+├── docs/
+├── examples/
+└── uv.lock
 ├── pyproject.toml
+├── LICENSE
 ├── README.md
-├── src
-│   └── atmorad
-│       ├── __init__.py
-│       ├── config
-│       │   ├── config.py
-│       │   └── parser.py
-│       ├── detectors
-│       │   ├── __init__.py
-│       │   ├── base.py
-│       │   ├── atmosphere_heating.py
-│       │   ├── paths.py
-│       │   ├── plane_flux.py
-│       │   └── surface_toa_flux.py
-│       ├── engine
-│       │   ├── __init__.py
-│       │   ├── batch.py
-│       │   ├── engine.py
-│       │   └── runner.py
-│       ├── environment
-│       │   ├── __init__.py
-│       │   ├── atmosphere.py
-│       │   ├── scene.py
-│       │   └── surface.py
-│       ├── physics
-│       │   ├── __init__.py
-│       │   ├── geometry.py
-│       │   ├── reflection.py
-│       │   └── scattering.py
-│       ├── data_io.py
-│       ├── constants.py
-│       └── results.py
+├── demo_config.toml
 ```
 ### Core Architecture:
 - `engine/`: divides photons into batches and runs the simulation.
