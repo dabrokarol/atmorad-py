@@ -1,7 +1,7 @@
 from .builder import build_context
 from .engine.runner import MCRadiationRunner
 from .output import DataIO, ResultAnalyzer
-from .physics import Scattering, SurfaceReflection
+from .physics import Scattering, SurfaceReflection, orientation, rotate
 from .physics.registry import register_reflection, register_scattering
 
 __all__ = [
@@ -13,4 +13,6 @@ __all__ = [
     "ResultAnalyzer",
     "Scattering",
     "SurfaceReflection",
+    "orientation",
+    "rotate",
 ]
