@@ -2,6 +2,7 @@ import dataclasses
 import datetime
 import json
 import logging
+import pickle
 import shutil
 from pathlib import Path
 
@@ -18,15 +19,31 @@ class DataIO:
 
         output_dir = Path(config.output.path)
         exp_name = config.metadata.experiment_name.replace(" ", "-")
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        resume = config.engine.resume_from_checkpoint
         overwrite = config.output.overwrite
+
+        if resume:
+            valid_dirs = [
+                d
+                for d in output_dir.glob(f"{exp_name}*")
+                if d.is_dir() and (d / "checkpoint.pkl").exists()
+            ]
+
+            if valid_dirs:
+                self.base_dir = max(valid_dirs, key=lambda p: p.stat().st_mtime)
+                logging.info(f"Resuming from the most recent directory: {self.base_dir}")
+                return
+
+            logging.warning(
+                f"Resume requested for '{exp_name}', but no checkpoint found. Starting fresh."
+            )
+
         if overwrite:
             self.base_dir = output_dir / f"{exp_name}"
             if self.base_dir.exists():
-                import shutil
-
                 shutil.rmtree(self.base_dir)
         else:
+            timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
             self.base_dir = output_dir / f"{exp_name}-{timestamp}"
 
         self.base_dir.mkdir(parents=True, exist_ok=True)
@@ -132,3 +149,28 @@ class DataIO:
 
         self.save_metadata(config, results_dict)
         self.save_results(results_dict)
+
+    @property
+    def checkpoint_path(self):
+        return self.base_dir / "checkpoint.pkl"
+
+    def save_checkpoint(self, completed_batches: int, results: dict):
+        state = {"completed_batches": completed_batches, "results": results}
+        tmp_path = self.checkpoint_path.with_suffix(".pkl.tmp")
+
+        with open(tmp_path, "wb") as f:
+            pickle.dump(state, f)
+
+        shutil.move(tmp_path, self.checkpoint_path)
+
+    def load_checkpoint(self):
+        if self.checkpoint_path.exists():
+            with open(self.checkpoint_path, "rb") as f:
+                state = pickle.load(f)
+                return state["completed_batches"], state["results"]
+        logging.info("No checkpoint found. Starting a fresh simulation.")
+        return 0, {}
+
+    def cleanup_checkpoint(self):
+        if self.checkpoint_path.exists():
+            self.checkpoint_path.unlink()

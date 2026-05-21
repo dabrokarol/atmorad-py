@@ -32,6 +32,7 @@ class EngineConfig:
     batch_size: int
     random_seed: int
     cpu_cores: int
+    resume_from_checkpoint: bool
 
 
 @dataclass

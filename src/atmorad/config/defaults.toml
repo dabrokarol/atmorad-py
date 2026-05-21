@@ -7,6 +7,7 @@ num_photons = 100_000
 batch_size = 100_000
 random_seed = 42
 cpu_cores = 4
+resume_from_checkpoint = false
 
 [source]
 theta_sun_deg = 0

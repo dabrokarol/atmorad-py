@@ -10,3 +10,6 @@ Z = 2
 
 # Scatterings
 PRECOMPUTED_RESOLUTION = 1000
+
+# Runtime
+CHECKPOINT_INTERVAL = 10
