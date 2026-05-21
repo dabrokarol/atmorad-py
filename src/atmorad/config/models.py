@@ -1,5 +1,6 @@
 import copy
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
@@ -67,6 +68,7 @@ class SimConfig:
     metadata: MetadataConfig
     detectors: DetectorConfig
     environment: EnvironmentConfig
+    config_path: Path | None = None
 
     def is_compatible_for_resume(self, checkpoint_config: "SimConfig") -> bool:
         current = copy.deepcopy(self)

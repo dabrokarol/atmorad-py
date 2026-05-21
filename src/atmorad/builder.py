@@ -102,10 +102,10 @@ def _build_scene(env_config: EnvironmentConfig):
 
 
 def build_context(config_path: Path | str) -> SimContext:
-    path = Path(config_path)
+    path = Path(config_path).resolve()
 
     config = load_config(path)
 
     scene = _build_scene(config.environment)
 
-    return SimContext(config=config, scene=scene)
+    return SimContext(config=config, scene=scene, config_path=path)

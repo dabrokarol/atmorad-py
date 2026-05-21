@@ -3,6 +3,8 @@ from pathlib import Path
 
 import tomllib
 
+from atmorad.constants import ACCEPTED_EXTENSIONS
+
 from .models import (
     DetectorConfig,
     EngineConfig,
@@ -29,6 +31,15 @@ def _deep_merge_dicts(base: dict, override: dict) -> dict:
 
 
 def load_config(custom_config_path: Path) -> SimConfig:
+    if not custom_config_path.exists():
+        raise FileNotFoundError(f"Config file not found at {custom_config_path}")
+
+    if custom_config_path.suffix.lower() not in ACCEPTED_EXTENSIONS:
+        raise ValueError(
+            f"Invalid configuration file extension: {custom_config_path.suffix}"
+            f"Allowed extensions: {', '.join(ACCEPTED_EXTENSIONS)}"
+        )
+
     with open(DEFAULT_CONFIG_PATH, "rb") as f:
         default_config_data = tomllib.load(f)
 
@@ -52,6 +63,7 @@ def load_config(custom_config_path: Path) -> SimConfig:
         output=OutputConfig(**config_data["output"]),
         detectors=DetectorConfig(**config_data["detectors"]),
         environment=env_config,
+        config_path=custom_config_path,
     )
 
     return config
