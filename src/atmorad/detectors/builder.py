@@ -2,8 +2,8 @@ from atmorad.config import SimConfig
 
 from .boundary_flux import BoundaryAbsorptionDetector
 from .fate import FateDetector
-from .flux_1d import VerticalFluxDetector
-from .heating import AtmosphericHeatingRateDetector
+from .flux_vertical import VerticalFluxDetector
+from .absorption_vertical import AbsorptionProfileDetector
 from .paths import PathTrackingDetector
 from .plane_flux import IncidentFluxMapDetector
 
@@ -17,7 +17,7 @@ def build_detectors_from_config(config: SimConfig):
         detectors.append(PathTrackingDetector())
 
     if config.output.save_vertical_profiles:
-        detectors.append(AtmosphericHeatingRateDetector())
+        detectors.append(AbsorptionProfileDetector())
         detectors.append(VerticalFluxDetector())
 
     if config.output.save_absorption_maps:
