@@ -27,9 +27,8 @@ incident_flux_heights_km = [1e-5, 4.0]
 [output]
 save_absorption_maps = false
 save_incident_flux_maps = false
-save_vertical_profile = false
+save_vertical_profiles = false
 save_photon_paths = false 
-save_heating_rates = false
 save_plots = false
 overwrite = false
 path = 'results'
