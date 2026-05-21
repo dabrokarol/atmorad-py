@@ -33,9 +33,7 @@ class ResultAnalyzer:
         absorbed_atm = self.data["photons_absorbed_atmosphere"] / num_photons
 
         summary_str += f"Reflected (escaped toa): {reflected:.6f} ({reflected * 100:.2f}%)\n"
-        summary_str += (
-            f"Surface Absorption: {absorbed_surf:.6f} ({absorbed_surf * 100:.2f}%)\n"
-        )
+        summary_str += f"Surface Absorption: {absorbed_surf:.6f} ({absorbed_surf * 100:.2f}%)\n"
         summary_str += (
             f"Absorbed (absorbed by atmosphere): {absorbed_atm:.6f} ({absorbed_atm * 100:.2f}%)\n"
         )
@@ -118,9 +116,7 @@ class ResultAnalyzer:
 
         mesh = ax.pcolormesh(X, Y, map_2d_norm.T, cmap=cmo.cm.solar, shading="flat")  # type: ignore
         ax.set_aspect("equal")
-        fig.colorbar(
-            mesh, ax=ax, label=label, orientation="horizontal", pad=0.1
-        )
+        fig.colorbar(mesh, ax=ax, label=label, orientation="horizontal", pad=0.1)
         ax.set_xlabel("Position X [km]")
         ax.set_ylabel("Position Y [km]")
         ax.set_title(title, fontsize=16)
