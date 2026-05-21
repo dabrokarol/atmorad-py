@@ -21,7 +21,7 @@ boundary_condition = "periodic"
 
 [detectors]
 vertical_profiles_resolution_km = 1.0
-map2d_resolution_km = 1.0
+horizontal_maps_resolution_km = 1.0
 num_full_paths = 200
 incident_flux_heights_km = [0.0, 4.0]
 

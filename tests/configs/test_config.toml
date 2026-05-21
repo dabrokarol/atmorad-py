@@ -20,7 +20,7 @@ boundary_condition = "periodic"
 
 [detectors]
 vertical_profiles_resolution_km = 1.0
-map2d_resolution_km = 1.0
+horizontal_maps_resolution_km = 1.0
 
 [output]
 save_absorption_maps = true
