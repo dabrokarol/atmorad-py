@@ -122,7 +122,7 @@ reflection = {type = "custom-reflection", param_1=2, param_2=1.3} # match param 
 Then you can use your defined materials for atmospheric layers and surface maps:
 ```toml
 [[layer]]
-z_range_km = [0, 2]
+thickness_km = 2
 materials = [{type = "custom-atm-material", weight = 1.0}]
 
 # ...

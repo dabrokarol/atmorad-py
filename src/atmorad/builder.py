@@ -87,7 +87,7 @@ def _build_layers(
 ) -> list[AtmosphericLayer]:
     built_layers = []
     for layer_data in raw_layers:
-        thickness = layer_data["z_range_km"][1] - layer_data["z_range_km"][0]
+        thickness = layer_data["thickness_km"]
         components = [(atm_materials[m["type"]], m["weight"]) for m in layer_data["materials"]]
         built_layers.append(AtmosphericLayer(thickness=thickness, components=components))
     return built_layers

@@ -57,18 +57,18 @@ path = 'results'
     scattering = {type = "hg", g = 0.85}
 
 [[layer]]
-z_range_km = [0, 2]
+thickness_km = 2
 materials = [{type = "air", weight = 1.0}]
 
 [[layer]]
-z_range_km = [2, 6]
+thickness_km = 4
 materials = [
     {type = "air", weight = 0.1},
     {type = "dark-clouds", weight = 0.9}
 ]
 
 [[layer]]
-z_range_km = [6, 10]
+thickness_km = 4
 materials = [{type = "air", weight = 1.0}]
 
 [surface]

@@ -44,7 +44,7 @@ ssa = 0.9
 scattering = {type = "isotropic"}
 
 [[layer]]
-z_range_km = [0, 100]
+thickness_km = 100
 materials = [{type = "default-air", weight = 1.0}]
 
 [surface]

@@ -39,7 +39,7 @@ path = 'results'
     scattering = {type = "rayleigh"}
 
 [[layer]]
-z_range_km = [0, 10]
+thickness_km = 10
 materials = [{type = "air", weight = 1.0}]
 
 [surface]
