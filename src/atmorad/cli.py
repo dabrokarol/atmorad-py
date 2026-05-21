@@ -22,7 +22,8 @@ def init_config():
     config_data = pkg_resources.files("atmorad.config").joinpath("simulation.toml").read_text()
     out_path.write_text(config_data)
     logging.info(f"Generated default configuration file at {out_path.resolve()}")
-    
+
+
 def setup_parser():
     try:
         __version__ = importlib.metadata.version("atmorad-py")
@@ -45,7 +46,8 @@ def setup_parser():
     group.add_argument("-q", "--quiet", action="store_true", help="suppress all output")
 
     return parser
-    
+
+
 def configure_logging(verbose, quiet):
     if quiet:
         level = logging.ERROR
@@ -56,8 +58,9 @@ def configure_logging(verbose, quiet):
     else:
         level = logging.INFO
         fmt = "%(message)s"
-        
+
     logging.basicConfig(level=level, format=fmt)
+
 
 def run_simulation(config, quiet):
     config_path = config.resolve()
@@ -88,6 +91,7 @@ def run_simulation(config, quiet):
 
     logging.info("Done! Simulation artifacts saved successfully.")
 
+
 def main():
     parser = setup_parser()
     args = parser.parse_args()
@@ -104,7 +108,7 @@ def main():
         parser.error("You must provide a configuration file, use --init to generate one.")
 
     configure_logging(args.verbose, args.quiet)
-    
+
     try:
         run_simulation(args.config, args.quiet)
         return 0
@@ -124,7 +128,9 @@ def main():
             print("\n--- Detailed Stack Trace ---", file=sys.stderr)
             traceback.print_exc()
         else:
-            print("\n(Run with --verbose to see the full stack trace for debugging)", file=sys.stderr)
+            print(
+                "\n(Run with --verbose to see the full stack trace for debugging)", file=sys.stderr
+            )
 
         return 1
 
