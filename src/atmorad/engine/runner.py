@@ -85,7 +85,10 @@ class MCRadiationRunner:
                     futures.append(future)
                     _temp_photons += size
                 with tqdm(
-                    total=total_photons, initial=simulated_photons, desc="Simulating Photons"
+                    total=total_photons,
+                    initial=simulated_photons,
+                    desc="Simulating Photons",
+                    unit=" photons",
                 ) as pbar:
                     for i, future in enumerate(futures):
                         chunk_res = future.result()
@@ -99,12 +102,14 @@ class MCRadiationRunner:
                             self.data_io.save_checkpoint(
                                 simulated_photons=current_simulated_photons,
                                 results=all_results,
-                                config=self.context.config,
                             )
 
         else:
             with tqdm(
-                total=total_photons, initial=simulated_photons, desc="Simulating Photons"
+                total=total_photons,
+                initial=simulated_photons,
+                desc="Simulating Photons",
+                unit=" photons",
             ) as pbar:
                 for i, size in enumerate(batches):
                     chunk_seed = np.random.SeedSequence((base_seed, current_simulated_photons))
