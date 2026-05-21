@@ -68,31 +68,28 @@ def main():
         config_path = args.config.resolve()
 
         logging.info(f"Loading configuration from: {config_path.name}...")
+
         context = build_context(config_path)
 
         logging.info("Generating output directory...")
+
         data_io = DataIO(context.config)
 
         logging.info(
             f"Starting {context.config.engine.cpu_cores}-core simulation ({context.config.engine.num_photons} photons)..."
         )
+
         runner = MCRadiationRunner(context)
         runner.run()
 
         results_dict = runner.get_results()
         analyzer = ResultAnalyzer(results_dict, context.config)
 
+        for fig, relative_path in analyzer.generate_all_figures():
+            data_io.save_figure(fig, relative_path)
+
         if not args.quiet:
             print("\n" + analyzer.summary())
-
-        logging.info("Saving results to disk...")
-        data_io.save_metadata(context.config, results_dict)
-        data_io.save_config_file(config_path)
-        data_io.save_results(results_dict)
-
-        if context.config.output.save_plots:
-            logging.info("Generating and saving plots...")
-            data_io.save_all_artifacts(analyzer, results_dict)
 
         logging.info("Done! Simulation artifacts saved successfully.")
 

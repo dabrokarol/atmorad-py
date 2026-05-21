@@ -1,7 +1,7 @@
 import concurrent.futures
+import logging
 import multiprocessing
 import time
-import logging
 from dataclasses import replace
 
 import numpy as np
@@ -123,13 +123,11 @@ class MCRadiationRunner:
                         self.data_io.save_checkpoint(
                             simulated_photons=current_simulated_photons,
                             results=all_results,
-                            config=self.context.config,
                         )
-        
-        logging.info("Simulation complete. Saving final results to disk...")
-        self.data_io.save_metadata(self.context.config, self.results)
-        self.data_io.save_results(self.results)
-        
+
+        self.data_io.save_simulation_run(all_results)
+        self.data_io.delete_checkpoint()
+
         return all_results
 
 

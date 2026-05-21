@@ -10,7 +10,6 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from atmorad.config import SimConfig
-from atmorad.output import ResultAnalyzer
 
 
 class DataIO:
@@ -23,14 +22,9 @@ class DataIO:
         overwrite = config.output.overwrite
 
         if resume:
-            valid_dirs = [
-                d
-                for d in output_dir.glob(f"{exp_name}*")
-                if d.is_dir() and (d / "checkpoint.pkl").exists()
-            ]
-
-            if valid_dirs:
-                self.base_dir = max(valid_dirs, key=lambda p: p.stat().st_mtime)
+            latest_checkpoint_dir = self._find_latest_checkpoint_dir(output_dir, exp_name)
+            if latest_checkpoint_dir:
+                self.base_dir = latest_checkpoint_dir
                 logging.info(f"Resuming from the most recent directory: {self.base_dir}")
                 return
 
@@ -48,6 +42,14 @@ class DataIO:
 
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
+    def _find_latest_checkpoint_dir(self, output_dir: Path, exp_name: str) -> Path | None:
+        valid_dirs = [
+            d
+            for d in output_dir.glob(f"{exp_name}*")
+            if d.is_dir() and (d / "checkpoint.pkl").exists()
+        ]
+        return max(valid_dirs, key=lambda p: p.stat().st_mtime) if valid_dirs else None
+
     def save_config_file(self, config_file_path: Path):
         if not config_file_path.exists():
             logging.error(f"Cannot find original config at {config_file_path.resolve()}")
@@ -58,7 +60,14 @@ class DataIO:
 
         logging.info(f"Config saved to {destination_path}.")
 
-    def save_metadata(self, config: SimConfig, results_dict: dict) -> None:
+    def save_simulation_run(self, results_dict: dict):
+        logging.info("Saving final results to disk...")
+        self.save_metadata(results_dict)
+        self.save_results(results_dict)
+        if self.config.config_path:
+            self.save_config_file(self.config.config_path)
+
+    def save_metadata(self, results_dict: dict) -> None:
         def _safe_serialize(obj):
             if dataclasses.is_dataclass(obj):
                 return dataclasses.asdict(obj)
@@ -74,21 +83,23 @@ class DataIO:
                 return str(obj.__class__.__name__)
             return str(obj)
 
-        metadata = json.loads(json.dumps(dataclasses.asdict(config), default=_safe_serialize))
+        metadata = json.loads(json.dumps(dataclasses.asdict(self.config), default=_safe_serialize))
 
-        if "cpu_time_s" in results_dict:
-            metadata["cpu_time_s"] = results_dict["cpu_time_s"]
-        if "simulation_time_s" in results_dict:
-            metadata["simulation_time_s"] = results_dict["simulation_time_s"]
+        for key in ["cpu_time_s", "simulation_time_s"]:
+            if key in results_dict:
+                metadata[key] = results_dict[key]
 
-        with open(self.base_dir / "metadata.json", "w", encoding="utf-8") as f:
+        metadata_path = self.base_dir / "metadata.json"
+
+        with open(metadata_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=4)
 
-    def save_plot(self, fig: Figure, plot_name: str, dpi: int = 300) -> None:
-        fig.savefig(self.base_dir / plot_name, dpi=dpi, bbox_inches="tight")
-        import matplotlib.pyplot as plt
+        logging.info(f"Metadata saved to: {metadata_path}.")
 
-        plt.close(fig)
+    def save_figure(self, fig: Figure, relative_path: str, dpi: int = 300) -> None:
+        full_path = self.base_dir / relative_path
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(full_path, dpi=dpi, bbox_inches="tight")
 
     def save_results(self, results_dict: dict) -> None:
         npz_ready_dict = {}
@@ -97,65 +108,18 @@ class DataIO:
                 npz_ready_dict[k] = np.array(v, dtype=object)
             else:
                 npz_ready_dict[k] = v
-        np.savez_compressed(self.base_dir / "data_compressed.npz", **npz_ready_dict)
 
-    def save_all_artifacts(self, analyzer: ResultAnalyzer, results_dict: dict):
-        config = self.config
+        results_path = self.base_dir / "data_compressed.npz"
+        np.savez_compressed(results_path, **npz_ready_dict)
 
-        if config.output.save_absorption_maps:
-            fig_map = analyzer.plot_surface_absorption_map()
-            if fig_map:
-                self.save_plot(fig_map, "surface_absorption_map.png")
-            else:
-                logging.warning("2d surface absorption map not generated")
-            fig_toa_map = analyzer.plot_toa_flux_map()
-            if fig_toa_map:
-                self.save_plot(fig_toa_map, "toa_flux_map.png")
-            else:
-                logging.warning("2d toa flux map not generated")
-
-        if config.output.save_incident_flux_maps:
-            subfolder_name = "incident_flux"
-            subfolder_path = self.base_dir / subfolder_name
-            subfolder_path.mkdir(exist_ok=True)
-
-            down_maps = results_dict.get("incident_flux_down_maps_2d", {})
-            for z_val, flux_map in down_maps.items():
-                title = f"Incident Downward Flux Map\nHeight: {z_val} km"
-                fig = analyzer.plot_2d_map(flux_map, title=title)
-                if fig:
-                    self.save_plot(fig, f"{subfolder_name}/downward_z_{z_val:g}km.png")
-
-            up_maps = results_dict.get("incident_flux_up_maps_2d", {})
-            for z_val, flux_map in up_maps.items():
-                title = f"Incident Upward Flux Map\nHeight: {z_val} km"
-                fig = analyzer.plot_2d_map(flux_map, title=title)
-                if fig:
-                    self.save_plot(fig, f"{subfolder_name}/upward_z_{z_val:g}km.png")
-
-        if config.output.save_vertical_profiles:
-            fig_flux = analyzer.plot_flux_profile()
-            if fig_flux:
-                self.save_plot(fig_flux, "vertical_flux_profile.png")
-
-            fig_heat = analyzer.plot_absorption_profile()
-            if fig_heat:
-                self.save_plot(fig_heat, "absorption_profile.png")
-
-        if config.output.save_photon_paths:
-            fig_paths = analyzer.plot_paths()
-            if fig_paths:
-                self.save_plot(fig_paths, "3d_photon_paths.png")
-
-        self.save_metadata(config, results_dict)
-        self.save_results(results_dict)
+        logging.info(f"Compressed results saved to {results_path}.")
 
     @property
     def checkpoint_path(self):
         return self.base_dir / "checkpoint.pkl"
 
-    def save_checkpoint(self, simulated_photons: int, results: dict, config: SimConfig):
-        state = {"simulated_photons": simulated_photons, "results": results, "config": config}
+    def save_checkpoint(self, simulated_photons: int, results: dict):
+        state = {"simulated_photons": simulated_photons, "results": results, "config": self.config}
         tmp_path = self.checkpoint_path.with_suffix(".pkl.tmp")
 
         with open(tmp_path, "wb") as f:
