@@ -30,14 +30,16 @@ class MCRadiationRunner:
 
     def get_results(self):
         return self.results
-    
+
     def _run_simulation(self):
         simulated_photons, all_results = self._load_initial_state()
         total_photons = self.context.config.engine.num_photons
         remaining_photons = total_photons - simulated_photons
 
         if remaining_photons <= 0:
-            logging.info("Target number of photons has already been reached. Skipping simulation loop.")
+            logging.info(
+                "Target number of photons has already been reached. Skipping simulation loop."
+            )
             return all_results
 
         batch_size = self.context.config.engine.batch_size
