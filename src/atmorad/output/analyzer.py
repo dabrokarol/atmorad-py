@@ -25,23 +25,23 @@ class ResultAnalyzer:
         if "cpu_time_s" in self.data:
             summary_str += f"Total CPU time: {self.data['cpu_time_s']:.2f} s\n\n"
 
-        reflected, transmitted, absorbed = 0.0, 0.0, 0.0
+        reflected, absorbed_surf, absorbed_atm = 0.0, 0.0, 0.0
 
         num_photons = self.config.engine.num_photons
         reflected = self.data["photons_escaped_toa"] / num_photons
-        transmitted = self.data["photons_absorbed_surface"] / num_photons
-        absorbed = self.data["photons_absorbed_atmosphere"] / num_photons
+        absorbed_surf = self.data["photons_absorbed_surface"] / num_photons
+        absorbed_atm = self.data["photons_absorbed_atmosphere"] / num_photons
 
         summary_str += f"Reflected (escaped toa): {reflected:.6f} ({reflected * 100:.2f}%)\n"
         summary_str += (
-            f"Transmitted (absorbed by surface): {transmitted:.6f} ({transmitted * 100:.2f}%)\n"
+            f"Surface Absorption: {absorbed_surf:.6f} ({absorbed_surf * 100:.2f}%)\n"
         )
         summary_str += (
-            f"Absorbed (absorbed by atmosphere): {absorbed:.6f} ({absorbed * 100:.2f}%)\n"
+            f"Absorbed (absorbed by atmosphere): {absorbed_atm:.6f} ({absorbed_atm * 100:.2f}%)\n"
         )
 
-        if reflected > 0 or transmitted > 0 or absorbed > 0:
-            total_energy = reflected + transmitted + absorbed
+        if reflected > 0 or absorbed_surf > 0 or absorbed_atm > 0:
+            total_energy = reflected + absorbed_surf + absorbed_atm
             summary_str += "-----------------------------------\n"
             summary_str += f"Energy Balance Check: {total_energy:.6f} (Should be 1.0)\n"
 
@@ -107,7 +107,7 @@ class ResultAnalyzer:
             ax.legend()
         return fig
 
-    def plot_2d_map(self, flux_map: np.ndarray, title: str):
+    def plot_2d_map(self, flux_map: np.ndarray, title: str, label: str = "Normalized Flux"):
         x_edges = self.data["x_edges"]
         y_edges = self.data["y_edges"]
 
@@ -119,7 +119,7 @@ class ResultAnalyzer:
         mesh = ax.pcolormesh(X, Y, map_2d_norm.T, cmap=cmo.cm.solar, shading="flat")  # type: ignore
         ax.set_aspect("equal")
         fig.colorbar(
-            mesh, ax=ax, label="Normalized Flux (Transmittance)", orientation="horizontal", pad=0.1
+            mesh, ax=ax, label=label, orientation="horizontal", pad=0.1
         )
         ax.set_xlabel("Position X [km]")
         ax.set_ylabel("Position Y [km]")
@@ -127,7 +127,7 @@ class ResultAnalyzer:
 
         return fig
 
-    def plot_surface_absorption_map(self, title: str = "Surface Absorption Map (Normalized)"):
+    def plot_surface_absorption_map(self, title: str = "Surface Absorption Map"):
         flux_map = self.data.get("surface_absorption_map_2d")
 
         if flux_map is None:
@@ -136,7 +136,7 @@ class ResultAnalyzer:
 
         return self.plot_2d_map(flux_map, title)
 
-    def plot_toa_flux_map(self, title: str = "Top of Atmosphere (TOA) Reflected Flux"):
+    def plot_toa_flux_map(self, title: str = "TOA Reflected Flux"):
         flux_map = self.data.get("toa_flux_map_2d")
 
         if flux_map is None:

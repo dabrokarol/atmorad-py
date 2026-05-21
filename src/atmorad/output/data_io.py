@@ -105,7 +105,7 @@ class DataIO:
                 if fig:
                     self.save_plot(fig, f"{subfolder_name}/upward_z_{z_val}km.png")
 
-        if config.output.save_vertical_profile:
+        if config.output.save_vertical_profiles:
             fig_flux = analyzer.plot_flux_profile()
             if fig_flux:
                 self.save_plot(fig_flux, "vertical_flux_profile.png")
