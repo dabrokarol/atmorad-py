@@ -18,7 +18,7 @@ class VerticalFluxDetector(BaseDetector):
     def initialize(self, scene: Scene, config: SimConfig):
         self.scene = scene
         top_of_atmosphere = scene.atmosphere.get_total_thickness()
-        self.spacing = config.detectors.vertical_flux_resolution_km
+        self.spacing = config.detectors.vertical_profiles_resolution_km
 
         self.measure_z = np.arange(0, top_of_atmosphere, self.spacing)
         self.measure_z[self.measure_z == 0] += DETECTOR_OFFSET

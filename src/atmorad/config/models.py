@@ -9,7 +9,7 @@ class MetadataConfig:
 
 @dataclass
 class DetectorConfig:
-    vertical_flux_resolution_km: float
+    vertical_profiles_resolution_km: float
     map2d_resolution_km: float
     num_full_paths: int
     incident_flux_heights_km: list[float]
