@@ -15,18 +15,15 @@ def init_config():
     out_path = Path("simulation.toml")
 
     if out_path.exists():
-        print(
+        raise FileExistsError(
             f"Error: '{out_path}' already exists. Delete if you want to reinitialize.",
-            file=sys.stderr,
         )
-        sys.exit(1)
 
     config_data = pkg_resources.files("atmorad.config").joinpath("simulation.toml").read_text()
     out_path.write_text(config_data)
-    print(f"Generated default configuration file at {out_path.resolve()}")
-
-
-def main():
+    logging.info(f"Generated default configuration file at {out_path.resolve()}")
+    
+def setup_parser():
     try:
         __version__ = importlib.metadata.version("atmorad-py")
     except importlib.metadata.PackageNotFoundError:
@@ -46,74 +43,93 @@ def main():
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-v", "--verbose", action="store_true", help="increase output verbosity")
     group.add_argument("-q", "--quiet", action="store_true", help="suppress all output")
+
+    return parser
+    
+def configure_logging(verbose, quiet):
+    if quiet:
+        level = logging.ERROR
+        fmt = "%(levelname)s: %(message)s"
+    elif verbose:
+        level = logging.DEBUG
+        fmt = "%(levelname)s: %(message)s"
+    else:
+        level = logging.INFO
+        fmt = "%(message)s"
+        
+    logging.basicConfig(level=level, format=fmt)
+
+def run_simulation(config, quiet):
+    config_path = config.resolve()
+
+    logging.info(f"Loading configuration from: {config_path.name}...")
+
+    context = build_context(config_path)
+
+    logging.info("Generating output directory...")
+
+    data_io = DataIO(context.config)
+
+    logging.info(
+        f"Starting {context.config.engine.cpu_cores}-core simulation ({context.config.engine.num_photons} photons)..."
+    )
+
+    runner = MCRadiationRunner(context)
+    runner.run()
+
+    results_dict = runner.get_results()
+    analyzer = ResultAnalyzer(results_dict, context.config)
+
+    for fig, relative_path in analyzer.generate_all_figures():
+        data_io.save_figure(fig, relative_path)
+
+    if not quiet:
+        print("\n" + analyzer.summary())
+
+    logging.info("Done! Simulation artifacts saved successfully.")
+
+def main():
+    parser = setup_parser()
     args = parser.parse_args()
 
-    if args.init:
-        init_config()
-        sys.exit(0)
+    try:
+        if args.init:
+            init_config()
+            return 0
+    except FileExistsError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
 
     if not args.config:
         parser.error("You must provide a configuration file, use --init to generate one.")
 
-    if args.quiet:
-        logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
-    elif args.verbose:
-        logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
-    else:
-        logging.basicConfig(level=logging.INFO, format="%(message)s")
+    configure_logging(args.verbose, args.quiet)
+    
     try:
-        if not args.config.exists():
-            raise FileNotFoundError(f"Configuration file '{args.config}' not found.")
-
-        config_path = args.config.resolve()
-
-        logging.info(f"Loading configuration from: {config_path.name}...")
-
-        context = build_context(config_path)
-
-        logging.info("Generating output directory...")
-
-        data_io = DataIO(context.config)
-
-        logging.info(
-            f"Starting {context.config.engine.cpu_cores}-core simulation ({context.config.engine.num_photons} photons)..."
-        )
-
-        runner = MCRadiationRunner(context)
-        runner.run()
-
-        results_dict = runner.get_results()
-        analyzer = ResultAnalyzer(results_dict, context.config)
-
-        for fig, relative_path in analyzer.generate_all_figures():
-            data_io.save_figure(fig, relative_path)
-
-        if not args.quiet:
-            print("\n" + analyzer.summary())
-
-        logging.info("Done! Simulation artifacts saved successfully.")
+        run_simulation(args.config, args.quiet)
+        return 0
 
     except KeyboardInterrupt:
-        print("\nSimulation aborted by user.")
-        sys.exit(130)
+        print("\nSimulation aborted by user.", file=sys.stderr)
+        return 130
 
     except FileNotFoundError as e:
-        print(f"Error: {e}")
-        sys.exit(1)
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
 
     except Exception as e:
-        print(f"\nCRITICAL ERROR: {e}")
+        print(f"\nCRITICAL ERROR: {e}", file=sys.stderr)
 
         if args.verbose:
-            print("\n--- Detailed Stack Trace ---")
+            print("\n--- Detailed Stack Trace ---", file=sys.stderr)
             traceback.print_exc()
         else:
-            print("\n(Run with --verbose to see the full stack trace for debugging)")
+            print("\n(Run with --verbose to see the full stack trace for debugging)", file=sys.stderr)
 
-        sys.exit(1)
+        return 1
 
-    sys.exit(0)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
