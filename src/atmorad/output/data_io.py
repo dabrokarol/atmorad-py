@@ -2,6 +2,7 @@ import dataclasses
 import datetime
 import json
 import logging
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -29,6 +30,17 @@ class DataIO:
             self.base_dir = output_dir / f"{exp_name}-{timestamp}"
 
         self.base_dir.mkdir(parents=True, exist_ok=True)
+        
+    def save_config_file(self, config_file_path: Path):
+        if not config_file_path.exists():
+            logging.error(f"Cannot find original config at {config_file_path.resolve()}")
+            return
+
+        destination_path = self.base_dir / "runtime_config.toml"
+        shutil.copy2(config_file_path, destination_path)
+        
+        logging.info(f"Config saved to {destination_path}.")
+        
 
     def save_metadata(self, config: SimConfig, results_dict: dict) -> None:
         def _safe_serialize(obj):

@@ -23,7 +23,7 @@ def init_config():
 
     config_data = pkg_resources.files("atmorad.config").joinpath("simulation.toml").read_text()
     out_path.write_text(config_data)
-    print(f"Generated default configuration file at {out_path.absolute()}")
+    print(f"Generated default configuration file at {out_path.resolve()}")
 
 
 def main():
@@ -87,6 +87,7 @@ def main():
 
         logging.info("Saving results to disk...")
         data_io.save_metadata(context.config, results_dict)
+        data_io.save_config_file(config_path)
         data_io.save_results(results_dict)
 
         if context.config.output.save_plots:
