@@ -173,13 +173,13 @@ class ResultAnalyzer:
         fig.tight_layout()
         return fig
 
-    def plot_heating_rate(self, title="Atmospheric Absorption Profile"):
-        if "heating_profile_1d" not in self.data:
+    def plot_absorption_profile(self, title="Atmospheric Absorption Profile"):
+        if "absorption_profile_1d" not in self.data:
             return None
 
         fig, ax = plt.subplots(figsize=(6, 8))
         boundaries = self.data["layer_boundaries_z"]
-        profile = self.data["heating_profile_1d"] / self.total_photons
+        profile = self.data["absorption_profile_1d"] / self.total_photons
         centers = (boundaries[:-1] + boundaries[1:]) / 2
 
         ax.barh(

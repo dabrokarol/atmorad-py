@@ -110,9 +110,9 @@ class DataIO:
             if fig_flux:
                 self.save_plot(fig_flux, "vertical_flux_profile.png")
 
-            fig_heat = analyzer.plot_heating_rate()
+            fig_heat = analyzer.plot_absorption_profile()
             if fig_heat:
-                self.save_plot(fig_heat, "heating_profile.png")
+                self.save_plot(fig_heat, "absorption_profile.png")
 
         if config.output.save_photon_paths:
             fig_paths = analyzer.plot_paths()

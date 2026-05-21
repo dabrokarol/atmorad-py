@@ -19,7 +19,7 @@ def merge_incremental(first: dict, second: dict) -> dict:
             "flux_down",
             "surface_absorption_map_2d",
             "toa_flux_map_2d",
-            "heating_profile_1d",
+            "absorption_profile_1d",
             "scatter_counts",
             "cpu_time_s",
             "photons_absorbed_surface",

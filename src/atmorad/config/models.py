@@ -19,8 +19,7 @@ class DetectorConfig:
 class OutputConfig:
     save_absorption_maps: bool
     save_incident_flux_maps: bool
-    save_vertical_profile: bool
-    save_heating_rates: bool
+    save_vertical_profiles: bool
     save_photon_paths: bool
     overwrite: bool
     save_plots: bool

@@ -37,6 +37,6 @@ class AtmosphericHeatingRateDetector(BaseDetector):
 
     def get_results(self) -> dict:
         return {
-            "heating_profile_1d": self.absorption_profile,
+            "absorption_profile_1d": self.absorption_profile,
             "layer_boundaries_z": self.layer_boundaries,
         }
