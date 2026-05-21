@@ -108,4 +108,4 @@ def build_context(config_path: Path | str) -> SimContext:
 
     scene = _build_scene(config.environment)
 
-    return SimContext(config=config, scene=scene, config_path=path)
+    return SimContext(config=config, scene=scene)
