@@ -12,105 +12,135 @@
 
 ## Overview:
 
-This project simulates the propagation of light through a heterogenous, plane-parallel atmosphere and their interactions with mixed surface boundaries. It is my student project that I created to learn computational physics and software development.
+This project simulates the propagation of light through a plane-parallel atmosphere over a horizontally mixed surface and its interactions with the ground boundary. Developed as a student project, created to learn computational physics and software development.
 
 ### Physical model
-- **Discrete photons**: Photons are treated as discrete particles, not as variable packets of energy. Energy is counted as a fraction of total photons. 
-- **Plane-parallel approximation**: Atmosphere consists of horizontally uniform layers.
-- **Multi-material atmospheric layers**: layers can consist of a few atmospheric materials simultaneously. A photon is assigned a material randomly when it is initialized and again when it crosses into a new layer. Each material has its own optical density, single-scattering albedo and phase function.
-- **Custom Phase-Functions**: Henyey-Greenstein and Rayleigh phase function are already implemented in the simulation, but any custom user-defined function can be constructed using the `Scattering` class.
-- **Surface Reflections**: Surface consists of materials, each of which having its albedo, a predefined reflection (`Lambertian`, `Mirror`) and a `ProceduralMap` that outputs material ID based on coordinates.
-- **Photon Properties**: Light is treated as monochromatic, non-polarized particles. During the simulation they can get scattered, reflected or absorbed. 
-- **Incident Flux & Adjacency Effect**: Custom detectors allow measuring downward/upward flux at any arbitrary altitude - helpful for visualizing adjacency effect.
+- **Analog Monte Carlo Approach**: Light is simulated using discrete photon packets. Final flux is calculated as a fraction of the total detected packets.
+- **Plane-parallel approximation**: The atmosphere consists of horizontally uniform layers.
+- **Multi-material atmospheric layers**: Layers can consist of multiple atmospheric materials simultaneously. A photon is assigned a material randomly when it is initialized and again when it crosses into a new layer. Each material has its own extinction coefficient, SSA and phase function.
+- **Custom Phase Functions**: Henyey-Greenstein and Rayleigh phase functions are already implemented in the simulation, but any custom user-defined function can be constructed using the `Scattering` class.
+- **Surface Reflections**: The surface consists of materials, each with its own albedo, a predefined BRDF reflection model (`Lambertian`, `Mirror`), and a `ProceduralMap` that outputs material ID based on spatial coordinates.
+- **Photon Properties**: Light is treated as monochromatic, non-polarized particles. During the simulation they can be scattered, reflected, or absorbed. 
+- **Incident Irradiance & Adjacency Effect**: Custom detectors allow measuring downward/upward incident flux at any arbitrary altitude - helpful for visualizing the adjacency effect.
 
 
 ## Technical implementation:
-- Simulation uses `numpy` to simulate photons simultaneously in large batches.
-- Results are plotted using `matplotlib` and `seaborn` (eg. photon paths, flux profile, 2d ground flux map)
-- Code uses multiprocessing to run batches in parallel.
+- The simulation uses `numpy` to simulate photons simultaneously in large batches.
+- The results are plotted using `matplotlib` and `seaborn` (e.g., photon paths, flux profile, 2D ground flux maps)
+- The code uses multiprocessing to run batches in parallel.
   
-## How to run:
-### Use UV (Recommended & Fastest)
-- If not installed, [install uv](https://docs.astral.sh/uv/getting-started/installation/), a very fast Python package manager.
-- Create a virtual environment and install dependencies:
+## Installation:
+- Using `uv` ([install uv](https://docs.astral.sh/uv/getting-started/installation/)):
 ```bash
-uv sync
+uv tool install atmorad-py
 ```
-- Modify parameters `default_config.toml` or create a custom config.
+- Using `pip`:
+```bash
+pip install atmorad-py
+```
 - Run the simulation:
 ```bash
-uv run atmorad <path-to-config.toml>
+atmorad --init
+atmorad simulation.toml
 ```
-- Check `results/` directory for simulation outputs and plots
+- Check `results/` directory for simulation artifacts.
 
 ## Project Structure
+- `engine/`: Divides photons into batches and runs the simulation.
+- `physics/`: Contains a rotation function, scattering phase functions, reflection functions.
+- `environment/`: Keeps track of the environment. Contains `Scene`, `Atmosphere` and `Surface` classes.
+- `detectors/`: Provides functionality for tracking photons during the simulation and generates results.
+- `output/`: Handles results and figure generation.
+- `config/` and `builder.py`: Parses `.toml` configuration file and generates simulation context.
+- `cli.py`: Provides CLI for `atmorad`.
+
+## Customization
+You can define your own surface reflection algorithms and scattering phase functions using decorators as shown below:
+
+```python
+import numpy as np
+from atmorad import build_context, MCRadiationRunner, DataIO, ResultAnalyzer
+from atmorad import SurfaceReflection, register_reflection, orientation
+from atmorad import Scattering, register_scattering
+
+# 1. Register a custom surface reflection
+@register_reflection("custom-reflection")
+class CustomReflection(SurfaceReflection):
+    # Specify arbitrary custom parameters
+    def __init__(self, param_1, param_2):
+        self.param_1 = param_1
+        self.param_2 = param_2
+    def reflect(self, direction, rand_1, rand_2):
+        # Your custom reflection physics here
+        cos_theta = np.sqrt(rand_1)
+        sin_theta = np.sqrt(1.0 - rand_1)
+
+        # you can also use specified parameters
+        # self.param_1, self.param_2
+
+        phi = rand_2 * 2 * np.pi
+        cos_phi, sin_phi = np.cos(phi), np.sin(phi)
+        
+        return orientation(cos_theta, sin_theta, cos_phi, sin_phi)
+    
+# 2. Register a custom scattering phase function
+@register_scattering("custom-scattering")
+class CustomScattering(Scattering):
+    # Specify arbitrary custom parameters
+    def __init__(self, g, resolution=1000):
+        # Define a pdf array
+        self.g = g
+        cos_grid = np.linspace(-1, 1, resolution)
+
+        pdf = (1 - g**2) / (2 * (1 + g**2 - 2 * g * cos_grid) ** 1.5)
+
+        super().__init__(pdf_array=pdf, resolution=resolution)
+
+# 3. Run the simulation using custom names in your config
+if __name__ == "__main__":
+    context = build_context("simulation.toml")
+    runner = MCRadiationRunner(context)
+    runner.run()
+
+    # 4. Save and analyze results
+    results = runner.get_results()
+    outputs = DataIO(context.config)
+    analyzer = ResultAnalyzer(results, context.config)
+    
+    outputs.save_all_artifacts(analyzer, results)
+    outputs.save_metadata(context.config, results)
+    outputs.save_results(results)
 ```
-.
-├── src/atmorad
-│       ├── config
-│       │   ├── __init__.py
-│       │   ├── default_config.toml
-│       │   ├── models.py
-│       │   └── parser.py
-│       ├── detectors
-│       │   ├── __init__.py
-│       │   ├── base.py
-│       │   ├── boundary_flux.py
-│       │   ├── builder.py
-│       │   ├── fate.py
-│       │   ├── flux.py
-│       │   ├── heating.py
-│       │   ├── paths.py
-│       │   ├── plane_flux.py
-│       │   └── results.py
-│       ├── engine
-│       │   ├── __init__.py
-│       │   ├── core.py
-│       │   └── runner.py
-│       ├── environment
-│       │   ├── __init__.py
-│       │   ├── atmosphere.py
-│       │   ├── scene.py
-│       │   └── surface.py
-│       ├── models
-│       │   └── __init__.py
-│       │   ├── batch.py
-│       │   ├── context.py
-│       ├── output
-│       │   └── __init__.py
-│       │   ├── analyzer.py
-│       │   ├── data_io.py
-│       └── physics
-│       │   ├── __init__.py
-│       │   ├── geometry.py
-│       │   ├── reflection.py
-│       │   ├── registry.py
-│       │   └── scattering.py
-│       ├── __init__.py
-│       ├── constants.py
-│       ├── builder.py
-│       ├── cli.py
-├── tests/
-├── docs/
-├── examples/
-└── uv.lock
-├── pyproject.toml
-├── LICENSE
-├── README.md
-├── demo_config.toml
+In `simulation.toml` you can specify your defined scatterings and reflections:
+```toml
+[atmosphere_materials.custom-atm-material]
+ssa = 0.9
+scattering = {type = "custom-scattering", g=0.8} 
+
+[surface_materials.custom-surf-material]
+albedo = 0.5
+reflection = {type = "custom-reflection", param_1=2, param_2=1.3} # match param names defined in python
 ```
-### Core Architecture:
-- `engine/`: divides photons into batches and runs the simulation.
-- `Scene`: keeps track of the environment.
-- `Atmosphere` and `Surface`: keep track of optical properties, phase functions, reflection functions and layer structures.
-- `ResultAnalyzer`: Generates plots based on simulation results.
+Then you can use your defined materials for atmospheric layers and surface maps:
+```toml
+[[layer]]
+z_range_km = [0, 2]
+materials = [{type = "custom-atm-material", weight = 1.0}]
+
+# ...
+
+[surface]
+name = "uniform"
+material = "custom-surf-material"
+```
 
 ## References and Literature
 - (in Polish) Script for Lecture about [Radiative Processes in the Atmosphere](https://www.igf.fuw.edu.pl/~kmark/stacja/wyklady/ProcesyRadiacyjne/2013/WykladRadiacjaKlimat.pdf), Prof. K. Markowicz, Faculty of Physics, University of Warsaw, 2013.
 
-## Contributing:
-Feel free to open an Issue or submit a Pull Request if you'd like to contribute or report a bug.
-
 ## Acknowledgments
 - This project was inspired by the lectures on *Radiative Processes in the Atmosphere* by Prof. K. Markowicz, Faculty of Physics, University of Warsaw.
-- Large Language Models were used for code-debugging and learning best python practices (e.g. `dataclasses`, `__init__.py` import interfaces, class responsibilities, config parsing).
+- Large Language Models were used for code debugging and learning best Python practices (e.g. `dataclasses`, `__init__.py` import interfaces, class responsibilities, config parsing).
+
+## Contributing
+Feel free to open an [Issue](https://github.com/dabrokarol/atmorad-py/issues) or submit a Pull Request if you'd like to contribute or report a bug.
+

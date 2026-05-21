@@ -35,28 +35,29 @@ overwrite = true
 path = 'results'
 
 [surface_materials]
-    [surface_materials.snow]
-    albedo = 0.85
-    reflection = {type = "lambertian"}
-    [surface_materials.ocean]
-    albedo = 0.01
-    reflection = {type = "mirror", roughness = 0.0}
+[surface_materials.snow]
+albedo = 0.85
+reflection = {type = "lambertian"}
+[surface_materials.ocean]
+albedo = 0.01
+reflection = {type = "mirror", roughness = 0.0}
 
 
 [atmosphere_materials]
-    [atmosphere_materials.air]
-    extinction_coeff_per_km = 0.01
-    ssa = 0.9
-    scattering = {type = "rayleigh"} # rayleigh, hg, isotropic
-    [atmosphere_materials.light-clouds]
-    extinction_coeff_per_km = 1
-    ssa = 0.999999
-    scattering = {type = "hg", g = 0.85}
-    [atmosphere_materials.dark-clouds]
-    extinction_coeff_per_km = 5
-    ssa = 0.999999
-    scattering = {type = "hg", g = 0.85}
+[atmosphere_materials.air]
+extinction_coeff_per_km = 0.01
+ssa = 0.9
+scattering = {type = "rayleigh"} # rayleigh, hg, isotropic
+[atmosphere_materials.light-clouds]
+extinction_coeff_per_km = 1
+ssa = 0.999999
+scattering = {type = "hg", g = 0.85}
+[atmosphere_materials.dark-clouds]
+extinction_coeff_per_km = 5
+ssa = 0.999999
+scattering = {type = "hg", g = 0.85}
 
+# Define atmospheric structure from bottom to top
 [[layer]]
 z_range_km = [0, 2]
 materials = [{type = "air", weight = 1.0}]
@@ -72,16 +73,17 @@ materials = [
 z_range_km = [6, 10]
 materials = [{type = "air", weight = 1.0}]
 
+# --- Surface Map Configuration ---
+# Choose one surface map by commenting out the others
+
+# [surface]
+# name = "uniform"
+# material = "snow"
+
 # [surface]
 # name = "split-half-x"
 # material_left = "snow"
 # material_right = "ocean"
-
-[surface]
-name = "circle"
-radius_km = 20
-material_in = "snow"
-material_out = "ocean"
 
 # [surface]
 # name = "checkerboard"
@@ -89,6 +91,8 @@ material_out = "ocean"
 # material_a = "snow"
 # material_b = "ocean"
 
-# [surface]
-# name = "uniform"
-# material = "snow"
+[surface]
+name = "circle"
+radius_km = 20
+material_in = "snow"
+material_out = "ocean"
