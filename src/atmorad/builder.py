@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from atmorad.config import GeometryConfig, load_config
+from atmorad.config import EnvironmentConfig, GeometryConfig, load_config
 from atmorad.environment import (
     Atmosphere,
     AtmosphericLayer,
@@ -93,16 +93,19 @@ def _build_layers(
     return built_layers
 
 
+def _build_scene(env_config: EnvironmentConfig):
+    atm_materials = _build_atmosphere_materials(env_config.atmosphere_materials)
+    layers = _build_layers(env_config.layers, atm_materials)
+    surface = _build_surface(env_config.surface, env_config.surface_materials, env_config.geometry)
+
+    return Scene(surface, Atmosphere(layers))
+
+
 def build_context(config_path: Path | str) -> SimContext:
     path = Path(config_path)
 
-    config, env_data = load_config(path)
+    config = load_config(path)
 
-    atm_materials = _build_atmosphere_materials(env_data["atmosphere_materials"])
-    layers = _build_layers(env_data["layers"], atm_materials)
-
-    surface = _build_surface(env_data["surface"], env_data["surface_materials"], config.geometry)
-
-    scene = Scene(surface, Atmosphere(layers))
+    scene = _build_scene(config.environment)
 
     return SimContext(config=config, scene=scene)

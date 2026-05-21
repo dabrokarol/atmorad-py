@@ -6,6 +6,7 @@ import tomllib
 from .models import (
     DetectorConfig,
     EngineConfig,
+    EnvironmentConfig,
     GeometryConfig,
     MetadataConfig,
     OutputConfig,
@@ -27,7 +28,7 @@ def _deep_merge_dicts(base: dict, override: dict) -> dict:
     return base_copy
 
 
-def load_config(custom_config_path: Path) -> tuple[SimConfig, dict]:
+def load_config(custom_config_path: Path) -> SimConfig:
     with open(DEFAULT_CONFIG_PATH, "rb") as f:
         default_config_data = tomllib.load(f)
 
@@ -36,20 +37,21 @@ def load_config(custom_config_path: Path) -> tuple[SimConfig, dict]:
 
     config_data = _deep_merge_dicts(default_config_data, custom_config_data)
 
+    env_config = EnvironmentConfig(
+        atmosphere_materials=config_data.get("atmosphere_materials", {}),
+        layers=config_data.get("layer", []),
+        surface=config_data.get("surface", {}),
+        surface_materials=config_data.get("surface_materials", {}),
+        geometry=GeometryConfig(**config_data["geometry"]),
+    )
+
     config = SimConfig(
         metadata=MetadataConfig(**config_data["metadata"]),
         engine=EngineConfig(**config_data["engine"]),
         source=SourceConfig(**config_data["source"]),
-        geometry=GeometryConfig(**config_data["geometry"]),
         output=OutputConfig(**config_data["output"]),
         detectors=DetectorConfig(**config_data["detectors"]),
+        environment=env_config,
     )
 
-    raw_env_data = {
-        "atmosphere_materials": config_data.get("atmosphere_materials", {}),
-        "layers": config_data.get("layer", []),
-        "surface": config_data.get("surface", {}),
-        "surface_materials": config_data.get("surface_materials", {}),
-    }
-
-    return config, raw_env_data
+    return config

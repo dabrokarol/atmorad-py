@@ -26,8 +26,8 @@ class IncidentFluxMapDetector(BaseDetector):
 
         self.target_z_array = np.array(config.detectors.incident_flux_heights_km, dtype=float)
         self.resolution = config.detectors.horizontal_maps_resolution_km
-        self.domain_x = config.geometry.domain_size_x_km
-        self.domain_y = config.geometry.domain_size_y_km
+        self.domain_x = config.environment.geometry.domain_size_x_km
+        self.domain_y = config.environment.geometry.domain_size_y_km
 
         self.x_edges = np.arange(
             -self.domain_x / 2, self.domain_x / 2 + self.resolution, self.resolution

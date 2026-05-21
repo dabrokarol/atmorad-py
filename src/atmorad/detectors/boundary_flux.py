@@ -22,8 +22,8 @@ class BoundaryAbsorptionDetector(BaseDetector):
     def initialize(self, scene: Scene, config: SimConfig):
         self.toa_z = scene.atmosphere.top_of_atmosphere
         self.resolution = config.detectors.horizontal_maps_resolution_km
-        self.domain_x = config.geometry.domain_size_x_km
-        self.domain_y = config.geometry.domain_size_y_km
+        self.domain_x = config.environment.geometry.domain_size_x_km
+        self.domain_y = config.environment.geometry.domain_size_y_km
 
         num_bins_x = int(np.round(self.domain_x / self.resolution))
         num_bins_y = int(np.round(self.domain_y / self.resolution))

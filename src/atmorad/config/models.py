@@ -50,10 +50,19 @@ class GeometryConfig:
 
 
 @dataclass
+class EnvironmentConfig:
+    atmosphere_materials: dict
+    layers: list[dict]
+    surface: dict
+    surface_materials: dict
+    geometry: GeometryConfig
+
+
+@dataclass
 class SimConfig:
     engine: EngineConfig
     source: SourceConfig
-    geometry: GeometryConfig
     output: OutputConfig
     metadata: MetadataConfig
     detectors: DetectorConfig
+    environment: EnvironmentConfig

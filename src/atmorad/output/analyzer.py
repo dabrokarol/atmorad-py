@@ -53,8 +53,8 @@ class ResultAnalyzer:
         ax = fig.add_subplot(projection="3d")
         labeled_surface, labeled_above_toa, labeled_atmosphere = False, False, False
 
-        Lx = self.config.geometry.domain_size_x_km
-        Ly = self.config.geometry.domain_size_y_km
+        Lx = self.config.environment.geometry.domain_size_x_km
+        Ly = self.config.environment.geometry.domain_size_y_km
         limit_x, limit_y = Lx / 2, Ly / 2
 
         for path_id, path_coords in self.data["sample_paths"].items():
@@ -91,8 +91,8 @@ class ResultAnalyzer:
 
             ax.plot3D(X, Y, Z, alpha=alpha, color=color, label=lbl)
 
-        limit_x = self.config.geometry.domain_size_x_km / 2
-        limit_y = self.config.geometry.domain_size_y_km / 2
+        limit_x = self.config.environment.geometry.domain_size_x_km / 2
+        limit_y = self.config.environment.geometry.domain_size_y_km / 2
 
         ax.set_title(title, fontsize=20)
         ax.set_xlabel("Pos x [km]")

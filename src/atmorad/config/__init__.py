@@ -1,6 +1,7 @@
 from atmorad.config.models import (
     DetectorConfig,
     EngineConfig,
+    EnvironmentConfig,
     GeometryConfig,
     OutputConfig,
     SimConfig,
@@ -15,5 +16,6 @@ __all__ = [
     "DetectorConfig",
     "EngineConfig",
     "OutputConfig",
+    "EnvironmentConfig",
     "load_config",
 ]
