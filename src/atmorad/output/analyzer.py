@@ -174,7 +174,7 @@ class ResultAnalyzer:
             return None
 
         fig, ax = plt.subplots(figsize=(6, 8))
-        boundaries = self.data["layer_boundaries_z"]
+        boundaries = self.data["measure_z"]
         profile = self.data["absorption_profile_1d"] / self.total_photons
         centers = (boundaries[:-1] + boundaries[1:]) / 2
 

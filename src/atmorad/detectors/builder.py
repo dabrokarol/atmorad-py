@@ -1,9 +1,9 @@
 from atmorad.config import SimConfig
 
+from .absorption_vertical import AbsorptionProfileDetector
 from .boundary_flux import BoundaryAbsorptionDetector
 from .fate import FateDetector
 from .flux_vertical import VerticalFluxDetector
-from .absorption_vertical import AbsorptionProfileDetector
 from .paths import PathTrackingDetector
 from .plane_flux import IncidentFluxMapDetector
 

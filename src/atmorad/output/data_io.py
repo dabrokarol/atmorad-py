@@ -107,14 +107,14 @@ class DataIO:
                 title = f"Incident Downward Flux Map\nHeight: {z_val} km"
                 fig = analyzer.plot_2d_map(flux_map, title=title)
                 if fig:
-                    self.save_plot(fig, f"{subfolder_name}/downward_z_{z_val}km.png")
+                    self.save_plot(fig, f"{subfolder_name}/downward_z_{z_val:g}km.png")
 
             up_maps = results_dict.get("incident_flux_up_maps_2d", {})
             for z_val, flux_map in up_maps.items():
                 title = f"Incident Upward Flux Map\nHeight: {z_val} km"
                 fig = analyzer.plot_2d_map(flux_map, title=title)
                 if fig:
-                    self.save_plot(fig, f"{subfolder_name}/upward_z_{z_val}km.png")
+                    self.save_plot(fig, f"{subfolder_name}/upward_z_{z_val:g}km.png")
 
         if config.output.save_vertical_profiles:
             fig_flux = analyzer.plot_flux_profile()
