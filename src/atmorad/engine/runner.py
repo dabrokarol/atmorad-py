@@ -25,10 +25,8 @@ class MCRadiationRunner:
         self.results = self._run_simulation()
         end_time = time.perf_counter()
 
-        if "simulation_time_s" in self.results:
-            self.results["simulation_time_s"] += end_time - start_time
-        else:
-            self.results["simulation_time_s"] = end_time - start_time
+        current_time = self.results.get("simulation_time_s", 0.0)
+        self.results["simulation_time_s"] = current_time + (end_time - start_time)
 
     def get_results(self):
         return self.results
