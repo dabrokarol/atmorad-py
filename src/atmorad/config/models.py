@@ -1,3 +1,4 @@
+import copy
 from dataclasses import dataclass
 
 
@@ -66,3 +67,16 @@ class SimConfig:
     metadata: MetadataConfig
     detectors: DetectorConfig
     environment: EnvironmentConfig
+
+    def is_compatible_for_resume(self, checkpoint_config: "SimConfig") -> bool:
+        current = copy.deepcopy(self)
+        checkpointed = copy.deepcopy(checkpoint_config)
+
+        # those parameters are set to 0 before comparison
+        for config in (current, checkpointed):
+            config.engine.num_photons = 0
+            config.engine.batch_size = 0
+            config.engine.cpu_cores = 0
+            config.engine.resume_from_checkpoint = False
+
+        return current == checkpointed

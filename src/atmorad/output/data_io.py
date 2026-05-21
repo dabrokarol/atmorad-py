@@ -154,8 +154,8 @@ class DataIO:
     def checkpoint_path(self):
         return self.base_dir / "checkpoint.pkl"
 
-    def save_checkpoint(self, completed_batches: int, results: dict):
-        state = {"completed_batches": completed_batches, "results": results}
+    def save_checkpoint(self, simulated_photons: int, results: dict, config: SimConfig):
+        state = {"simulated_photons": simulated_photons, "results": results, "config": config}
         tmp_path = self.checkpoint_path.with_suffix(".pkl.tmp")
 
         with open(tmp_path, "wb") as f:
@@ -167,10 +167,10 @@ class DataIO:
         if self.checkpoint_path.exists():
             with open(self.checkpoint_path, "rb") as f:
                 state = pickle.load(f)
-                return state["completed_batches"], state["results"]
+                return state["simulated_photons"], state["results"], state["config"]
         logging.info("No checkpoint found. Starting a fresh simulation.")
-        return 0, {}
+        return 0, {}, None
 
-    def cleanup_checkpoint(self):
+    def delete_checkpoint(self):
         if self.checkpoint_path.exists():
             self.checkpoint_path.unlink()
