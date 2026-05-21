@@ -108,8 +108,6 @@ if __name__ == "__main__":
     analyzer = ResultAnalyzer(results, context.config)
     
     outputs.save_all_artifacts(analyzer, results)
-    outputs.save_metadata(context.config, results)
-    outputs.save_results(results)
 ```
 In `simulation.toml` you can specify your defined scatterings and reflections:
 ```toml
