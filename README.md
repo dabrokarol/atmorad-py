@@ -12,43 +12,47 @@
 
 ## Overview:
 
-This project simulates the propagation of light through a heterogenous, plane-parallel atmosphere and their interactions with mixed surface boundaries. It is my student project that I created to learn computational physics and software development.
+This project simulates the propagation of light through a plane-parallel atmosphere over a horizontally mixed surface and its interactions with the ground boundary. Developed as a student project, created to learn computational physics and software development.
 
 ### Physical model
-- **Discrete photons**: Photons are treated as discrete particles, not as variable packets of energy. Energy is counted as a fraction of total photons. 
-- **Plane-parallel approximation**: Atmosphere consists of horizontally uniform layers.
-- **Multi-material atmospheric layers**: layers can consist of a few atmospheric materials simultaneously. A photon is assigned a material randomly when it is initialized and again when it crosses into a new layer. Each material has its own optical density, single-scattering albedo and phase function.
-- **Custom Phase-Functions**: Henyey-Greenstein and Rayleigh phase function are already implemented in the simulation, but any custom user-defined function can be constructed using the `Scattering` class.
-- **Surface Reflections**: Surface consists of materials, each of which having its albedo, a predefined reflection (`Lambertian`, `Mirror`) and a `ProceduralMap` that outputs material ID based on coordinates.
-- **Photon Properties**: Light is treated as monochromatic, non-polarized particles. During the simulation they can get scattered, reflected or absorbed. 
-- **Incident Flux & Adjacency Effect**: Custom detectors allow measuring downward/upward flux at any arbitrary altitude - helpful for visualizing adjacency effect.
+- **Analog Monte Carlo Approach**: Light is simulated using discrete photon packets. Final flux is calculated as a fraction of the total detected packets.
+- **Plane-parallel approximation**: The atmosphere consists of horizontally uniform layers.
+- **Multi-material atmospheric layers**: Layers can consist of multiple atmospheric materials simultaneously. A photon is assigned a material randomly when it is initialized and again when it crosses into a new layer. Each material has its own extinction coefficient, SSA and phase function.
+- **Custom Phase Functions**: Henyey-Greenstein and Rayleigh phase functions are already implemented in the simulation, but any custom user-defined function can be constructed using the `Scattering` class.
+- **Surface Reflections**: The surface consists of materials, each with its own albedo, a predefined BRDF reflection model (`Lambertian`, `Mirror`), and a `ProceduralMap` that outputs material ID based on spatial coordinates.
+- **Photon Properties**: Light is treated as monochromatic, non-polarized particles. During the simulation they can be scattered, reflected, or absorbed. 
+- **Incident Irradiance & Adjacency Effect**: Custom detectors allow measuring downward/upward incident flux at any arbitrary altitude - helpful for visualizing the adjacency effect.
 
 
 ## Technical implementation:
-- Simulation uses `numpy` to simulate photons simultaneously in large batches.
-- Results are plotted using `matplotlib` and `seaborn` (eg. photon paths, flux profile, 2d ground flux map)
-- Code uses multiprocessing to run batches in parallel.
+- The simulation uses `numpy` to simulate photons simultaneously in large batches.
+- The results are plotted using `matplotlib` and `seaborn` (e.g., photon paths, flux profile, 2D ground flux maps)
+- The code uses multiprocessing to run batches in parallel.
   
 ## Installation:
 - Using `uv` ([install uv](https://docs.astral.sh/uv/getting-started/installation/)):
-```
+```bash
 uv tool install atmorad-py
 ```
 - Using `pip`:
-```
+```bash
 pip install atmorad-py
 ```
 - Run the simulation:
-```
-atmorad demo-config.toml
+```bash
+atmorad --init
+atmorad simulation.toml
 ```
 - Check `results/` directory for simulation artifacts.
 
 ## Project Structure
-- `engine/`: divides photons into batches and runs the simulation.
-- `Scene`: keeps track of the environment.
-- `Atmosphere` and `Surface`: keep track of optical properties, phase functions, reflection functions and layer structures.
-- `ResultAnalyzer`: Generates plots based on simulation results.
+- `engine/`: Divides photons into batches and runs the simulation.
+- `physics/`: Contains a rotation function, scattering phase functions, reflection functions.
+- `environment/`: Keeps track of the environment. Contains `Scene`, `Atmosphere` and `Surface` classes.
+- `detectors/`: Provides functionality for tracking photons during the simulation and generates results.
+- `output/`: Handles results and figure generation.
+- `config/` and `builder.py`: Parses `.toml` configuration file and generates simulation context.
+- `cli.py`: Provides CLI for `atmorad`.
 
 ## Customization
 You can define your own surface reflection algorithms and scattering phase functions using decorators as shown below:
@@ -122,7 +126,8 @@ Then you can use your defined materials for atmospheric layers and surface maps:
 [[layer]]
 z_range_km = [0, 2]
 materials = [{type = "custom-atm-material", weight = 1.0}]
-...
+
+# ...
 
 [surface]
 name = "uniform"
@@ -134,7 +139,7 @@ material = "custom-surf-material"
 
 ## Acknowledgments
 - This project was inspired by the lectures on *Radiative Processes in the Atmosphere* by Prof. K. Markowicz, Faculty of Physics, University of Warsaw.
-- Large Language Models were used for code-debugging and learning best Python practices (e.g. `dataclasses`, `__init__.py` import interfaces, class responsibilities, config parsing).
+- Large Language Models were used for code debugging and learning best Python practices (e.g. `dataclasses`, `__init__.py` import interfaces, class responsibilities, config parsing).
 
 ## Contributing
 Feel free to open an [Issue](https://github.com/dabrokarol/atmorad-py/issues) or submit a Pull Request if you'd like to contribute or report a bug.
