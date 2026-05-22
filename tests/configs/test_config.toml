@@ -44,5 +44,4 @@ materials = [{type = "air", weight = 1.0}]
 
 [surface]
 name = "uniform"
-radius_km = 20
 material = "snow"

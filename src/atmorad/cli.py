@@ -80,7 +80,14 @@ def run_simulation(config, quiet):
         f"Starting {context.config.engine.cpu_cores}-core simulation ({context.config.engine.num_photons:_} photons)"
     )
 
-    runner = MCRadiationRunner(context, data_io, quiet)
+    runner = MCRadiationRunner(
+        context=context,
+        quiet=quiet,
+        on_checkpoint=data_io.save_checkpoint,
+        on_finish=data_io.save_simulation_run,
+        on_cleanup=data_io.delete_checkpoint,
+        load_checkpoint_fn=data_io.load_checkpoint,
+    )
     runner.run()
 
     results_dict = runner.get_results()

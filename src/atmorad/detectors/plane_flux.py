@@ -36,10 +36,6 @@ class IncidentFluxMapDetector(BaseDetector):
             -self.domain_y / 2, self.domain_y / 2 + self.resolution, self.resolution
         )
 
-        toa = scene.atmosphere.get_total_thickness()
-        self.target_z_array[self.target_z_array == toa]
-        self.target_z_array[self.target_z_array == 0]
-
     def _process_hits(
         self,
         batch: PhotonBatch,

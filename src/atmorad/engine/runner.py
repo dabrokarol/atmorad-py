@@ -2,6 +2,7 @@ import concurrent.futures
 import logging
 import multiprocessing
 import time
+from typing import Callable
 
 import numpy as np
 from tqdm import tqdm
@@ -9,16 +10,27 @@ from tqdm import tqdm
 from atmorad.constants import CHECKPOINT_INTERVAL
 from atmorad.detectors import build_detectors_from_config, merge_incremental
 from atmorad.models import SimContext
-from atmorad.output import DataIO
 
 from .core import Engine
 
 
 class MCRadiationRunner:
-    def __init__(self, context: SimContext, data_io: DataIO, quiet: bool = False):
+    def __init__(
+        self,
+        context: SimContext,
+        quiet: bool = False,
+        on_checkpoint: Callable[[int, dict], None] = None,
+        on_finish: Callable[[dict], None] = None,
+        load_checkpoint_fn: Callable[[], tuple] = None,
+        on_cleanup: Callable[[], None] = None,
+    ):
         self.context = context
-        self.data_io = data_io
         self.quiet = quiet
+
+        self.on_checkpoint = on_checkpoint
+        self.on_finish = on_finish
+        self.load_checkpoint_fn = load_checkpoint_fn
+        self.on_cleanup = on_cleanup
 
     def run(self):
         start_time = time.perf_counter()
@@ -70,13 +82,13 @@ class MCRadiationRunner:
                 all_results = merge_incremental(all_results, chunk_res)
 
                 if (i + 1) % CHECKPOINT_INTERVAL == 0:
-                    self.data_io.save_checkpoint(
-                        simulated_photons=current_photons,
-                        results=all_results,
-                    )
+                    if self.on_checkpoint:
+                        self.on_checkpoint(current_photons, all_results)
 
-        self.data_io.save_simulation_run(all_results)
-        self.data_io.delete_checkpoint()
+        if self.on_finish:
+            self.on_finish(all_results)
+        if self.on_cleanup:
+            self.on_cleanup()
 
         return all_results
 
@@ -84,7 +96,10 @@ class MCRadiationRunner:
         if not self.context.config.engine.resume_from_checkpoint:
             return 0, {}
 
-        simulated_photons, all_results, saved_config = self.data_io.load_checkpoint()
+        if not self.load_checkpoint_fn:
+            return 0, {}
+
+        simulated_photons, all_results, saved_config = self.load_checkpoint_fn()
 
         if saved_config is not None:
             if not self.context.config.is_compatible_for_resume(saved_config):
