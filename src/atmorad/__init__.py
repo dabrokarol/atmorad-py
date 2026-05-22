@@ -1,15 +1,15 @@
+from .registry import register_reflection, register_scattering, register_surface_map
+
 from .builder import build_context
 from .cli import save_all_figures
 from .constants import X, Y, Z
 from .engine.runner import MCRadiationRunner
-from .environment import BaseSurfaceMap, register_surface_map
+from .environment import BaseSurfaceMap
 from .output import DataIO, ResultAnalyzer
 from .physics import (
     Scattering,
     SurfaceReflection,
     orientation,
-    register_reflection,
-    register_scattering,
     rotate,
 )
 

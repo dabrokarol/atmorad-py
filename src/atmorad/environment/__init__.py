@@ -1,5 +1,4 @@
 from .atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
-from .registry import SURFACE_MAPS, register_surface_map
 from .scene import Scene
 from .surface import (
     BaseSurface,
@@ -18,7 +17,5 @@ __all__ = [
     "BaseSurface",
     "FlatSurface",
     "SurfaceMaterial",
-    "SURFACE_MAPS",
-    "register_surface_map",
     "BaseSurfaceMap",
 ]

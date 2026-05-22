@@ -2,7 +2,6 @@ from pathlib import Path
 
 from atmorad.config import EnvironmentConfig, GeometryConfig, load_config
 from atmorad.environment import (
-    SURFACE_MAPS,
     Atmosphere,
     AtmosphericLayer,
     AtmosphericMedium,
@@ -10,7 +9,7 @@ from atmorad.environment import (
     Scene,
     SurfaceMaterial,
 )
-from atmorad.physics import REFLECTION_MODELS, SCATTERING_MODELS
+from atmorad.registry import REFLECTION_MODELS, SURFACE_MAPS, SCATTERING_MODELS
 
 from .models import SimContext
 

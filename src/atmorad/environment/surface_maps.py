@@ -4,7 +4,7 @@ import numpy as np
 
 from atmorad.constants import X, Y
 
-from .registry import register_surface_map
+from atmorad.registry import register_surface_map
 
 
 class BaseSurfaceMap(ABC):

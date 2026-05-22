@@ -6,7 +6,7 @@ import numpy as np
 from atmorad.constants import Z
 
 from .geometry import orientation
-from .registry import register_reflection
+from atmorad.registry import register_reflection
 
 
 class SurfaceReflection(ABC):
