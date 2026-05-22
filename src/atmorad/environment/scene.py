@@ -5,11 +5,11 @@ from atmorad.models import PhotonBatch
 from atmorad.physics import sun_zenith_to_direction
 
 from .atmosphere import Atmosphere
-from .surface import Surface
+from .surface import BaseSurface
 
 
 class Scene:
-    def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:
+    def __init__(self, surface: BaseSurface, atmosphere: Atmosphere) -> None:
         self.surface = surface
         self.atmosphere = atmosphere
 

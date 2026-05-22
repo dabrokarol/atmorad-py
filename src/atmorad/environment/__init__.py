@@ -1,14 +1,13 @@
 from .atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
+from .registry import SURFACE_MAPS, register_surface_map
 from .scene import Scene
 from .surface import (
-    CheckerboardMap,
-    CircleMap,
+    BaseSurface,
     FlatSurface,
-    GridMap,
-    SplitHalfXMap,
-    Surface,
     SurfaceMaterial,
-    UniformMap,
+)
+from .surface_maps import (
+    BaseSurfaceMap,
 )
 
 __all__ = [
@@ -16,12 +15,10 @@ __all__ = [
     "AtmosphericLayer",
     "AtmosphericMedium",
     "Scene",
-    "Surface",
+    "BaseSurface",
     "FlatSurface",
     "SurfaceMaterial",
-    "UniformMap",
-    "SplitHalfXMap",
-    "CheckerboardMap",
-    "CircleMap",
-    "GridMap",
+    "SURFACE_MAPS",
+    "register_surface_map",
+    "BaseSurfaceMap",
 ]

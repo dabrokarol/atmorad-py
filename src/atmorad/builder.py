@@ -2,20 +2,17 @@ from pathlib import Path
 
 from atmorad.config import EnvironmentConfig, GeometryConfig, load_config
 from atmorad.environment import (
+    SURFACE_MAPS,
     Atmosphere,
     AtmosphericLayer,
     AtmosphericMedium,
-    CheckerboardMap,
-    CircleMap,
     FlatSurface,
     Scene,
-    SplitHalfXMap,
     SurfaceMaterial,
-    UniformMap,
 )
-from atmorad.physics.registry import REFLECTION_MODELS, SCATTERING_MODELS
+from atmorad.physics import REFLECTION_MODELS, SCATTERING_MODELS
 
-from .engine.runner import SimContext
+from .models import SimContext
 
 
 def _build_atmosphere_materials(materials_data: dict) -> dict[str, AtmosphericMedium]:
@@ -40,7 +37,7 @@ def _build_surface(
     built_materials = {}
     for material_name, material_data in materials_config.items():
         ref_data = material_data["reflection"]
-        ref_type = ref_data.pop("type")
+        ref_type = ref_data["type"]
         ref_kwargs = {k: v for k, v in ref_data.items() if k != "type"}
         reflection_model = REFLECTION_MODELS[ref_type](**ref_kwargs)
 
@@ -48,32 +45,23 @@ def _build_surface(
             albedo=material_data["albedo"], reflection=reflection_model
         )
 
-    map_name = surface_config.get("name")
+    map_name = surface_config["name"]
     is_periodic = geom_config.boundary_condition == "periodic"
 
-    if map_name == "uniform":
-        ground_map = UniformMap()
-        ordered_materials = [built_materials[surface_config["material"]]]
-    elif map_name == "split-half-x":
-        ground_map = SplitHalfXMap()
-        ordered_materials = [
-            built_materials[surface_config["material_left"]],
-            built_materials[surface_config["material_right"]],
-        ]
-    elif map_name == "checkerboard":
-        ground_map = CheckerboardMap(tile_size_km=surface_config["tile_size_km"])
-        ordered_materials = [
-            built_materials[surface_config["material_a"]],
-            built_materials[surface_config["material_b"]],
-        ]
-    elif map_name == "circle":
-        ground_map = CircleMap(radius_km=surface_config["radius_km"])
-        ordered_materials = [
-            built_materials[surface_config["material_in"]],
-            built_materials[surface_config["material_out"]],
-        ]
-    else:
-        raise ValueError(f"Unsupported surface map name: '{map_name}'")
+    map_data = SURFACE_MAPS[map_name]
+    MapClass = map_data["class"]
+    material_keys = map_data["material_keys"]
+
+    material_names = [surface_config[key] for key in material_keys]
+
+    kwargs = {k: v for k, v in surface_config.items() if k not in material_keys and k != "name"}
+    print(kwargs, material_names)
+
+    ground_map = MapClass(**kwargs)
+
+    ordered_materials = []
+    for name in material_names:
+        ordered_materials.append(built_materials[name])
 
     return FlatSurface(
         ground_map=ground_map,
