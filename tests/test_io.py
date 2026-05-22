@@ -60,20 +60,30 @@ def assert_dicts_close(dict1, dict2, path="", ignore_keys=None):
                 f"Type mismatch at '{current_path}': {type(v1)} vs {type(v2)}"
             )
             assert_dicts_close(v1, v2, current_path, ignore_keys)
-            
+
         elif isinstance(v1, (list, tuple)):
-            assert isinstance(v2, (list, tuple)), f"Type mismatch at '{current_path}': {type(v1)} vs {type(v2)}"
-            assert len(v1) == len(v2), f"Length mismatch at '{current_path}': {len(v1)} vs {len(v2)}"
-            
+            assert isinstance(v2, (list, tuple)), (
+                f"Type mismatch at '{current_path}': {type(v1)} vs {type(v2)}"
+            )
+            assert len(v1) == len(v2), (
+                f"Length mismatch at '{current_path}': {len(v1)} vs {len(v2)}"
+            )
+
             for i, (item1, item2) in enumerate(zip(v1, v2)):
                 if isinstance(item1, np.ndarray):
-                    np.testing.assert_allclose(item1, item2, err_msg=f"Array mismatch at '{current_path}[{i}]'")
+                    np.testing.assert_allclose(
+                        item1, item2, err_msg=f"Array mismatch at '{current_path}[{i}]'"
+                    )
                 elif isinstance(item1, dict):
                     assert_dicts_close(item1, item2, f"{current_path}[{i}]", ignore_keys)
                 elif isinstance(item1, (float, np.floating)):
-                    assert np.isclose(item1, item2), f"Float mismatch at '{current_path}[{i}]': {item1} != {item2}"
+                    assert np.isclose(item1, item2), (
+                        f"Float mismatch at '{current_path}[{i}]': {item1} != {item2}"
+                    )
                 else:
-                    assert item1 == item2, f"Value mismatch at '{current_path}[{i}]': {item1} != {item2}"
+                    assert item1 == item2, (
+                        f"Value mismatch at '{current_path}[{i}]': {item1} != {item2}"
+                    )
 
         elif isinstance(v1, np.ndarray) or isinstance(v2, np.ndarray):
             np.testing.assert_allclose(v1, v2, err_msg=f"Array mismatch at '{current_path}'")

@@ -1,12 +1,10 @@
-from typing import Self
 
 import numpy as np
-from pydantic import ConfigDict
 
 from atmorad.config import SimConfig
 from atmorad.constants import X, Y, Z
 from atmorad.environment import Scene
-from atmorad.models import BaseResult, PhotonBatch, IncidentFluxMapResult
+from atmorad.models import IncidentFluxMapResult, PhotonBatch
 from atmorad.registry import register_detector
 
 from .base import BaseDetector
@@ -92,13 +90,13 @@ class IncidentFluxMapDetector(BaseDetector):
         self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
     ):
         pass
-    
+
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         pass
-    
+
     def finalize(self):
         pass
-    
+
     def _build_maps(self, hit_p: list, hit_x: list, hit_y: list) -> dict:
         flux_maps = {}
         if hit_x:

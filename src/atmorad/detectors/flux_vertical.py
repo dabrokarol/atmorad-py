@@ -1,7 +1,5 @@
-from typing import Self
 
 import numpy as np
-from pydantic import ConfigDict
 
 from atmorad.config import SimConfig
 from atmorad.constants import Z

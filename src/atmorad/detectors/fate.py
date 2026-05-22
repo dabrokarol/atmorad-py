@@ -1,10 +1,9 @@
-from typing import Self
 
 import numpy as np
 
 from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch, FateResult
+from atmorad.models import FateResult, PhotonBatch
 from atmorad.registry import register_detector
 
 from .base import BaseDetector

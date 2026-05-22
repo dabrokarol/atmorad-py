@@ -1,16 +1,13 @@
-from typing import Self
 
 import numpy as np
-from pydantic import ConfigDict
 
 from atmorad.config import SimConfig
 from atmorad.constants import X, Y, Z
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch, BoundaryAbsorptionResult
+from atmorad.models import BoundaryAbsorptionResult, PhotonBatch
 from atmorad.registry import register_detector
 
 from .base import BaseDetector
-
 
 
 @register_detector("boundary_flux")
@@ -39,10 +36,12 @@ class BoundaryAbsorptionDetector(BaseDetector):
 
     def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
         pass
-    
-    def record_scattering(self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray):
+
+    def record_scattering(
+        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    ):
         pass
-    
+
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         if not np.any(terminated_mask):
             return
@@ -62,7 +61,7 @@ class BoundaryAbsorptionDetector(BaseDetector):
         if np.any(above_toa_mask):
             self.space_x.append(wrapped_x[above_toa_mask])
             self.space_y.append(wrapped_y[above_toa_mask])
-            
+
     def finalize(self):
         pass
 

@@ -1,15 +1,12 @@
-from typing import Self
 
 import numpy as np
-from pydantic import ConfigDict
 
 from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch, PathTrackingResult
+from atmorad.models import PathTrackingResult, PhotonBatch
 from atmorad.registry import register_detector
 
 from .base import BaseDetector
-
 
 
 @register_detector("path_tracking")
@@ -33,7 +30,7 @@ class PathTrackingDetector(BaseDetector):
 
             for i, pos in zip(tracked_ids, tracked_pos.T):
                 self.tracked_paths[i].append(pos.copy())
-                
+
     def record_scattering(
         self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
     ):

@@ -21,9 +21,9 @@ def test_energy_conservation(sim_context):
     runner = MCRadiationRunner(sim_context)
     runner.run()
     results = runner.get_results()
-    
+
     fate_res = results.detectors.get("fate") or results.detectors.get("FateDetector")
-    
+
     if fate_res:
         reflected = fate_res.photons_escaped_toa
         transmitted = fate_res.photons_absorbed_surface
@@ -48,16 +48,20 @@ def test_no_nan_in_maps(sim_context):
     results = runner.get_results()
 
     # Check Boundary Maps (Surface Absorption)
-    boundary_res = results.detectors.get("boundary_flux") or results.detectors.get("BoundaryAbsorptionDetector")
+    boundary_res = results.detectors.get("boundary_flux") or results.detectors.get(
+        "BoundaryAbsorptionDetector"
+    )
     if boundary_res and boundary_res.surface_absorption_map_2d is not None:
         assert not np.isnan(boundary_res.surface_absorption_map_2d).any()
-        
+
     # Check Boundary Maps (TOA reflection)
     if boundary_res and boundary_res.toa_flux_map_2d is not None:
         assert not np.isnan(boundary_res.toa_flux_map_2d).any()
 
     # Check Incident Plane Maps (Downward and Upward)
-    plane_res = results.detectors.get("plane_flux") or results.detectors.get("IncidentFluxMapDetector")
+    plane_res = results.detectors.get("plane_flux") or results.detectors.get(
+        "IncidentFluxMapDetector"
+    )
     if plane_res:
         for flux_map in plane_res.incident_flux_down_maps_2d.values():
             assert not np.isnan(flux_map).any()

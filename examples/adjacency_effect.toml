@@ -16,6 +16,15 @@ domain_size_x_km = 100
 domain_size_y_km = 100
 
 [detectors]
+active = [
+    "fate", 
+    "path_tracking", 
+    "vertical_flux", 
+    "absorption_vertical", 
+    "plane_flux", 
+    "boundary_flux"
+]
+
 num_full_paths = 0
 flux_maps_z_levels_km = [0, 4.0]
 

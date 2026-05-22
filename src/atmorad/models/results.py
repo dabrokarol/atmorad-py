@@ -1,12 +1,15 @@
-import numpy as np
 from typing import Self, Union
+
+import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
 
 class BaseResult(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def merge(self, other: Self) -> Self:
         raise NotImplementedError
+
 
 class EngineResult(BaseResult):
     cpu_time_s: float = Field(default=0.0, ge=0.0)
@@ -18,7 +21,9 @@ class EngineResult(BaseResult):
             simulation_time_s=self.simulation_time_s + other.simulation_time_s,
         )
 
+
 # --- DETECTOR RESULTS ---
+
 
 class FateResult(BaseResult):
     photons_absorbed_surface: int = 0
@@ -29,10 +34,12 @@ class FateResult(BaseResult):
     def merge(self, other: Self) -> Self:
         return self.__class__(
             photons_absorbed_surface=self.photons_absorbed_surface + other.photons_absorbed_surface,
-            photons_absorbed_atmosphere=self.photons_absorbed_atmosphere + other.photons_absorbed_atmosphere,
+            photons_absorbed_atmosphere=self.photons_absorbed_atmosphere
+            + other.photons_absorbed_atmosphere,
             photons_escaped_toa=self.photons_escaped_toa + other.photons_escaped_toa,
-            cpu_time_s=self.cpu_time_s + other.cpu_time_s
+            cpu_time_s=self.cpu_time_s + other.cpu_time_s,
         )
+
 
 class VerticalFluxResult(BaseResult):
     measure_z: np.ndarray
@@ -41,10 +48,11 @@ class VerticalFluxResult(BaseResult):
 
     def merge(self, other: Self) -> Self:
         return self.__class__(
-            measure_z=self.measure_z, 
+            measure_z=self.measure_z,
             flux_up=self.flux_up + other.flux_up,
-            flux_down=self.flux_down + other.flux_down
+            flux_down=self.flux_down + other.flux_down,
         )
+
 
 class AbsorptionProfileResult(BaseResult):
     measure_z: np.ndarray
@@ -53,8 +61,9 @@ class AbsorptionProfileResult(BaseResult):
     def merge(self, other: Self) -> Self:
         return self.__class__(
             measure_z=self.measure_z,
-            absorption_profile_1d=self.absorption_profile_1d + other.absorption_profile_1d
+            absorption_profile_1d=self.absorption_profile_1d + other.absorption_profile_1d,
         )
+
 
 class IncidentFluxMapResult(BaseResult):
     x_edges: np.ndarray
@@ -64,13 +73,22 @@ class IncidentFluxMapResult(BaseResult):
     incident_flux_up_maps_2d: dict[float, np.ndarray]
 
     def merge(self, other: Self) -> Self:
-        merged_down = {z: self.incident_flux_down_maps_2d[z] + other.incident_flux_down_maps_2d[z] for z in self.incident_flux_down_maps_2d}
-        merged_up = {z: self.incident_flux_up_maps_2d[z] + other.incident_flux_up_maps_2d[z] for z in self.incident_flux_up_maps_2d}
+        merged_down = {
+            z: self.incident_flux_down_maps_2d[z] + other.incident_flux_down_maps_2d[z]
+            for z in self.incident_flux_down_maps_2d
+        }
+        merged_up = {
+            z: self.incident_flux_up_maps_2d[z] + other.incident_flux_up_maps_2d[z]
+            for z in self.incident_flux_up_maps_2d
+        }
         return self.__class__(
-            x_edges=self.x_edges, y_edges=self.y_edges,
+            x_edges=self.x_edges,
+            y_edges=self.y_edges,
             flux_maps_z_levels_km=self.flux_maps_z_levels_km,
-            incident_flux_down_maps_2d=merged_down, incident_flux_up_maps_2d=merged_up
+            incident_flux_down_maps_2d=merged_down,
+            incident_flux_up_maps_2d=merged_up,
         )
+
 
 class BoundaryAbsorptionResult(BaseResult):
     x_edges: np.ndarray
@@ -80,10 +98,13 @@ class BoundaryAbsorptionResult(BaseResult):
 
     def merge(self, other: Self) -> Self:
         return self.__class__(
-            x_edges=self.x_edges, y_edges=self.y_edges,
-            surface_absorption_map_2d=self.surface_absorption_map_2d + other.surface_absorption_map_2d,
-            toa_flux_map_2d=self.toa_flux_map_2d + other.toa_flux_map_2d
+            x_edges=self.x_edges,
+            y_edges=self.y_edges,
+            surface_absorption_map_2d=self.surface_absorption_map_2d
+            + other.surface_absorption_map_2d,
+            toa_flux_map_2d=self.toa_flux_map_2d + other.toa_flux_map_2d,
         )
+
 
 class PathTrackingResult(BaseResult):
     sample_paths: dict[int, list[np.ndarray]]
@@ -96,29 +117,37 @@ class PathTrackingResult(BaseResult):
         return self.__class__(
             sample_paths={**self.sample_paths, **other.sample_paths},
             sample_escaped_toa={**self.sample_escaped_toa, **other.sample_escaped_toa},
-            sample_absorbed_atmosphere={**self.sample_absorbed_atmosphere, **other.sample_absorbed_atmosphere},
-            sample_absorbed_surface={**self.sample_absorbed_surface, **other.sample_absorbed_surface},
-            toa_z=self.toa_z
+            sample_absorbed_atmosphere={
+                **self.sample_absorbed_atmosphere,
+                **other.sample_absorbed_atmosphere,
+            },
+            sample_absorbed_surface={
+                **self.sample_absorbed_surface,
+                **other.sample_absorbed_surface,
+            },
+            toa_z=self.toa_z,
         )
+
 
 # --- MASTER SIMULATION MODEL ---
 
 AnyDetectorResult = Union[
-    FateResult, 
-    VerticalFluxResult, 
-    AbsorptionProfileResult, 
-    IncidentFluxMapResult, 
-    BoundaryAbsorptionResult, 
-    PathTrackingResult
+    FateResult,
+    VerticalFluxResult,
+    AbsorptionProfileResult,
+    IncidentFluxMapResult,
+    BoundaryAbsorptionResult,
+    PathTrackingResult,
 ]
+
 
 class SimulationResults(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     engine: EngineResult = EngineResult()
     detectors: dict[str, AnyDetectorResult] = {}
-    
-    @model_validator(mode='before')
+
+    @model_validator(mode="before")
     @classmethod
     def _parse_detectors(cls, data):
         """Correctly maps the raw dictionary back into the right Pydantic classes when loading from NetCDF."""
@@ -130,7 +159,7 @@ class SimulationResults(BaseModel):
                     if not isinstance(v, dict):
                         parsed_dets[k] = v
                         continue
-                    
+
                     # Explicitly match the key to the specific class
                     if k in ("fate", "FateDetector"):
                         parsed_dets[k] = FateResult(**v)

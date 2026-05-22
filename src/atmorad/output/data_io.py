@@ -159,7 +159,7 @@ class DataIO:
                 results_dict = {}
                 if "res" in ncfile.groups:
                     results_dict = self._load_group_to_dict(ncfile.groups["res"])
-                    
+
                 results = SimulationResults.model_validate(results_dict)
 
                 return simulated_photons, results, config
