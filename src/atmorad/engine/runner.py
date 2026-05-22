@@ -8,8 +8,8 @@ import numpy as np
 from tqdm import tqdm
 
 from atmorad.constants import CHECKPOINT_INTERVAL
-from atmorad.detectors import build_detectors_from_config, merge_incremental
-from atmorad.models import SimContext
+from atmorad.detectors import build_detectors_from_config
+from atmorad.models import SimContext, SimulationResults
 
 from .core import Engine
 
@@ -48,7 +48,7 @@ class MCRadiationRunner:
         total_photons = self.context.config.engine.num_photons
         remaining_photons = total_photons - simulated_photons
 
-        accumulated_time = all_results.get("simulation_time_s", 0.0)
+        accumulated_time = all_results.engine.simulation_time_s
 
         if remaining_photons <= 0:
             logging.info(
@@ -83,26 +83,26 @@ class MCRadiationRunner:
             for i, (chunk_res, chunk_size) in enumerate(results_generator):
                 current_photons += chunk_size
                 pbar.update(chunk_size)
-                all_results = merge_incremental(all_results, chunk_res)
+                all_results = all_results.merge(chunk_res)
 
                 current_elapsed = time.perf_counter() - run_start_time
-                all_results["simulation_time_s"] = accumulated_time + current_elapsed
+                all_results.engine.simulation_time_s = accumulated_time + current_elapsed
 
                 if (i + 1) % CHECKPOINT_INTERVAL == 0:
                     if self.on_checkpoint:
                         self.on_checkpoint(current_photons, all_results)
 
         final_elapsed = time.perf_counter() - run_start_time
-        all_results["simulation_time_s"] = accumulated_time + final_elapsed
+        all_results.engine.simulation_time_s = accumulated_time + final_elapsed
 
         return all_results
 
     def _load_initial_state(self):
         if not self.context.config.engine.resume_from_checkpoint:
-            return 0, {}
+            return 0, SimulationResults()
 
         if not self.load_checkpoint_fn:
-            return 0, {}
+            return 0, SimulationResults()
 
         simulated_photons, all_results, saved_config = self.load_checkpoint_fn()
 
@@ -112,10 +112,10 @@ class MCRadiationRunner:
                     "Configuration mismatch! The current setup differs from the saved simulation checkpoint. "
                     "Starting a fresh simulation."
                 )
-                return 0, {}
+                return 0, SimulationResults()
             return simulated_photons, all_results
 
-        return 0, {}
+        return 0, SimulationResults()
 
     def _calculate_batches(self, remaining_photons: int, batch_size: int):
         full_batches, remainder = divmod(remaining_photons, batch_size)
