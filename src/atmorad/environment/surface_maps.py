@@ -19,7 +19,7 @@ class UniformMap(BaseSurfaceMap):
         return np.zeros_like(pos[X], dtype=int)
 
 
-@register_surface_map("split-half-x", ["material_left", "material_right"])
+@register_surface_map("split_half_x", ["material_left", "material_right"])
 class SplitHalfXMap(BaseSurfaceMap):
     def get_material_ids(self, pos: np.ndarray):
         return np.where(pos[X] < 0, 0, 1)
