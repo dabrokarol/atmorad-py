@@ -11,7 +11,7 @@ from atmorad.physics import SurfaceReflection
 from .surface_maps import BaseSurfaceMap
 
 
-@dataclass
+@dataclass(slots=True)
 class SurfaceMaterial:
     albedo: float
     reflection: SurfaceReflection

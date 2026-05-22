@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 
 
-@dataclass
+@dataclass(slots=True)
 class PhotonBatch:
     pos: np.ndarray
     direction: np.ndarray

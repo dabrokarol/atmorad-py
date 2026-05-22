@@ -8,7 +8,7 @@ from atmorad.models import PhotonBatch
 from atmorad.physics import Scattering, rotate
 
 
-@dataclass
+@dataclass(slots=True)
 class AtmosphericMedium:
     extinction_coeff: float
     ssa: float
