@@ -51,7 +51,9 @@ class HenyeyGreensteinScattering(Scattering):
         elif np.isclose(assymetry_factor, -1.0, atol=EPSILON):
             pdf = np.isclose(cos_grid, -1.0, atol=EPSILON).astype(float)
         else:
-            pdf = (1 - assymetry_factor**2) / (2 * (1 + assymetry_factor**2 - 2 * assymetry_factor * cos_grid) ** 1.5)
+            pdf = (1 - assymetry_factor**2) / (
+                2 * (1 + assymetry_factor**2 - 2 * assymetry_factor * cos_grid) ** 1.5
+            )
 
         super().__init__(pdf_array=pdf, resolution=resolution)
 
