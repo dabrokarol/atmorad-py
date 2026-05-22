@@ -1,4 +1,3 @@
-
 import numpy as np
 
 from atmorad.config import SimConfig
