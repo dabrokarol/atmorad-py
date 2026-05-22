@@ -47,10 +47,10 @@ def load_config(custom_config_path: Path) -> SimConfig:
         custom_config_data = tomllib.load(f)
 
     config_data = _deep_merge_dicts(default_config_data, custom_config_data)
-    
+
     if "surface" not in config_data:
         raise ValueError("Configuration must include a [surface] definition.")
-        
+
     if "layer" not in config_data or len(config_data["layer"]) == 0:
         raise ValueError("Configuration must include at least one [[layer]].")
 
