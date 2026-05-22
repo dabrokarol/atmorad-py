@@ -50,7 +50,7 @@ def setup_parser():
 
 def configure_logging(verbose, quiet):
     if quiet:
-        level = logging.ERROR
+        level = logging.WARNING
         fmt = "%(levelname)s: %(message)s"
     elif verbose:
         level = logging.DEBUG
@@ -80,7 +80,7 @@ def run_simulation(config, quiet):
         f"Starting {context.config.engine.cpu_cores}-core simulation ({context.config.engine.num_photons:_} photons)"
     )
 
-    runner = MCRadiationRunner(context, data_io)
+    runner = MCRadiationRunner(context, data_io, quiet)
     runner.run()
 
     results_dict = runner.get_results()

@@ -15,9 +15,10 @@ from .core import Engine
 
 
 class MCRadiationRunner:
-    def __init__(self, context: SimContext, data_io: DataIO):
+    def __init__(self, context: SimContext, data_io: DataIO, quiet: bool = False):
         self.context = context
         self.data_io = data_io
+        self.quiet = quiet
 
     def run(self):
         start_time = time.perf_counter()
@@ -61,6 +62,7 @@ class MCRadiationRunner:
             initial=simulated_photons,
             desc="Simulating Photons",
             unit=" photons",
+            disable=self.quiet
         ) as pbar:
             for i, (chunk_res, chunk_size) in enumerate(results_generator):
                 current_photons += chunk_size
@@ -86,8 +88,8 @@ class MCRadiationRunner:
 
         if saved_config is not None:
             if not self.context.config.is_compatible_for_resume(saved_config):
-                logging.error(
-                    "Configuration mismatch! The current setup differs from the saved simulation state. "
+                logging.warning(
+                    "Configuration mismatch! The current setup differs from the saved simulation checkpoint. "
                     "Starting a fresh simulation."
                 )
                 return 0, {}
