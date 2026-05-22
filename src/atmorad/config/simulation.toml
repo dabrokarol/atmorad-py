@@ -20,16 +20,15 @@ domain_size_y_km = 100
 boundary_condition = "periodic"
 
 [detectors]
-vertical_profiles_resolution_km = 1.0
+active = ["fate", "vertical_flux", "absorption_vertical"]
+
+# Configuration for the active detectors above
+vertical_profiles_resolution_km = 0.5
 horizontal_maps_resolution_km = 1.0
-num_full_paths = 200
-flux_maps_z_levels_km = [0.0, 4.0]
+num_full_paths = 100
+flux_maps_z_levels_km = [0.0, 4.0, 10.0]
 
 [output]
-save_absorption_maps = true
-save_incident_flux_maps = true
-save_vertical_profiles = true
-save_photon_paths = true 
 save_plots = true
 overwrite = true
 path = 'results'

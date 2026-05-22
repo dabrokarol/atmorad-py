@@ -57,7 +57,16 @@ class MetadataConfig(BaseModel):
     description: str = ""
 
 
+DetectorName = Literal[
+    "fate", "path_tracking", "vertical_flux", "absorption_vertical", "plane_flux", "boundary_flux"
+]
+
+
 class DetectorConfig(BaseModel):
+    active: list[DetectorName] = Field(
+        default=["fate"], description="List of active detectors to run during the simulation."
+    )
+
     vertical_profiles_resolution_km: float = Field(gt=0.0)
     horizontal_maps_resolution_km: float = Field(gt=0.0)
     num_full_paths: int = Field(ge=0)
@@ -65,12 +74,11 @@ class DetectorConfig(BaseModel):
 
 
 class OutputConfig(BaseModel):
-    save_absorption_maps: bool = False
-    save_incident_flux_maps: bool = False
-    save_vertical_profiles: bool = False
-    save_photon_paths: bool = False
     overwrite: bool = False
-    save_plots: bool = False
+    save_plots: bool = Field(
+        default=True,
+        description="If true, generates and saves standard PNG plots for all active detectors.",
+    )
     path: str | Path
 
 

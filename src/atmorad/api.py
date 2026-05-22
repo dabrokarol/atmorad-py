@@ -1,4 +1,3 @@
-# src/atmorad/api.py
 from pathlib import Path
 
 from .builder import build_context

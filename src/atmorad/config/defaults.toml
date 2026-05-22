@@ -26,10 +26,6 @@ num_full_paths = 200
 flux_maps_z_levels_km = []
 
 [output]
-save_absorption_maps = false
-save_incident_flux_maps = false
-save_vertical_profiles = false
-save_photon_paths = false 
 save_plots = false
 overwrite = false
 path = "results"
