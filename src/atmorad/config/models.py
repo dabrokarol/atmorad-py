@@ -71,7 +71,7 @@ class OutputConfig(BaseModel):
     save_photon_paths: bool = False
     overwrite: bool = False
     save_plots: bool = False
-    path: str
+    path: str | Path
 
 
 class EngineConfig(BaseModel):

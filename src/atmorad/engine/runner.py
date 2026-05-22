@@ -40,6 +40,11 @@ class MCRadiationRunner:
         current_time = self.results.get("simulation_time_s", 0.0)
         self.results["simulation_time_s"] = current_time + (end_time - start_time)
 
+        if self.on_finish:
+            self.on_finish(self.results)
+        if self.on_cleanup:
+            self.on_cleanup()
+
     def get_results(self):
         return self.results
 
@@ -84,11 +89,6 @@ class MCRadiationRunner:
                 if (i + 1) % CHECKPOINT_INTERVAL == 0:
                     if self.on_checkpoint:
                         self.on_checkpoint(current_photons, all_results)
-
-        if self.on_finish:
-            self.on_finish(all_results)
-        if self.on_cleanup:
-            self.on_cleanup()
 
         return all_results
 
