@@ -1,5 +1,5 @@
+from .api import run, save_all_figures
 from .builder import build_context
-from .cli import save_all_figures
 from .constants import X, Y, Z
 from .engine.runner import MCRadiationRunner
 from .environment import BaseSurfaceMap
@@ -29,4 +29,5 @@ __all__ = [
     "X",
     "Y",
     "Z",
+    "run",
 ]

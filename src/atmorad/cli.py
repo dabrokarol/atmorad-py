@@ -6,9 +6,7 @@ import sys
 import traceback
 from pathlib import Path
 
-from atmorad.builder import build_context
-from atmorad.engine import MCRadiationRunner
-from atmorad.output import DataIO, ResultAnalyzer
+import atmorad
 
 
 def init_config():
@@ -62,43 +60,6 @@ def configure_logging(verbose, quiet):
     logging.basicConfig(level=level, format=fmt)
 
 
-def save_all_figures(analyzer, data_io):
-    for fig, relative_path in analyzer.generate_all_figures():
-        data_io.save_figure(fig, relative_path)
-
-
-def run_simulation(config, quiet):
-    config_path = config.resolve()
-
-    logging.info(f"Loading configuration from: {config_path.name}")
-
-    context = build_context(config_path)
-
-    data_io = DataIO(context.config)
-
-    logging.info(
-        f"Starting {context.config.engine.cpu_cores}-core simulation ({context.config.engine.num_photons:_} photons)"
-    )
-
-    runner = MCRadiationRunner(
-        context=context,
-        quiet=quiet,
-        on_checkpoint=data_io.save_checkpoint,
-        on_finish=data_io.save_simulation_run,
-        on_cleanup=data_io.delete_checkpoint,
-        load_checkpoint_fn=data_io.load_checkpoint,
-    )
-    runner.run()
-
-    results_dict = runner.get_results()
-    analyzer = ResultAnalyzer(results_dict, context.config)
-
-    save_all_figures(analyzer, data_io)
-
-    if not quiet:
-        print("\n".join((analyzer.experiment_summary(), data_io.output_summary())))
-
-
 def main():
     parser = setup_parser()
     args = parser.parse_args()
@@ -117,7 +78,7 @@ def main():
     configure_logging(args.verbose, args.quiet)
 
     try:
-        run_simulation(args.config, args.quiet)
+        atmorad.run(args.config, args.quiet)
         return 0
 
     except KeyboardInterrupt:
