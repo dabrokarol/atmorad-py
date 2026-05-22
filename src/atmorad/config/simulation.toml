@@ -48,11 +48,11 @@ reflection = {type = "specular", roughness = 0.0}
 extinction_coeff_per_km = 0.01
 ssa = 0.9
 scattering = {type = "rayleigh"} # rayleigh, hg, isotropic
-[atmosphere_materials.light-clouds]
+[atmosphere_materials.light_clouds]
 extinction_coeff_per_km = 1
 ssa = 0.999999
 scattering = {type = "hg", assymetry_factor = 0.85}
-[atmosphere_materials.dark-clouds]
+[atmosphere_materials.dark_clouds]
 extinction_coeff_per_km = 5
 ssa = 0.999999
 scattering = {type = "hg", assymetry_factor = 0.85}
@@ -66,14 +66,14 @@ materials = [{type = "air", weight = 1.0}]
 thickness_km = 4
 materials = [
     {type = "air", weight = 0.1},
-    {type = "dark-clouds", weight = 0.9}
+    {type = "dark_clouds", weight = 0.9}
 ]
 
 [[layer]]
 thickness_km = 4
 materials = [{type = "air", weight = 1.0}]
 
-# --- Surface Map Configuration ---
+# ___ Surface Map Configuration ___
 # Choose one surface map by commenting out the others
 
 # [surface]
@@ -81,7 +81,7 @@ materials = [{type = "air", weight = 1.0}]
 # material = "snow"
 
 # [surface]
-# name = "split-half-x"
+# name = "split_half_x"
 # material_left = "snow"
 # material_right = "ocean"
 

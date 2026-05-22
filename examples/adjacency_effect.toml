@@ -31,7 +31,7 @@ reflection = {type = "lambertian"}
 albedo = 0.01
 reflection = {type = "specular", roughness = 0.0}
 
-[atmosphere_materials.material-1]
+[atmosphere_materials.material_1]
 extinction_coeff_per_km = 10
 ssa = 0.999999
 scattering = {type = "hg", g=0.85}
@@ -40,10 +40,10 @@ scattering = {type = "hg", g=0.85}
 [[layer]]
 thickness_km = 4
 materials = [
-    {type = "material-1", weight = 1.0}
+    {type = "material_1", weight = 1.0}
 ]
 
 [surface]
-name = "split-half-x"
+name = "split_half_x"
 material_left = "snow"
 material_right = "ocean"
