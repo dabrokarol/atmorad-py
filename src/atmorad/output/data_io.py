@@ -10,6 +10,7 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from atmorad.config import SimConfig
+from atmorad.models import SimulationResults
 
 
 class DataIO:
@@ -74,18 +75,16 @@ class DataIO:
         destination_path = self.base_dir / self.CONFIG_FILE
         shutil.copy2(config_file_path, destination_path)
 
-    def save_simulation_run(self, results_dict: dict):
-        self.save_metadata(results_dict)
-        self.save_results(results_dict)
+    def save_simulation_run(self, results: SimulationResults):
+        self.save_metadata(results)
+        self.save_results(results)
         if self.config.config_path:
             self.save_config_file(self.config.config_path)
 
-    def save_metadata(self, results_dict: dict) -> None:
+    def save_metadata(self, results: SimulationResults) -> None:
         metadata = self.config.model_dump(mode="json")
-
-        for key in ["cpu_time_s", "simulation_time_s"]:
-            if key in results_dict:
-                metadata[key] = results_dict[key]
+        metadata["cpu_time_s"] = results.engine.cpu_time_s
+        metadata["simulation_time_s"] = results.engine.simulation_time_s
 
         metadata_path = self.base_dir / self.METADATA_FILE
 
@@ -101,16 +100,16 @@ class DataIO:
     def checkpoint_path(self):
         return self.base_dir / self.CHECKPOINT_FILE
 
-    def save_results(self, results_dict: dict) -> None:
+    def save_results(self, results: SimulationResults) -> None:
         results_path = self.base_dir / self.RESULTS_FILE
         with nc.Dataset(results_path, "w", format="NETCDF4") as ncfile:
-            self._save_dict_to_group(ncfile, results_dict)
+            self._save_dict_to_group(ncfile, results.model_dump())
 
     @classmethod
     def load_simulation_data(cls, directory: str | Path):
         """
         Loads the results and config from a completed simulation.
-        Returns: (config, results_dict)
+        Returns: (config, results)
         """
         dir_path = Path(directory)
         results_path = dir_path / cls.RESULTS_FILE
@@ -120,7 +119,9 @@ class DataIO:
             raise FileNotFoundError(f"Could not find results at {results_path.resolve()}")
 
         with nc.Dataset(results_path, "r") as ncfile:
-            results = cls._load_group_to_dict(ncfile)
+            results_dict = cls._load_group_to_dict(ncfile)
+
+        results = SimulationResults.model_validate(results_dict)
 
         config = None
         if config_path.exists():
@@ -182,8 +183,6 @@ class DataIO:
             if isinstance(v, (dict, collections.abc.Mapping)):
                 subgroup = group.createGroup(k_str)
                 cls._save_dict_to_group(subgroup, v)
-
-            # --- NEW BLOCK FOR LISTS AND TUPLES ---
             elif isinstance(v, (list, tuple)):
                 try:
                     arr = np.array(v)
@@ -228,7 +227,7 @@ class DataIO:
                 group.setncattr(k_str, str(v))
 
     @classmethod
-    def _load_group_to_dict(cls, group) -> dict:
+    def _load_group_to_dict(cls, group) -> SimulationResults:
         """Recursively reconstructs a dictionary from NetCDF groups."""
 
         def parse_key(key_str: str):
@@ -270,4 +269,6 @@ class DataIO:
                 parsed_val = sub_dict
             res[parse_key(grp_name)] = parsed_val
 
-        return res
+        result = SimulationResults.model_validate(res)
+
+        return result

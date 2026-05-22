@@ -6,30 +6,39 @@ import numpy as np
 import seaborn as sns
 
 from atmorad.config import SimConfig
+from atmorad.models.results import SimulationResults
 
 sns.set_theme(style="ticks", rc={"font.family": "serif"})
 
 
 class ResultAnalyzer:
-    def __init__(self, results_dict: dict, config: SimConfig):
-        self.results_dict = results_dict
+    def __init__(self, results: SimulationResults, config: SimConfig):
+        self.results = results
         self.config = config
         self.total_photons = config.engine.num_photons
+        self.detectors = self.results.detectors
 
     def experiment_summary(self) -> str:
         experiment_name = self.config.metadata.experiment_name
         num_photons = self.config.engine.num_photons
 
-        total_time = self.results_dict.get("simulation_time_s", 0.0)
-        cpu_time = self.results_dict.get("cpu_time_s", 0.0)
+        total_time = self.results.engine.simulation_time_s
+        cpu_time = self.results.engine.cpu_time_s
 
-        reflected_toa = (self.results_dict.get("photons_escaped_toa", 0) / num_photons) * 100.0
-        absorbed_surf = (self.results_dict.get("photons_absorbed_surface", 0) / num_photons) * 100.0
-        absorbed_atm = (
-            self.results_dict.get("photons_absorbed_atmosphere", 0) / num_photons
-        ) * 100.0
+        fate_res = self.detectors.get("fate")
 
-        balance = reflected_toa + absorbed_surf + absorbed_atm
+        if fate_res:
+            escaped_toa = fate_res.photons_escaped_toa
+            abs_surf = fate_res.photons_absorbed_surface
+            abs_atm = fate_res.photons_absorbed_atmosphere
+        else:
+            escaped_toa = abs_surf = abs_atm = 0
+
+        reflected_toa_pct = (escaped_toa / num_photons) * 100.0
+        absorbed_surf_pct = (abs_surf / num_photons) * 100.0
+        absorbed_atm_pct = (abs_atm / num_photons) * 100.0
+
+        balance = reflected_toa_pct + absorbed_surf_pct + absorbed_atm_pct
 
         return "\n".join(
             [
@@ -37,16 +46,18 @@ class ResultAnalyzer:
                 f"Time: {total_time:.2f}s (Total) | {cpu_time:.2f}s (CPU)",
                 f"Total Photons: {num_photons:_}\n",
                 "Energy Distribution:",
-                f"  {'Reflected (TOA)':<21}: {reflected_toa:>6.2f}%",
-                f"  {'Surface Absorbed':<21}: {absorbed_surf:>6.2f}%",
-                f"  {'Atmosphere Absorbed':<21}: {absorbed_atm:>6.2f}%",
+                f"  {'Reflected (TOA)':<21}: {reflected_toa_pct:>6.2f}%",
+                f"  {'Surface Absorbed':<21}: {absorbed_surf_pct:>6.2f}%",
+                f"  {'Atmosphere Absorbed':<21}: {absorbed_atm_pct:>6.2f}%",
                 "  " + "-" * 30,
                 f"  {'Energy Balance':<21}: {balance:>6.2f}%\n",
             ]
         )
 
     def plot_paths(self, title: str = "Sample 3D photon paths"):
-        if "sample_paths" not in self.results_dict or not self.results_dict["sample_paths"]:
+        path_res = self.detectors.get("path_tracking")
+
+        if not path_res or not path_res.sample_paths:
             return None
 
         fig = plt.figure(figsize=(10, 10))
@@ -57,7 +68,7 @@ class ResultAnalyzer:
         Ly = self.config.environment.geometry.domain_size_y_km
         limit_x, limit_y = Lx / 2, Ly / 2
 
-        for path_id, path_coords in self.results_dict["sample_paths"].items():
+        for path_id, path_coords in path_res.sample_paths.items():
             if not path_coords:
                 continue
 
@@ -76,11 +87,11 @@ class ResultAnalyzer:
             Y = np.insert(Y_wrapped.astype(float), jump_indices, np.nan)
             Z = np.insert(Z.astype(float), jump_indices, np.nan)
 
-            if self.results_dict["sample_absorbed_surface"][path_id]:
+            if path_res.sample_absorbed_surface.get(path_id):
                 color, alpha = "tab:green", 0.3
                 lbl = "Absorbed by surface" if not labeled_surface else None
                 labeled_surface = True
-            elif self.results_dict["sample_escaped_toa"][path_id]:
+            elif path_res.sample_escaped_toa.get(path_id):
                 color, alpha = "tab:grey", 0.2
                 lbl = "Escaped atmosphere" if not labeled_above_toa else None
                 labeled_above_toa = True
@@ -91,24 +102,25 @@ class ResultAnalyzer:
 
             ax.plot3D(X, Y, Z, alpha=alpha, color=color, label=lbl)
 
-        limit_x = self.config.environment.geometry.domain_size_x_km / 2
-        limit_y = self.config.environment.geometry.domain_size_y_km / 2
-
         ax.set_title(title, fontsize=20)
         ax.set_xlabel("Pos x [km]")
         ax.set_ylabel("Pos y [km]")
         ax.set_zlabel("Pos z [km]")
         ax.set_xlim(-limit_x, limit_x)
         ax.set_ylim(-limit_y, limit_y)
-        ax.set_zlim(0, self.results_dict["toa_z"])
+        ax.set_zlim(0, path_res.toa_z)
         if labeled_surface or labeled_above_toa or labeled_atmosphere:
             ax.legend()
         return fig
 
-    def plot_2d_map(self, flux_map: np.ndarray, title: str, label: str = "Normalized Flux"):
-        x_edges = self.results_dict["x_edges"]
-        y_edges = self.results_dict["y_edges"]
-
+    def plot_2d_map(
+        self,
+        flux_map: np.ndarray,
+        x_edges: np.ndarray,
+        y_edges: np.ndarray,
+        title: str,
+        label: str = "Normalized Flux",
+    ):
         map_2d_norm = flux_map / self.total_photons
 
         fig, ax = plt.subplots(figsize=(8, 7))
@@ -124,31 +136,39 @@ class ResultAnalyzer:
         return fig
 
     def plot_surface_absorption_map(self, title: str = "Surface Absorption Map"):
-        flux_map = self.results_dict.get("surface_absorption_map_2d")
-
-        if flux_map is None:
+        boundary_res = self.detectors.get("boundary_flux")
+        if not boundary_res or boundary_res.surface_absorption_map_2d is None:
             logging.warning("Warning: No surface absorption map found in data.")
             return None
 
-        return self.plot_2d_map(flux_map, title)
+        return self.plot_2d_map(
+            boundary_res.surface_absorption_map_2d,
+            boundary_res.x_edges,
+            boundary_res.y_edges,
+            title,
+        )
 
     def plot_toa_flux_map(self, title: str = "TOA Reflected Flux"):
-        flux_map = self.results_dict.get("toa_flux_map_2d")
+        boundary_res = self.detectors.get("boundary_flux")
 
-        if flux_map is None:
+        if not boundary_res or boundary_res.toa_flux_map_2d is None:
             logging.warning("Warning: No TOA flux map found in data.")
             return None
 
-        return self.plot_2d_map(flux_map, title)
+        return self.plot_2d_map(
+            boundary_res.toa_flux_map_2d, boundary_res.x_edges, boundary_res.y_edges, title
+        )
 
     def plot_flux_profile(self, title="Vertical Flux Profile"):
-        if "flux_down" not in self.results_dict or "flux_up" not in self.results_dict:
+        flux_res = self.detectors.get("vertical_flux")
+
+        if not flux_res:
             return None
 
         fig, ax = plt.subplots(figsize=(8, 10))
-        z = self.results_dict["measure_z"]
-        flux_down = self.results_dict["flux_down"] / self.total_photons
-        flux_up = self.results_dict["flux_up"] / self.total_photons
+        z = flux_res.measure_z
+        flux_down = flux_res.flux_down / self.total_photons
+        flux_up = flux_res.flux_up / self.total_photons
         net_flux = flux_down - flux_up
 
         ax.plot(
@@ -170,12 +190,14 @@ class ResultAnalyzer:
         return fig
 
     def plot_absorption_profile(self, title="Atmospheric Absorption Profile"):
-        if "absorption_profile_1d" not in self.results_dict:
+        abs_res = self.detectors.get("absorption_vertical")
+
+        if not abs_res:
             return None
 
         fig, ax = plt.subplots(figsize=(6, 8))
-        boundaries = self.results_dict["measure_z"]
-        profile = self.results_dict["absorption_profile_1d"] / self.total_photons
+        boundaries = abs_res.measure_z
+        profile = abs_res.absorption_profile_1d / self.total_photons
         centers = (boundaries[:-1] + boundaries[1:]) / 2
 
         ax.barh(
@@ -197,51 +219,58 @@ class ResultAnalyzer:
         return fig
 
     def generate_all_figures(self):
-        if self.config.output.save_absorption_maps:
-            fig_map = self.plot_surface_absorption_map()
-            if fig_map:
-                yield (fig_map, "surface_absorption_map.png")
-                plt.close(fig_map)
-            else:
-                logging.warning("2d surface absorption map not generated")
-            fig_toa_map = self.plot_toa_flux_map()
-            if fig_toa_map:
-                yield (fig_toa_map, "toa_flux_map.png")
-                plt.close(fig_toa_map)
-            else:
-                logging.warning("2d toa flux map not generated")
+        if not self.config.output.save_plots:
+            return
 
-        if self.config.output.save_incident_flux_maps:
-            subfolder_name = "incident_flux"
-
-            down_maps = self.results_dict.get("incident_flux_down_maps_2d", {})
-            for z_val, flux_map in down_maps.items():
-                title = f"Incident Downward Flux Map\nHeight: {z_val} km"
-                fig = self.plot_2d_map(flux_map, title=title)
+        boundary_res = self.detectors.get("boundary_flux")
+        if boundary_res:
+            boundary_plots = [
+                (
+                    self.plot_surface_absorption_map(),
+                    "surface_absorption_map.png",
+                    "2d surface absorption map not generated",
+                ),
+                (self.plot_toa_flux_map(), "toa_flux_map.png", "2d toa flux map not generated"),
+            ]
+            for fig, path, warning in boundary_plots:
                 if fig:
-                    yield (fig, f"{subfolder_name}/downward_z_{z_val:g}km.png")
+                    yield (fig, path)
                     plt.close(fig)
+                else:
+                    logging.warning(warning)
 
-            up_maps = self.results_dict.get("incident_flux_up_maps_2d", {})
-            for z_val, flux_map in up_maps.items():
-                title = f"Incident Upward Flux Map\nHeight: {z_val} km"
-                fig = self.plot_2d_map(flux_map, title=title)
-                if fig:
-                    yield (fig, f"{subfolder_name}/upward_z_{z_val:g}km.png")
-                    plt.close(fig)
+        plane_res = self.detectors.get("plane_flux")
+        if plane_res:
+            map_configs = [
+                ("Downward", plane_res.incident_flux_down_maps_2d, "downward"),
+                ("Upward", plane_res.incident_flux_up_maps_2d, "upward"),
+            ]
+            for direction, flux_dict, prefix in map_configs:
+                for z_val, flux_map in flux_dict.items():
+                    title = f"Incident {direction} Flux Map\nHeight: {z_val} km"
+                    fig = self.plot_2d_map(
+                        flux_map, plane_res.x_edges, plane_res.y_edges, title=title
+                    )
+                    if fig:
+                        yield (fig, f"incident_flux/{prefix}_z_{z_val:g}km.png")
+                        plt.close(fig)
 
-        if self.config.output.save_vertical_profiles:
+        flux_res = self.detectors.get("vertical_flux")
+        if flux_res:
             fig_flux = self.plot_flux_profile()
             if fig_flux:
                 yield (fig_flux, "vertical_flux_profile.png")
                 plt.close(fig_flux)
 
+        abs_res = self.detectors.get("absorption_vertical")
+        if abs_res:
             fig_heat = self.plot_absorption_profile()
             if fig_heat:
                 yield (fig_heat, "absorption_profile.png")
                 plt.close(fig_heat)
 
-        if self.config.output.save_photon_paths:
+        path_res = self.detectors.get("path_tracking")
+        if path_res:
             fig_paths = self.plot_paths()
             if fig_paths:
                 yield (fig_paths, "3d_photon_paths.png")
