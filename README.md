@@ -55,71 +55,82 @@ atmorad simulation.toml
 - `cli.py`: Provides CLI for `atmorad`.
 
 ## Customization
-You can define your own surface reflection algorithms and scattering phase functions using decorators as shown below:
+You can define your own surface maps, surface reflection algorithms, and scattering phase functions using decorators as shown below:
 
 ```python
 import numpy as np
 from atmorad import build_context, MCRadiationRunner, DataIO, ResultAnalyzer
 from atmorad import SurfaceReflection, register_reflection, orientation
 from atmorad import Scattering, register_scattering
+from atmorad import BaseSurfaceMap, register_surface_map
+from atmorad import save_all_figures
+from atmorad.constants import X, Y
 
-# 1. Register a custom surface reflection
+# 1. Registering a custom surface map
+@register_surface_map("custom-stripe-y", ["material_name_a", "material_name_b"])
+class StripeYMap(BaseSurfaceMap):
+    # Specify arbitrary custom parameters
+    def __init__(self, stripe_width_km: float):
+        self.width = stripe_width_km
+
+    def get_material_ids(self, pos: np.ndarray) -> np.ndarray:
+        # Maps 2D photon coordinates to integer indices (0 for material_name_a, 1 for material_name_b)
+        # Your custom geometry logic here
+        grid_x = np.mod(pos[X], self.width)
+        return np.where(grid_x < (self.width / 2.0), 0, 1)
+
+# 2. Registering a custom surface reflection
 @register_reflection("custom-reflection")
 class CustomReflection(SurfaceReflection):
-    # Specify arbitrary custom parameters
     def __init__(self, param_1, param_2):
         self.param_1 = param_1
         self.param_2 = param_2
+
     def reflect(self, direction, rand_1, rand_2):
-        # Your custom reflection physics here
         cos_theta = np.sqrt(rand_1)
         sin_theta = np.sqrt(1.0 - rand_1)
-
-        # you can also use specified parameters
-        # self.param_1, self.param_2
-
         phi = rand_2 * 2 * np.pi
         cos_phi, sin_phi = np.cos(phi), np.sin(phi)
-        
         return orientation(cos_theta, sin_theta, cos_phi, sin_phi)
     
-# 2. Register a custom scattering phase function
+# 3. Registering a custom scattering phase function
 @register_scattering("custom-scattering")
 class CustomScattering(Scattering):
-    # Specify arbitrary custom parameters
     def __init__(self, g, resolution=1000):
-        # Define a pdf array
         self.g = g
         cos_grid = np.linspace(-1, 1, resolution)
-
         pdf = (1 - g**2) / (2 * (1 + g**2 - 2 * g * cos_grid) ** 1.5)
-
         super().__init__(pdf_array=pdf, resolution=resolution)
 
-# 3. Run the simulation using custom names in your config
+# 4. Running the simulation using custom names in your config
 if __name__ == "__main__":
+    # load the config file
     context = build_context("simulation.toml")
-    runner = MCRadiationRunner(context)
+    # instantiate core classes
+    data_io = DataIO(context.config)
+    runner = MCRadiationRunner(context, data_io)
     runner.run()
 
-    # 4. Save and analyze results
+    # 5. Saving figures (metadata are saved automatically)
     results = runner.get_results()
-    outputs = DataIO(context.config)
     analyzer = ResultAnalyzer(results, context.config)
-    
-    outputs.save_all_artifacts(analyzer, results)
+    save_all_figures(analyzer, data_io)
 ```
-In `simulation.toml` you can specify your defined scatterings and reflections:
+In `simulation.toml` you can specify your defined scatterings, reflections and surface maps:
 ```toml
 [atmosphere_materials.custom-atm-material]
 ssa = 0.9
 scattering = {type = "custom-scattering", g=0.8} 
 
-[surface_materials.custom-surf-material]
+[surface_materials.custom-surf-material-a]
 albedo = 0.5
-reflection = {type = "custom-reflection", param_1=2, param_2=1.3} # match param names defined in python
+reflection = {type = "custom-reflection", param_1=2, param_2=1.3}
+
+[surface_materials.custom-surf-material-b]
+albedo = 0.1
+reflection = {type = "lambertian"}
 ```
-Then you can use your defined materials for atmospheric layers and surface maps:
+Then you can use your defined materials for atmospheric layers and the surface:
 ```toml
 [[layer]]
 thickness_km = 2
@@ -128,8 +139,10 @@ materials = [{type = "custom-atm-material", weight = 1.0}]
 # ...
 
 [surface]
-name = "uniform"
-material = "custom-surf-material"
+name = "custom-stripe-y"
+stripe_width_km = 5.0 # include parameters required for this map type
+material_name_a = "custom-surf-material-a"
+material_name_b = "custom-surf-material-b"
 ```
 
 ## References and Literature
