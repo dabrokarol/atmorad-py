@@ -3,9 +3,12 @@ from pathlib import Path
 
 import tomllib
 
+from atmorad.constants import ACCEPTED_EXTENSIONS
+
 from .models import (
     DetectorConfig,
     EngineConfig,
+    EnvironmentConfig,
     GeometryConfig,
     MetadataConfig,
     OutputConfig,
@@ -27,7 +30,16 @@ def _deep_merge_dicts(base: dict, override: dict) -> dict:
     return base_copy
 
 
-def load_config(custom_config_path: Path) -> tuple[SimConfig, dict]:
+def load_config(custom_config_path: Path) -> SimConfig:
+    if not custom_config_path.exists():
+        raise FileNotFoundError(f"Config file not found at {custom_config_path}")
+
+    if custom_config_path.suffix.lower() not in ACCEPTED_EXTENSIONS:
+        raise ValueError(
+            f"Invalid configuration file extension: {custom_config_path.suffix}"
+            f"Allowed extensions: {', '.join(ACCEPTED_EXTENSIONS)}"
+        )
+
     with open(DEFAULT_CONFIG_PATH, "rb") as f:
         default_config_data = tomllib.load(f)
 
@@ -36,20 +48,28 @@ def load_config(custom_config_path: Path) -> tuple[SimConfig, dict]:
 
     config_data = _deep_merge_dicts(default_config_data, custom_config_data)
 
+    if "surface" not in config_data:
+        raise ValueError("Configuration must include a [surface] definition.")
+
+    if "layer" not in config_data or len(config_data["layer"]) == 0:
+        raise ValueError("Configuration must include at least one [[layer]].")
+
+    env_config = EnvironmentConfig(
+        atmosphere_materials=config_data.get("atmosphere_materials", {}),
+        layers=config_data.get("layer", []),
+        surface=config_data.get("surface", {}),
+        surface_materials=config_data.get("surface_materials", {}),
+        geometry=GeometryConfig(**config_data["geometry"]),
+    )
+
     config = SimConfig(
         metadata=MetadataConfig(**config_data["metadata"]),
         engine=EngineConfig(**config_data["engine"]),
         source=SourceConfig(**config_data["source"]),
-        geometry=GeometryConfig(**config_data["geometry"]),
         output=OutputConfig(**config_data["output"]),
         detectors=DetectorConfig(**config_data["detectors"]),
+        environment=env_config,
+        config_path=custom_config_path,
     )
 
-    raw_env_data = {
-        "atmosphere_materials": config_data.get("atmosphere_materials", {}),
-        "layers": config_data.get("layer", []),
-        "surface": config_data.get("surface", {}),
-        "surface_materials": config_data.get("surface_materials", {}),
-    }
-
-    return config, raw_env_data
+    return config

@@ -6,7 +6,7 @@ import numpy as np
 from atmorad.config import SimConfig
 from atmorad.constants import EPSILON, MAX_SCATTERINGS
 from atmorad.environment.scene import Scene
-from atmorad.models import PhotonBatch
+from atmorad.models import EngineResult, PhotonBatch, SimulationResults
 
 
 class Engine:
@@ -115,13 +115,14 @@ class Engine:
 
         end_time = time.process_time()
 
-        engine_results = {"cpu_time_s": (end_time - start_time)}
+        engine_results = EngineResult(cpu_time_s=end_time - start_time)
 
         detector_results = {}
         for det in self.detectors:
             det.finalize()
-            detector_results.update(det.get_results())
-        self.results = {**engine_results, **detector_results}
+            detector_results[det.__class__.__name__] = det.get_results()
+
+        self.results = SimulationResults(engine=engine_results, detectors=detector_results)
 
     def get_results(self):
         if self.results is None:

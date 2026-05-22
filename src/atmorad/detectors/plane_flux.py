@@ -1,13 +1,15 @@
 import numpy as np
 
 from atmorad.config import SimConfig
-from atmorad.constants import DETECTOR_OFFSET, X, Y, Z
+from atmorad.constants import X, Y, Z
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch
+from atmorad.models import IncidentFluxMapResult, PhotonBatch
+from atmorad.registry import register_detector
 
 from .base import BaseDetector
 
 
+@register_detector("plane_flux")
 class IncidentFluxMapDetector(BaseDetector):
     def __init__(self):
         self.target_z_array = None
@@ -23,11 +25,10 @@ class IncidentFluxMapDetector(BaseDetector):
         self.y_edges = None
 
     def initialize(self, scene: Scene, config: SimConfig):
-
-        self.target_z_array = np.array(config.detectors.incident_flux_heights_km, dtype=float)
-        self.resolution = getattr(config.detectors, "map2d_resolution_km", 1.0)
-        self.domain_x = config.geometry.domain_size_x_km
-        self.domain_y = config.geometry.domain_size_y_km
+        self.target_z_array = np.array(config.detectors.flux_maps_z_levels_km, dtype=float)
+        self.resolution = config.detectors.horizontal_maps_resolution_km
+        self.domain_x = config.environment.geometry.domain_size_x_km
+        self.domain_y = config.environment.geometry.domain_size_y_km
 
         self.x_edges = np.arange(
             -self.domain_x / 2, self.domain_x / 2 + self.resolution, self.resolution
@@ -35,10 +36,6 @@ class IncidentFluxMapDetector(BaseDetector):
         self.y_edges = np.arange(
             -self.domain_y / 2, self.domain_y / 2 + self.resolution, self.resolution
         )
-
-        toa = scene.atmosphere.get_total_thickness()
-        self.target_z_array[self.target_z_array == toa] -= DETECTOR_OFFSET
-        self.target_z_array[self.target_z_array == 0] += DETECTOR_OFFSET
 
     def _process_hits(
         self,
@@ -87,6 +84,17 @@ class IncidentFluxMapDetector(BaseDetector):
         )
         self._process_hits(batch, old_pos, up_mask, self.hit_p_up, self.hit_x_up, self.hit_y_up)
 
+    def record_scattering(
+        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    ):
+        pass
+
+    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
+        pass
+
+    def finalize(self):
+        pass
+
     def _build_maps(self, hit_p: list, hit_x: list, hit_y: list) -> dict:
         flux_maps = {}
         if hit_x:
@@ -106,15 +114,13 @@ class IncidentFluxMapDetector(BaseDetector):
 
         return flux_maps
 
-    def get_results(self) -> dict:
-        return {
-            "x_edges": self.x_edges,
-            "y_edges": self.y_edges,
-            "incident_flux_down_maps_2d": self._build_maps(
+    def get_results(self) -> IncidentFluxMapResult:
+        return IncidentFluxMapResult(
+            x_edges=self.x_edges,
+            y_edges=self.y_edges,
+            flux_maps_z_levels_km=self.target_z_array,
+            incident_flux_down_maps_2d=self._build_maps(
                 self.hit_p_down, self.hit_x_down, self.hit_y_down
             ),
-            "incident_flux_up_maps_2d": self._build_maps(
-                self.hit_p_up, self.hit_x_up, self.hit_y_up
-            ),
-            "incident_flux_heights_km": self.target_z_array,
-        }
+            incident_flux_up_maps_2d=self._build_maps(self.hit_p_up, self.hit_x_up, self.hit_y_up),
+        )

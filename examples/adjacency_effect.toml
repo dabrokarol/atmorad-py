@@ -6,6 +6,7 @@ description = "Demo showcasing adjacency effect"
 num_photons = 1_000_000
 batch_size = 100_000
 cpu_cores = 4
+resume_from_checkpoint = true
 
 [source]
 theta_sun_deg = 30
@@ -15,22 +16,43 @@ domain_size_x_km = 100
 domain_size_y_km = 100
 
 [detectors]
+active = [
+    "fate", 
+    "path_tracking", 
+    "vertical_flux", 
+    "absorption_vertical", 
+    "plane_flux", 
+    "boundary_flux"
+]
+
 num_full_paths = 0
-incident_flux_heights_km = [1e-5, 4.0]
+flux_maps_z_levels_km = [0, 4.0]
 
 [output]
 save_incident_flux_maps = true
 overwrite = true
 save_plots = true
 
+[surface_materials.snow]
+albedo = 0.85
+reflection = {type = "lambertian"}
+[surface_materials.ocean]
+albedo = 0.01
+reflection = {type = "specular", roughness = 0.0}
+
+[atmosphere_materials.material_1]
+extinction_coeff_per_km = 10
+ssa = 0.999999
+scattering = {type = "hg", assymetry_factor = 0.85}
+
 
 [[layer]]
-z_range_km = [0, 4]
+thickness_km = 4
 materials = [
-    {type = "dark-clouds", weight = 1.0}
+    {type = "material_1", weight = 1.0}
 ]
 
 [surface]
-name = "split-half-x"
+name = "split_half_x"
 material_left = "snow"
 material_right = "ocean"

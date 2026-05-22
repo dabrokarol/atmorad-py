@@ -1,15 +1,15 @@
 import numpy as np
 
-from atmorad.constants import EPSILON, X, Y, Z
+from atmorad.constants import X, Y, Z
 from atmorad.models import PhotonBatch
 from atmorad.physics import sun_zenith_to_direction
 
 from .atmosphere import Atmosphere
-from .surface import Surface
+from .surface import BaseSurface
 
 
 class Scene:
-    def __init__(self, surface: Surface, atmosphere: Atmosphere) -> None:
+    def __init__(self, surface: BaseSurface, atmosphere: Atmosphere) -> None:
         self.surface = surface
         self.atmosphere = atmosphere
 
@@ -64,7 +64,7 @@ class Scene:
         pos = np.empty(shape=(3, num_photons), dtype=float)
         pos[X, :] = rng.uniform(-nx / 2, nx / 2, num_photons)
         pos[Y, :] = rng.uniform(-ny / 2, ny / 2, num_photons)
-        pos[Z, :] = np.full(num_photons, self.atmosphere.top_of_atmosphere - EPSILON)
+        pos[Z, :] = np.full(num_photons, self.atmosphere.top_of_atmosphere)
         return pos
 
     def start_direction(self, num_photons, theta_sun, phi_sun):

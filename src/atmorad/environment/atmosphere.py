@@ -8,28 +8,17 @@ from atmorad.models import PhotonBatch
 from atmorad.physics import Scattering, rotate
 
 
-@dataclass
+@dataclass(slots=True)
 class AtmosphericMedium:
     extinction_coeff: float
     ssa: float
     phase_function: Scattering
-
-    def __post_init__(self):
-        if self.extinction_coeff < 0:
-            raise ValueError(
-                f"Extinction coefficient should be non-negative, got {self.extinction_coeff}."
-            )
-        if not 0.0 <= self.ssa <= 1.0:
-            raise ValueError(f"SSA should be in [0.0, 1.0], got {self.ssa}.")
 
 
 class AtmosphericLayer:
     def __init__(
         self, thickness, components: Sequence[tuple[AtmosphericMedium, float]] | AtmosphericMedium
     ):
-        if thickness < 0:
-            raise ValueError(f"Thickness should be non-negative, got {thickness}.")
-
         self.thickness = thickness
 
         if isinstance(components, AtmosphericMedium):

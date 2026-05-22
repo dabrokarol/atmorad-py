@@ -1,13 +1,15 @@
 import numpy as np
 
 from atmorad.config import SimConfig
-from atmorad.constants import DETECTOR_OFFSET, X, Y, Z
+from atmorad.constants import X, Y, Z
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch
+from atmorad.models import BoundaryAbsorptionResult, PhotonBatch
+from atmorad.registry import register_detector
 
 from .base import BaseDetector
 
 
+@register_detector("boundary_flux")
 class BoundaryAbsorptionDetector(BaseDetector):
     def __init__(self):
         self.resolution = None
@@ -21,15 +23,23 @@ class BoundaryAbsorptionDetector(BaseDetector):
 
     def initialize(self, scene: Scene, config: SimConfig):
         self.toa_z = scene.atmosphere.top_of_atmosphere
-        self.resolution = getattr(config.detectors, "map2d_resolution_km", 1.0)
-        self.domain_x = config.geometry.domain_size_x_km
-        self.domain_y = config.geometry.domain_size_y_km
+        self.resolution = config.detectors.horizontal_maps_resolution_km
+        self.domain_x = config.environment.geometry.domain_size_x_km
+        self.domain_y = config.environment.geometry.domain_size_y_km
 
         num_bins_x = int(np.round(self.domain_x / self.resolution))
         num_bins_y = int(np.round(self.domain_y / self.resolution))
 
         self.x_edges = np.linspace(-self.domain_x / 2, self.domain_x / 2, num_bins_x + 1)
         self.y_edges = np.linspace(-self.domain_y / 2, self.domain_y / 2, num_bins_y + 1)
+
+    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
+        pass
+
+    def record_scattering(
+        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    ):
+        pass
 
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         if not np.any(terminated_mask):
@@ -40,8 +50,8 @@ class BoundaryAbsorptionDetector(BaseDetector):
         wrapped_x = np.mod(term_pos[X] + self.domain_x / 2, self.domain_x) - self.domain_x / 2
         wrapped_y = np.mod(term_pos[Y] + self.domain_y / 2, self.domain_y) - self.domain_y / 2
 
-        surface_mask = term_pos[Z] <= DETECTOR_OFFSET
-        above_toa_mask = term_pos[Z] >= (self.toa_z - DETECTOR_OFFSET)
+        surface_mask = term_pos[Z] <= 0
+        above_toa_mask = term_pos[Z] >= (self.toa_z)
 
         if np.any(surface_mask):
             self.surface_x.append(wrapped_x[surface_mask])
@@ -51,7 +61,10 @@ class BoundaryAbsorptionDetector(BaseDetector):
             self.space_x.append(wrapped_x[above_toa_mask])
             self.space_y.append(wrapped_y[above_toa_mask])
 
-    def get_results(self) -> dict:
+    def finalize(self):
+        pass
+
+    def get_results(self) -> BoundaryAbsorptionResult:
         results = {"x_edges": self.x_edges, "y_edges": self.y_edges}
 
         if self.surface_x:
@@ -77,4 +90,9 @@ class BoundaryAbsorptionDetector(BaseDetector):
         else:
             results["toa_flux_map_2d"] = np.zeros((len(self.x_edges) - 1, len(self.y_edges) - 1))
 
-        return results
+        return BoundaryAbsorptionResult(
+            x_edges=self.x_edges,
+            y_edges=self.y_edges,
+            surface_absorption_map_2d=surf_map,
+            toa_flux_map_2d=space_map,
+        )

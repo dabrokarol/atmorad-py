@@ -8,84 +8,16 @@ from atmorad.constants import EPSILON, X, Y, Z
 from atmorad.models import PhotonBatch
 from atmorad.physics import SurfaceReflection
 
+from .surface_maps import BaseSurfaceMap
 
-@dataclass
+
+@dataclass(slots=True)
 class SurfaceMaterial:
     albedo: float
     reflection: SurfaceReflection
 
-    def __post_init__(self):
-        if not 0.0 <= self.albedo <= 1.0:
-            raise ValueError(f"Albedo should be non-negative, got {self.albedo}.")
 
-
-class SurfaceMap(ABC):
-    @abstractmethod
-    def get_material_ids(self, pos: np.ndarray) -> np.ndarray:
-        """Returns an array of material IDs corresponding to photon coordinates."""
-        pass
-
-
-class UniformMap(SurfaceMap):
-    def get_material_ids(self, pos: np.ndarray):
-        return np.zeros_like(pos[X], dtype=int)
-
-
-class SplitHalfXMap(SurfaceMap):
-    def get_material_ids(self, pos: np.ndarray):
-        return np.where(pos[X] < 0, 0, 1)
-
-
-class CircleMap(SurfaceMap):
-    def __init__(self, radius_km: float):
-        self.radius_sq = radius_km**2
-
-    def get_material_ids(self, pos: np.ndarray):
-        return np.where((pos[X] ** 2 + pos[Y] ** 2) < self.radius_sq, 0, 1)
-
-
-class CheckerboardMap(SurfaceMap):
-    def __init__(self, tile_size_km: float):
-        self.tile_size = tile_size_km
-
-    def get_material_ids(self, pos: np.ndarray):
-        x = np.mod(pos[X], self.tile_size)
-        y = np.mod(pos[Y], self.tile_size)
-        half = self.tile_size / 2.0
-        return np.where(((x < half) & (y < half)) | ((x >= half) & (y >= half)), 0, 1)
-
-
-class GridMap(SurfaceMap):
-    """
-    Args:
-        grounds_ids_matrix: 2D array of shape (X, Y) containing integer material IDs for each cell.
-        cell_size_km: Size of each grid cell in kilometers.
-        periodic: Whether the grid is periodic. If non-periodic, out-of-bounds coordinates will be clamped to the edge cells.
-    """
-
-    def __init__(
-        self, ground_ids_matrix: np.ndarray, cell_size_km: float = 1.0, periodic: bool = True
-    ):
-        self.matrix = np.asarray(ground_ids_matrix, dtype=int)
-        self.cell_size = cell_size_km
-        self.periodic = periodic
-        self.n_x, self.n_y = self.matrix.shape
-
-    def get_material_ids(self, pos: np.ndarray) -> np.ndarray:
-        grid_x = pos[X] / self.cell_size
-        grid_y = pos[Y] / self.cell_size
-
-        if self.periodic:
-            idx_x = np.mod(np.floor(grid_x), self.n_x).astype(int)
-            idx_y = np.mod(np.floor(grid_y), self.n_y).astype(int)
-        else:
-            idx_x = np.clip(np.floor(grid_x), 0, self.n_x - 1).astype(int)
-            idx_y = np.clip(np.floor(grid_y), 0, self.n_y - 1).astype(int)
-
-        return self.matrix[idx_x, idx_y]
-
-
-class Surface(ABC):
+class BaseSurface(ABC):
     """Abstract Base Class for all terrain types."""
 
     @abstractmethod
@@ -104,19 +36,18 @@ class Surface(ABC):
     def domain_size(self) -> tuple[float, float]: ...
 
 
-class FlatSurface(Surface):
+class FlatSurface(BaseSurface):
     def __init__(
         self,
-        ground_map: SurfaceMap,
+        ground_map: BaseSurfaceMap,
         ground_types: Sequence[SurfaceMaterial],
         domain_x_km: float,
         domain_y_km: float,
         is_periodic: bool = True,
     ):
         self.ground_map = ground_map
-        self.ground_types = np.array(ground_types)
-        self.albedos = np.array([material.albedo for material in self.ground_types])
-        self.reflections = [material.reflection for material in self.ground_types]
+        self.albedos = np.array([material.albedo for material in ground_types])
+        self.reflections = [material.reflection for material in ground_types]
 
         self.domain_x = domain_x_km
         self.domain_y = domain_y_km

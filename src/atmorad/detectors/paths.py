@@ -2,11 +2,13 @@ import numpy as np
 
 from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch
+from atmorad.models import PathTrackingResult, PhotonBatch
+from atmorad.registry import register_detector
 
 from .base import BaseDetector
 
 
+@register_detector("path_tracking")
 class PathTrackingDetector(BaseDetector):
     def __init__(self):
         self.num_track = 0
@@ -27,6 +29,11 @@ class PathTrackingDetector(BaseDetector):
 
             for i, pos in zip(tracked_ids, tracked_pos.T):
                 self.tracked_paths[i].append(pos.copy())
+
+    def record_scattering(
+        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    ):
+        pass
 
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         tracked_term_mask = (batch.ids < self.num_track) & terminated_mask
@@ -49,11 +56,11 @@ class PathTrackingDetector(BaseDetector):
             i: self.scene.below_ground(self.tracked_paths[i][-1]) for i in range(self.num_track)
         }
 
-    def get_results(self) -> dict:
-        return {
-            "sample_paths": self.tracked_paths,
-            "sample_escaped_toa": self.sample_escaped_toa,
-            "sample_absorbed_atmosphere": self.sample_absorbed_atmosphere,
-            "sample_absorbed_surface": self.sample_absorbed_surface,
-            "toa_z": self.toa_z,
-        }
+    def get_results(self) -> PathTrackingResult:
+        return PathTrackingResult(
+            sample_paths=self.tracked_paths,
+            sample_escaped_toa=self.sample_escaped_toa,
+            sample_absorbed_atmosphere=self.sample_absorbed_atmosphere,
+            sample_absorbed_surface=self.sample_absorbed_surface,
+            toa_z=self.toa_z,
+        )
