@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from atmorad.registry import SURFACE_MAPS
+from atmorad.registry import REFLECTION_MODELS, SCATTERING_MODELS, SURFACE_MAPS
 
 # ------- Environment Config models: ----------
 
@@ -16,6 +16,11 @@ class SurfaceMaterialConfig(BaseModel):
     def validate_reflection(self) -> "SurfaceMaterialConfig":
         if "type" not in self.reflection:
             raise ValueError("Surface reflection configuration must contain a 'type' key.")
+        if self.reflection["type"] not in REFLECTION_MODELS:
+            raise ValueError(
+                f"Surface reflection model not found: {self.reflection['type']}"
+                f"Supported reflection models are: {list(REFLECTION_MODELS.keys())}"
+            )
         return self
 
 
@@ -28,12 +33,17 @@ class AtmosphereMaterialConfig(BaseModel):
     def validate_scattering(self) -> "AtmosphereMaterialConfig":
         if "type" not in self.scattering:
             raise ValueError("Atmosphere scattering configuration must contain a 'type' key.")
+        if self.scattering["type"] not in SCATTERING_MODELS:
+            raise ValueError(
+                f"Scattering model not found: {self.scattering['type']}"
+                f"Supported scattering models are: {list(SCATTERING_MODELS.keys())}"
+            )
         return self
 
 
 class LayerMaterialConfig(BaseModel):
     type: str
-    weight: float = Field(ge=0.0)
+    weight: float = Field(ge=0.0, le=1.0)
 
 
 class LayerConfig(BaseModel):
