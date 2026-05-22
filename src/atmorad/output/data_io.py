@@ -1,21 +1,19 @@
 import datetime
 import json
 import logging
-import pickle
 import shutil
 from pathlib import Path
 
+import netCDF4 as nc
 import numpy as np
 from matplotlib.figure import Figure
 
 from atmorad.config import SimConfig
-
-
 class DataIO:
-    RESULTS_FILE = "data_compressed.npz"
+    RESULTS_FILE = "data.nc"
     METADATA_FILE = "metadata.json"
     CONFIG_FILE = "runtime_config.toml"
-    CHECKPOINT_FILE = "checkpoint.pkl"
+    CHECKPOINT_FILE = "checkpoint.nc"
 
     def __init__(self, config: SimConfig) -> None:
         self.config = config
@@ -96,37 +94,111 @@ class DataIO:
         full_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(full_path, dpi=dpi, bbox_inches="tight")
 
-    def save_results(self, results_dict: dict) -> None:
-        npz_ready_dict = {}
-        for k, v in results_dict.items():
-            if isinstance(v, dict):
-                npz_ready_dict[k] = np.array(v, dtype=object)
-            else:
-                npz_ready_dict[k] = v
-
-        results_path = self.base_dir / self.RESULTS_FILE
-        np.savez_compressed(results_path, **npz_ready_dict)
-
     @property
     def checkpoint_path(self):
         return self.base_dir / self.CHECKPOINT_FILE
 
+
+    def save_results(self, results_dict: dict) -> None:
+        results_path = self.base_dir / self.RESULTS_FILE 
+        with nc.Dataset(results_path, "w", format="NETCDF4") as ncfile:
+            self._save_dict_to_group(ncfile, results_dict)
+
+    @classmethod
+    def load_simulation_data(cls, directory: str | Path):
+        """
+        Loads the results and config from a completed simulation.
+        Returns: (config, results_dict)
+        """
+        dir_path = Path(directory)
+        results_path = dir_path / cls.RESULTS_FILE
+        config_path = dir_path / cls.CONFIG_FILE
+
+        if not results_path.exists():
+            raise FileNotFoundError(f"Could not find results at {results_path.resolve()}")
+
+        with nc.Dataset(results_path, "r") as ncfile:
+            results = cls._load_group_to_dict(ncfile)
+            
+        config = None
+        if config_path.exists():
+            from atmorad.config import load_config
+            config = load_config(config_path)
+
+        return config, results
+
     def save_checkpoint(self, simulated_photons: int, results: dict):
-        state = {"simulated_photons": simulated_photons, "results": results, "config": self.config}
-        tmp_path = self.checkpoint_path.with_suffix(".pkl.tmp")
-
-        with open(tmp_path, "wb") as f:
-            pickle.dump(state, f)
-
+        tmp_path = self.checkpoint_path.with_suffix(".nc.tmp")
+        
+        with nc.Dataset(tmp_path, "w", format="NETCDF4") as ncfile:
+            ncfile.setncattr("simulated_photons", simulated_photons)
+            ncfile.setncattr("config_json", self.config.model_dump_json())
+            
+            res_grp = ncfile.createGroup("res")
+            self._save_dict_to_group(res_grp, results)
+            
         shutil.move(tmp_path, self.checkpoint_path)
 
     def load_checkpoint(self):
-        if self.checkpoint_path.exists():
-            with open(self.checkpoint_path, "rb") as f:
-                state = pickle.load(f)
-                return state["simulated_photons"], state["results"], state["config"]
-        return 0, {}, None
+        if not self.checkpoint_path.exists():
+            return 0, {}, None
+
+        try:
+            with nc.Dataset(self.checkpoint_path, "r") as ncfile:
+                simulated_photons = int(ncfile.getncattr("simulated_photons"))
+                
+                from atmorad.config import SimConfig
+                config_json = str(ncfile.getncattr("config_json"))
+                config = SimConfig.model_validate_json(config_json)
+                
+                results = {}
+                if "res" in ncfile.groups:
+                    results = self._load_group_to_dict(ncfile.groups["res"])
+                
+                return simulated_photons, results, config
+                
+        except Exception as e:
+            logging.error(f"Failed to load checkpoint: {e}")
+            return 0, {}, None
 
     def delete_checkpoint(self):
         if self.checkpoint_path.exists():
             self.checkpoint_path.unlink()
+
+    @classmethod
+    def _save_dict_to_group(cls, group, d: dict):
+        """Recursively saves a dictionary into NetCDF groups and variables."""
+        for k, v in d.items():
+            if isinstance(v, dict):
+                subgroup = group.createGroup(k)
+                cls._save_dict_to_group(subgroup, v)
+            elif isinstance(v, np.ndarray):
+                dims = []
+                for i, dim_size in enumerate(v.shape):
+                    dim_name = f"{k}_dim_{i}"
+                    if dim_name not in group.dimensions:
+                        group.createDimension(dim_name, dim_size)
+                    dims.append(dim_name)
+                
+                var = group.createVariable(k, v.dtype, tuple(dims))
+                var[:] = v
+            elif isinstance(v, np.generic):
+                group.setncattr(k, v.item())
+            else:
+                group.setncattr(k, v)
+
+    @classmethod
+    def _load_group_to_dict(cls, group) -> dict:
+        """Recursively reconstructs a dictionary from NetCDF groups."""
+        res = {}
+        
+        for attr_name in group.ncattrs():
+            res[attr_name] = group.getncattr(attr_name)
+
+        for var_name, var in group.variables.items():
+            res[var_name] = np.array(var[:])
+            
+        for grp_name, grp in group.groups.items():
+            res[grp_name] = cls._load_group_to_dict(grp)
+            
+        return res
