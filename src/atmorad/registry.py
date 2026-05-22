@@ -8,6 +8,7 @@ can be dynamically loaded from string names in the configuration files.
 SCATTERING_MODELS = {}
 REFLECTION_MODELS = {}
 SURFACE_MAPS = {}
+DETECTORS = {}
 
 
 def register_reflection(name: str):
@@ -67,3 +68,13 @@ def register_surface_map(name: str, material_keys: list[str]):
         return cls
 
     return decorator
+
+
+def register_detector(name: str):
+    """Decorator to register a detector model."""
+
+    def wrapper(cls):
+        DETECTORS[name] = cls
+        return cls
+
+    return wrapper
