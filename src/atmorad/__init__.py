@@ -1,4 +1,4 @@
-from .api import run, load
+from .api import load, run
 from .environment import BaseSurfaceMap
 from .physics import (
     Scattering,
@@ -18,5 +18,5 @@ __all__ = [
     "orientation",
     "rotate",
     "run",
-    "load"
+    "load",
 ]

@@ -9,6 +9,8 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from atmorad.config import SimConfig
+
+
 class DataIO:
     RESULTS_FILE = "data.nc"
     METADATA_FILE = "metadata.json"
@@ -98,9 +100,8 @@ class DataIO:
     def checkpoint_path(self):
         return self.base_dir / self.CHECKPOINT_FILE
 
-
     def save_results(self, results_dict: dict) -> None:
-        results_path = self.base_dir / self.RESULTS_FILE 
+        results_path = self.base_dir / self.RESULTS_FILE
         with nc.Dataset(results_path, "w", format="NETCDF4") as ncfile:
             self._save_dict_to_group(ncfile, results_dict)
 
@@ -119,24 +120,25 @@ class DataIO:
 
         with nc.Dataset(results_path, "r") as ncfile:
             results = cls._load_group_to_dict(ncfile)
-            
+
         config = None
         if config_path.exists():
             from atmorad.config import load_config
+
             config = load_config(config_path)
 
         return config, results
 
     def save_checkpoint(self, simulated_photons: int, results: dict):
         tmp_path = self.checkpoint_path.with_suffix(".nc.tmp")
-        
+
         with nc.Dataset(tmp_path, "w", format="NETCDF4") as ncfile:
             ncfile.setncattr("simulated_photons", simulated_photons)
             ncfile.setncattr("config_json", self.config.model_dump_json())
-            
+
             res_grp = ncfile.createGroup("res")
             self._save_dict_to_group(res_grp, results)
-            
+
         shutil.move(tmp_path, self.checkpoint_path)
 
     def load_checkpoint(self):
@@ -146,17 +148,18 @@ class DataIO:
         try:
             with nc.Dataset(self.checkpoint_path, "r") as ncfile:
                 simulated_photons = int(ncfile.getncattr("simulated_photons"))
-                
+
                 from atmorad.config import SimConfig
+
                 config_json = str(ncfile.getncattr("config_json"))
                 config = SimConfig.model_validate_json(config_json)
-                
+
                 results = {}
                 if "res" in ncfile.groups:
                     results = self._load_group_to_dict(ncfile.groups["res"])
-                
+
                 return simulated_photons, results, config
-                
+
         except Exception as e:
             logging.error(f"Failed to load checkpoint: {e}")
             return 0, {}, None
@@ -179,7 +182,7 @@ class DataIO:
                     if dim_name not in group.dimensions:
                         group.createDimension(dim_name, dim_size)
                     dims.append(dim_name)
-                
+
                 var = group.createVariable(k, v.dtype, tuple(dims))
                 var[:] = v
             elif isinstance(v, np.generic):
@@ -191,14 +194,14 @@ class DataIO:
     def _load_group_to_dict(cls, group) -> dict:
         """Recursively reconstructs a dictionary from NetCDF groups."""
         res = {}
-        
+
         for attr_name in group.ncattrs():
             res[attr_name] = group.getncattr(attr_name)
 
         for var_name, var in group.variables.items():
             res[var_name] = np.array(var[:])
-            
+
         for grp_name, grp in group.groups.items():
             res[grp_name] = cls._load_group_to_dict(grp)
-            
+
         return res

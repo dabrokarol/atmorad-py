@@ -13,6 +13,8 @@ class AtmosphericMedium:
     extinction_coeff: float
     ssa: float
     phase_function: Scattering
+
+
 class AtmosphericLayer:
     def __init__(
         self, thickness, components: Sequence[tuple[AtmosphericMedium, float]] | AtmosphericMedium

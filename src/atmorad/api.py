@@ -38,5 +38,6 @@ def run(config_path: str | Path, quiet: bool = False) -> dict:
 
     return results
 
+
 def load(directory: Path | str):
     return DataIO.load_simulation_data(directory)
