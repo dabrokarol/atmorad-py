@@ -141,7 +141,7 @@ import matplotlib.pyplot as plt
 config, results = atmorad.load("results/demo001")
 
 # 2. Accessing your physical data as NumPy arrays
-map_2d = results["surface_flux_map_2d"]
+map_2d = results.detectors["boundary_flux"].surface_absorption_map_2d
 
 # 3. Analysis or plotting
 plt.imshow(map_2d)
