@@ -1,3 +1,4 @@
+import collections.abc
 import datetime
 import json
 import logging
@@ -92,7 +93,7 @@ class DataIO:
             json.dump(metadata, f, indent=4)
 
     def save_figure(self, fig: Figure, relative_path: str, dpi: int = 300) -> None:
-        full_path = self.base_dir / relative_path
+        full_path = self.base_dir / relative_path.lstrip("/")
         full_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(full_path, dpi=dpi, bbox_inches="tight")
 
@@ -160,8 +161,11 @@ class DataIO:
 
                 return simulated_photons, results, config
 
-        except Exception as e:
-            logging.error(f"Failed to load checkpoint: {e}")
+        except (OSError, FileNotFoundError) as e:
+            logging.error(f"Failed to load checkpoint file: {e}")
+            return 0, {}, None
+        except ValueError as e:
+            logging.error(f"Failed to parse checkpoint data: {e}")
             return 0, {}, None
 
     def delete_checkpoint(self):
@@ -171,24 +175,57 @@ class DataIO:
     @classmethod
     def _save_dict_to_group(cls, group, d: dict):
         """Recursively saves a dictionary into NetCDF groups and variables."""
+
         for k, v in d.items():
-            if isinstance(v, dict):
-                subgroup = group.createGroup(k)
+            k_str = str(k)
+
+            if isinstance(v, (dict, collections.abc.Mapping)):
+                subgroup = group.createGroup(k_str)
                 cls._save_dict_to_group(subgroup, v)
+
+            # --- NEW BLOCK FOR LISTS AND TUPLES ---
+            elif isinstance(v, (list, tuple)):
+                try:
+                    arr = np.array(v)
+                    if arr.dtype == object:
+                        raise ValueError("Inhomogeneous list elements")
+
+                    dims = []
+                    for i, dim_size in enumerate(arr.shape):
+                        dim_name = f"{k_str}_dim_{i}"
+                        if dim_name not in group.dimensions:
+                            group.createDimension(dim_name, dim_size)
+                        dims.append(dim_name)
+
+                    var = group.createVariable(k_str, arr.dtype, tuple(dims))
+                    var[:] = arr
+
+                except ValueError:
+                    subgroup = group.createGroup(k_str)
+                    subgroup.setncattr("__is_list__", 1)
+                    list_as_dict = {str(i): item for i, item in enumerate(v)}
+                    cls._save_dict_to_group(subgroup, list_as_dict)
             elif isinstance(v, np.ndarray):
                 dims = []
                 for i, dim_size in enumerate(v.shape):
-                    dim_name = f"{k}_dim_{i}"
+                    dim_name = f"{k_str}_dim_{i}"
                     if dim_name not in group.dimensions:
                         group.createDimension(dim_name, dim_size)
                     dims.append(dim_name)
 
-                var = group.createVariable(k, v.dtype, tuple(dims))
+                var = group.createVariable(k_str, v.dtype, tuple(dims))
                 var[:] = v
-            elif isinstance(v, np.generic):
-                group.setncattr(k, v.item())
+            elif v is None:
+                group.setncattr(k_str, "None")
+                group.setncattr(k_str, "__NONE__")
+            elif isinstance(v, (bool, np.bool_)):
+                group.setncattr(k_str, int(v))
+                group.setncattr(k_str, "__BOOL_TRUE__" if v else "__BOOL_FALSE__")
+
+            elif isinstance(v, (int, float, str, np.integer, np.floating)):
+                group.setncattr(k_str, v)
             else:
-                group.setncattr(k, v)
+                group.setncattr(k_str, str(v))
 
     @classmethod
     def _load_group_to_dict(cls, group) -> dict:
@@ -196,12 +233,29 @@ class DataIO:
         res = {}
 
         for attr_name in group.ncattrs():
-            res[attr_name] = group.getncattr(attr_name)
+            if attr_name == "__is_list__":
+                continue
+
+            val = group.getncattr(attr_name)
+
+            if val == "__NONE__":
+                res[attr_name] = None
+            elif val == "__BOOL_TRUE__":
+                res[attr_name] = True
+            elif val == "__BOOL_FALSE__":
+                res[attr_name] = False
+            else:
+                res[attr_name] = val
 
         for var_name, var in group.variables.items():
             res[var_name] = np.array(var[:])
 
         for grp_name, grp in group.groups.items():
-            res[grp_name] = cls._load_group_to_dict(grp)
+            sub_dict = cls._load_group_to_dict(grp)
+
+            if "__is_list__" in grp.ncattrs():
+                res[grp_name] = [sub_dict[str(i)] for i in range(len(sub_dict))]
+            else:
+                res[grp_name] = sub_dict
 
         return res

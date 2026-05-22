@@ -10,7 +10,7 @@ def merge_incremental(first: dict, second: dict) -> dict:
             "layer_boundaries_z",
             "x_edges",
             "y_edges",
-            "incident_flux_heights_km",
+            "flux_maps_z_levels_km",
             "sample_paths",
         ]:
             continue

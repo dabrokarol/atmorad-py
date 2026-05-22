@@ -17,7 +17,7 @@ domain_size_y_km = 100
 
 [detectors]
 num_full_paths = 0
-incident_flux_heights_km = [0, 4.0]
+flux_maps_z_levels_km = [0, 4.0]
 
 [output]
 save_incident_flux_maps = true

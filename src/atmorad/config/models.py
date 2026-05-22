@@ -61,7 +61,7 @@ class DetectorConfig(BaseModel):
     vertical_profiles_resolution_km: float = Field(gt=0.0)
     horizontal_maps_resolution_km: float = Field(gt=0.0)
     num_full_paths: int = Field(ge=0)
-    incident_flux_heights_km: list[float] = Field(default_factory=list)
+    flux_maps_z_levels_km: list[float] = Field(default_factory=list)
 
 
 class OutputConfig(BaseModel):
