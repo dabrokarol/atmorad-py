@@ -55,7 +55,6 @@ def _build_surface(
     material_names = [surface_config[key] for key in material_keys]
 
     kwargs = {k: v for k, v in surface_config.items() if k not in material_keys and k != "name"}
-    print(kwargs, material_names)
 
     ground_map = MapClass(**kwargs)
 
