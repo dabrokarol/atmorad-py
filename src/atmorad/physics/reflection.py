@@ -4,9 +4,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from atmorad.constants import Z
+from atmorad.registry import register_reflection
 
 from .geometry import orientation
-from atmorad.registry import register_reflection
 
 
 class SurfaceReflection(ABC):

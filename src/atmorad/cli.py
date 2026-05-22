@@ -91,6 +91,7 @@ def run_simulation(config, quiet):
     if not quiet:
         print("\n".join((analyzer.experiment_summary(), data_io.output_summary())))
 
+
 def main():
     parser = setup_parser()
     args = parser.parse_args()

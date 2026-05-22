@@ -62,7 +62,7 @@ class MCRadiationRunner:
             initial=simulated_photons,
             desc="Simulating Photons",
             unit=" photons",
-            disable=self.quiet
+            disable=self.quiet,
         ) as pbar:
             for i, (chunk_res, chunk_size) in enumerate(results_generator):
                 current_photons += chunk_size
@@ -147,15 +147,14 @@ def run_chunk(
 
     new_detector_config = context.config.detectors.model_copy(
         update={
-            "num_full_paths": context.config.detectors.num_full_paths if starting_photon_count == 0 else 0,
+            "num_full_paths": context.config.detectors.num_full_paths
+            if starting_photon_count == 0
+            else 0,
         }
     )
 
     new_config = context.config.model_copy(
-        update={
-            "engine": new_engine_config,
-            "detectors": new_detector_config
-        }
+        update={"engine": new_engine_config, "detectors": new_detector_config}
     )
     detectors = build_detectors_from_config(new_config)
 

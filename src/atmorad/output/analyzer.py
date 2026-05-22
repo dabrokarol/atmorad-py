@@ -19,27 +19,31 @@ class ResultAnalyzer:
     def experiment_summary(self) -> str:
         experiment_name = self.config.metadata.experiment_name
         num_photons = self.config.engine.num_photons
-        
+
         total_time = self.results_dict.get("simulation_time_s", 0.0)
         cpu_time = self.results_dict.get("cpu_time_s", 0.0)
 
         reflected_toa = (self.results_dict.get("photons_escaped_toa", 0) / num_photons) * 100.0
         absorbed_surf = (self.results_dict.get("photons_absorbed_surface", 0) / num_photons) * 100.0
-        absorbed_atm = (self.results_dict.get("photons_absorbed_atmosphere", 0) / num_photons) * 100.0
+        absorbed_atm = (
+            self.results_dict.get("photons_absorbed_atmosphere", 0) / num_photons
+        ) * 100.0
 
         balance = reflected_toa + absorbed_surf + absorbed_atm
 
-        return "\n".join([
-            f"\n---- Simulation Summary: {experiment_name} ----",
-            f"Time: {total_time:.2f}s (Total) | {cpu_time:.2f}s (CPU)",
-            f"Total Photons: {num_photons:_}\n",
-            "Energy Distribution:",
-            f"  {'Reflected (TOA)':<21}: {reflected_toa:>6.2f}%",
-            f"  {'Surface Absorbed':<21}: {absorbed_surf:>6.2f}%",
-            f"  {'Atmosphere Absorbed':<21}: {absorbed_atm:>6.2f}%",
-            "  " + "-" * 30,
-            f"  {'Energy Balance':<21}: {balance:>6.2f}%\n"
-        ])
+        return "\n".join(
+            [
+                f"\n---- Simulation Summary: {experiment_name} ----",
+                f"Time: {total_time:.2f}s (Total) | {cpu_time:.2f}s (CPU)",
+                f"Total Photons: {num_photons:_}\n",
+                "Energy Distribution:",
+                f"  {'Reflected (TOA)':<21}: {reflected_toa:>6.2f}%",
+                f"  {'Surface Absorbed':<21}: {absorbed_surf:>6.2f}%",
+                f"  {'Atmosphere Absorbed':<21}: {absorbed_atm:>6.2f}%",
+                "  " + "-" * 30,
+                f"  {'Energy Balance':<21}: {balance:>6.2f}%\n",
+            ]
+        )
 
     def plot_paths(self, title: str = "Sample 3D photon paths"):
         if "sample_paths" not in self.results_dict or not self.results_dict["sample_paths"]:

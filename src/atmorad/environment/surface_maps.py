@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from atmorad.constants import X, Y
-
 from atmorad.registry import register_surface_map
 
 

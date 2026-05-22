@@ -7,6 +7,7 @@ from atmorad.registry import SURFACE_MAPS
 
 # ------- Environment Config models: ----------
 
+
 class SurfaceMaterialConfig(BaseModel):
     albedo: float = Field(ge=0.0, le=1.0)
     reflection: dict[str, Any]
@@ -38,7 +39,8 @@ class LayerMaterialConfig(BaseModel):
 class LayerConfig(BaseModel):
     thickness_km: float = Field(gt=0.0)
     materials: list[LayerMaterialConfig] = Field(min_length=1)
-    
+
+
 # -----------------------------------------------------------
 class MetadataConfig(BaseModel):
     experiment_name: str
@@ -84,7 +86,7 @@ class GeometryConfig(BaseModel):
 
 class EnvironmentConfig(BaseModel):
     atmosphere_materials: dict[str, AtmosphereMaterialConfig]
-    layers: list[LayerConfig] = Field(min_length=1) 
+    layers: list[LayerConfig] = Field(min_length=1)
     surface: dict[str, Any]
     surface_materials: dict[str, SurfaceMaterialConfig]
     geometry: GeometryConfig
@@ -93,13 +95,17 @@ class EnvironmentConfig(BaseModel):
     def validate_environment(self) -> "EnvironmentConfig":
         map_name = self.surface.get("name")
         if not map_name or map_name not in SURFACE_MAPS:
-            raise ValueError(f"Valid surface 'name' required. Available: {list(SURFACE_MAPS.keys())}")
+            raise ValueError(
+                f"Valid surface 'name' required. Available: {list(SURFACE_MAPS.keys())}"
+            )
 
         for key in SURFACE_MAPS[map_name]["material_keys"]:
             if key not in self.surface:
                 raise ValueError(f"Map '{map_name}' requires key '{key}' in [surface].")
             if self.surface[key] not in self.surface_materials:
-                raise ValueError(f"Material '{self.surface[key]}' not defined in [surface_materials].")
+                raise ValueError(
+                    f"Material '{self.surface[key]}' not defined in [surface_materials]."
+                )
 
         for i, layer in enumerate(self.layers):
             for mat in layer.materials:
@@ -108,8 +114,9 @@ class EnvironmentConfig(BaseModel):
                         f"Layer {i + 1} references undefined atmosphere material: '{mat.type}'. "
                         f"Available materials: {list(self.atmosphere_materials.keys())}"
                     )
-                
+
         return self
+
 
 class SimConfig(BaseModel):
     engine: EngineConfig
@@ -124,9 +131,8 @@ class SimConfig(BaseModel):
         excluded_fields = {
             "engine": {"num_photons", "batch_size", "cpu_cores", "resume_from_checkpoint"}
         }
-        
-        
+
         current_dict = self.model_dump(exclude=excluded_fields)
         checkpoint_dict = checkpoint_config.model_dump(exclude=excluded_fields)
-        
-	 return current_dict == checkpoint_dict
+
+        return current_dict == checkpoint_dict

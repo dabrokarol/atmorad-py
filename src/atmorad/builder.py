@@ -9,7 +9,7 @@ from atmorad.environment import (
     Scene,
     SurfaceMaterial,
 )
-from atmorad.registry import REFLECTION_MODELS, SURFACE_MAPS, SCATTERING_MODELS
+from atmorad.registry import REFLECTION_MODELS, SCATTERING_MODELS, SURFACE_MAPS
 
 from .models import SimContext
 
@@ -74,7 +74,9 @@ def _build_layers(
     built_layers = []
     for layer_data in raw_layers:
         thickness = layer_data.thickness_km
-        components = [(atm_materials[material.type], material.weight) for material in layer_data.materials]
+        components = [
+            (atm_materials[material.type], material.weight) for material in layer_data.materials
+        ]
         built_layers.append(AtmosphericLayer(thickness=thickness, components=components))
     return built_layers
 

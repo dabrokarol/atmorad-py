@@ -16,7 +16,7 @@ class DataIO:
     METADATA_FILE = "metadata.json"
     CONFIG_FILE = "runtime_config.toml"
     CHECKPOINT_FILE = "checkpoint.pkl"
-    
+
     def __init__(self, config: SimConfig) -> None:
         self.config = config
 
@@ -45,11 +45,9 @@ class DataIO:
             self.base_dir = output_dir / f"{exp_name}-{timestamp}"
 
         self.base_dir.mkdir(parents=True, exist_ok=True)
-        
+
     def output_summary(self) -> str:
-        lines = [
-            f"Outputs saved to: {self.base_dir}/"
-        ]
+        lines = [f"Outputs saved to: {self.base_dir}/"]
         files = [self.METADATA_FILE, self.RESULTS_FILE, self.CONFIG_FILE]
         for i, filename in enumerate(files):
             if i == len(files) - 1:
@@ -106,7 +104,7 @@ class DataIO:
             else:
                 npz_ready_dict[k] = v
 
-        results_path = self.base_dir / self.RESULTS_FILE 
+        results_path = self.base_dir / self.RESULTS_FILE
         np.savez_compressed(results_path, **npz_ready_dict)
 
     @property
