@@ -1,4 +1,4 @@
-from .api import run, save_all_figures
+from .api import run, save_all_figures, load
 from .builder import build_context
 from .constants import X, Y, Z
 from .engine.runner import MCRadiationRunner
@@ -30,4 +30,5 @@ __all__ = [
     "Y",
     "Z",
     "run",
+    "load"
 ]

@@ -37,3 +37,6 @@ def run(config_path: str | Path, quiet: bool = False) -> dict:
         print("\n".join((analyzer.experiment_summary(), data_io.output_summary())))
 
     return results
+
+def load(directory: Path | str):
+    return DataIO.load_simulation_data(directory)
