@@ -19,7 +19,6 @@ class AtmosphericLayer:
     def __init__(
         self, thickness, components: Sequence[tuple[AtmosphericMedium, float]] | AtmosphericMedium
     ):
-
         self.thickness = thickness
 
         if isinstance(components, AtmosphericMedium):

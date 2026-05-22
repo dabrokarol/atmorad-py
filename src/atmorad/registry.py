@@ -5,10 +5,10 @@ This module provides dictionaries and decorators to register classes so they
 can be dynamically loaded from string names in the configuration files.
 """
 
-SCATTERING_MODELS = {}
-REFLECTION_MODELS = {}
-SURFACE_MAPS = {}
-DETECTORS = {}
+SCATTERING_MODELS: dict[str, type] = {}
+REFLECTION_MODELS: dict[str, type] = {}
+SURFACE_MAPS: dict[str, type] = {}
+DETECTORS: dict[str, type] = {}
 
 
 def register_reflection(name: str):

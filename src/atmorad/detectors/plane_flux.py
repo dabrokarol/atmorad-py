@@ -25,7 +25,6 @@ class IncidentFluxMapDetector(BaseDetector):
         self.y_edges = None
 
     def initialize(self, scene: Scene, config: SimConfig):
-
         self.target_z_array = np.array(config.detectors.flux_maps_z_levels_km, dtype=float)
         self.resolution = config.detectors.horizontal_maps_resolution_km
         self.domain_x = config.environment.geometry.domain_size_x_km

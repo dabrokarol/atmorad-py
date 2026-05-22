@@ -19,7 +19,7 @@ class MCRadiationRunner:
         self,
         context: SimContext,
         quiet: bool = False,
-        on_checkpoint: Callable[[int, dict], None] = None,
+        on_checkpoint: Callable[[int, SimulationResults], None] = None,
         on_finish: Callable[[dict], None] = None,
         load_checkpoint_fn: Callable[[], tuple] = None,
         on_cleanup: Callable[[], None] = None,
@@ -156,8 +156,7 @@ class MCRadiationRunner:
 
 def run_chunk(
     chunk_size: int, seed: np.random.SeedSequence, context: SimContext, starting_photon_count: int
-) -> dict:
-
+) -> SimulationResults:
     new_engine_config = context.config.engine.model_copy(
         update={
             "num_photons": chunk_size,
