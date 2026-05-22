@@ -62,6 +62,11 @@ def configure_logging(verbose, quiet):
     logging.basicConfig(level=level, format=fmt)
 
 
+def save_all_figures(analyzer, data_io):
+    for fig, relative_path in analyzer.generate_all_figures():
+        data_io.save_figure(fig, relative_path)
+
+
 def run_simulation(config, quiet):
     config_path = config.resolve()
 
@@ -77,14 +82,13 @@ def run_simulation(config, quiet):
         f"Starting {context.config.engine.cpu_cores}-core simulation ({context.config.engine.num_photons} photons)..."
     )
 
-    runner = MCRadiationRunner(context)
+    runner = MCRadiationRunner(context, data_io)
     runner.run()
 
     results_dict = runner.get_results()
     analyzer = ResultAnalyzer(results_dict, context.config)
 
-    for fig, relative_path in analyzer.generate_all_figures():
-        data_io.save_figure(fig, relative_path)
+    save_all_figures(analyzer, data_io)
 
     if not quiet:
         print("\n" + analyzer.summary())
@@ -133,8 +137,6 @@ def main():
             )
 
         return 1
-
-    return 0
 
 
 if __name__ == "__main__":

@@ -16,9 +16,9 @@ from .core import Engine
 
 
 class MCRadiationRunner:
-    def __init__(self, context: SimContext):
+    def __init__(self, context: SimContext, data_io: DataIO):
         self.context = context
-        self.data_io = DataIO(context.config)
+        self.data_io = data_io
 
     def run(self):
         start_time = time.perf_counter()
