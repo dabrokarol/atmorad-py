@@ -25,6 +25,7 @@ dependencies = [
     "cmocean>=2.0.0",
     "tqdm>=4.60.0",
     "pydantic>=2.5.0",
+    "netcdf4>=1.7.0",
 ]
 
 [project.scripts]
