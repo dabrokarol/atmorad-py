@@ -1,84 +1,77 @@
-import copy
-from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
 
 
-@dataclass
-class MetadataConfig:
+class MetadataConfig(BaseModel):
     experiment_name: str
-    description: str
+    description: str = ""
 
 
-@dataclass
-class DetectorConfig:
-    vertical_profiles_resolution_km: float
-    horizontal_maps_resolution_km: float
-    num_full_paths: int
-    incident_flux_heights_km: list[float]
+class DetectorConfig(BaseModel):
+    vertical_profiles_resolution_km: float = Field(gt=0.0)
+    horizontal_maps_resolution_km: float = Field(gt=0.0)
+    num_full_paths: int = Field(ge=0)
+    incident_flux_heights_km: list[float] = Field(default_factory=list)
 
 
-@dataclass
-class OutputConfig:
-    save_absorption_maps: bool
-    save_incident_flux_maps: bool
-    save_vertical_profiles: bool
-    save_photon_paths: bool
-    overwrite: bool
-    save_plots: bool
+class OutputConfig(BaseModel):
+    save_absorption_maps: bool = False
+    save_incident_flux_maps: bool = False
+    save_vertical_profiles: bool = False
+    save_photon_paths: bool = False
+    overwrite: bool = False
+    save_plots: bool = False
     path: str
 
 
-@dataclass
-class EngineConfig:
-    num_photons: int
-    batch_size: int
+class EngineConfig(BaseModel):
+    num_photons: int = Field(gt=0)
+    batch_size: int = Field(gt=0)
     random_seed: int
-    cpu_cores: int
-    resume_from_checkpoint: bool
+    cpu_cores: int = Field(ge=1)
+    resume_from_checkpoint: bool = False
 
 
-@dataclass
-class SourceConfig:
-    theta_sun_deg: float
-    phi_sun_deg: float
-    wavelength_nm: float
+class SourceConfig(BaseModel):
+    theta_sun_deg: float = Field(ge=0.0, le=180.0)
+    phi_sun_deg: float = Field(ge=0.0, le=360.0)
+    wavelength_nm: float = Field(gt=0.0)
 
 
-@dataclass
-class GeometryConfig:
-    domain_size_x_km: float
-    domain_size_y_km: float
-    boundary_condition: str
+class GeometryConfig(BaseModel):
+    domain_size_x_km: float = Field(gt=0.0)
+    domain_size_y_km: float = Field(gt=0.0)
+    boundary_condition: Literal["periodic", "open"]
 
 
-@dataclass
-class EnvironmentConfig:
-    atmosphere_materials: dict
-    layers: list[dict]
-    surface: dict
-    surface_materials: dict
+class EnvironmentConfig(BaseModel):
+    atmosphere_materials: dict[str, Any]
+    layers: list[dict[str, Any]] = Field(min_length=1)
+    surface: dict[str, Any]
+    surface_materials: dict[str, Any]
     geometry: GeometryConfig
 
 
-@dataclass
-class SimConfig:
+class SimConfig(BaseModel):
     engine: EngineConfig
     source: SourceConfig
     output: OutputConfig
     metadata: MetadataConfig
     detectors: DetectorConfig
     environment: EnvironmentConfig
-    config_path: Path | None = None
+    config_path: Path | None = Field(default=None, exclude=True)
 
     def is_compatible_for_resume(self, checkpoint_config: "SimConfig") -> bool:
-        current = copy.deepcopy(self)
-        checkpointed = copy.deepcopy(checkpoint_config)
+        ignored_engine_fields = {
+            "num_photons", 
+            "batch_size", 
+            "cpu_cores", 
+            "resume_from_checkpoint"
+        }
 
-        # those parameters are set to 0 before comparison
-        for config in (current, checkpointed):
-            config.engine.num_photons = 0
-            config.engine.batch_size = 0
-            config.engine.cpu_cores = 0
-            config.engine.resume_from_checkpoint = False
+        current_dict = self.model_dump(exclude={"engine": ignored_engine_fields})
+        checkpoint_dict = checkpoint_config.model_dump(exclude={"engine": ignored_engine_fields})
 
-        return current == checkpointed
+        return current_dict == checkpoint_dict

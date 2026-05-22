@@ -1,4 +1,4 @@
-import dataclasses
+
 import datetime
 import json
 import logging
@@ -68,22 +68,7 @@ class DataIO:
             self.save_config_file(self.config.config_path)
 
     def save_metadata(self, results_dict: dict) -> None:
-        def _safe_serialize(obj):
-            if dataclasses.is_dataclass(obj):
-                return dataclasses.asdict(obj)
-
-            if hasattr(obj, "__dict__"):
-                res = {"_class": obj.__class__.__name__}
-                for k, v in obj.__dict__.items():
-                    if not k.startswith("_"):
-                        res[k] = v
-                return res
-
-            if hasattr(obj, "__class__"):
-                return str(obj.__class__.__name__)
-            return str(obj)
-
-        metadata = json.loads(json.dumps(dataclasses.asdict(self.config), default=_safe_serialize))
+        metadata = self.config.model_dump(mode="json")
 
         for key in ["cpu_time_s", "simulation_time_s"]:
             if key in results_dict:

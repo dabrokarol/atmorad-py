@@ -2,7 +2,6 @@ import concurrent.futures
 import logging
 import multiprocessing
 import time
-from dataclasses import replace
 
 import numpy as np
 from tqdm import tqdm
@@ -137,18 +136,25 @@ def run_chunk(
     chunk_size: int, seed: np.random.SeedSequence, context: SimContext, starting_photon_count: int
 ) -> dict:
 
-    new_engine_config = replace(
-        context.config.engine,
-        num_photons=chunk_size,
-        random_seed=seed,
+    new_engine_config = context.config.engine.model_copy(
+        update={
+            "num_photons": chunk_size,
+            "random_seed": seed,
+        }
     )
 
-    new_detector_config = replace(
-        context.config.detectors,
-        num_full_paths=context.config.detectors.num_full_paths if starting_photon_count == 0 else 0,
+    new_detector_config = context.config.detectors.model_copy(
+        update={
+            "num_full_paths": context.config.detectors.num_full_paths if starting_photon_count == 0 else 0,
+        }
     )
 
-    new_config = replace(context.config, engine=new_engine_config, detectors=new_detector_config)
+    new_config = context.config.model_copy(
+        update={
+            "engine": new_engine_config,
+            "detectors": new_detector_config
+        }
+    )
     detectors = build_detectors_from_config(new_config)
 
     sim = Engine(new_config, context.scene, detectors)
