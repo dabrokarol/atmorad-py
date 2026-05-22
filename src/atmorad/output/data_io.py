@@ -238,6 +238,7 @@ class DataIO:
                 return int(key_str)
             except ValueError:
                 return key_str
+
         res = {}
 
         for attr_name in group.ncattrs():
@@ -254,7 +255,7 @@ class DataIO:
                 parsed_val = False
             else:
                 parsed_val = val
-                
+
             res[parse_key(attr_name)] = parsed_val
 
         for var_name, var in group.variables.items():
@@ -267,6 +268,6 @@ class DataIO:
                 parsed_val = [sub_dict[i] for i in range(len(sub_dict))]
             else:
                 parsed_val = sub_dict
-            res[parse_key(grp_name)] = parsed_val    
+            res[parse_key(grp_name)] = parsed_val
 
         return res
