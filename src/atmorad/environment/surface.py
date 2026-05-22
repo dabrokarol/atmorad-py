@@ -16,10 +16,6 @@ class SurfaceMaterial:
     albedo: float
     reflection: SurfaceReflection
 
-    def __post_init__(self):
-        if not 0.0 <= self.albedo <= 1.0:
-            raise ValueError(f"Albedo should be non-negative, got {self.albedo}.")
-
 
 class BaseSurface(ABC):
     """Abstract Base Class for all terrain types."""

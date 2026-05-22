@@ -30,7 +30,8 @@ def run(config_path: str | Path, quiet: bool = False) -> dict:
     results = runner.get_results()
 
     analyzer = ResultAnalyzer(results, context.config)
-    save_all_figures(analyzer, data_io)
+    if context.config.output.save_plots:
+        save_all_figures(analyzer, data_io)
 
     if not quiet:
         print("\n".join((analyzer.experiment_summary(), data_io.output_summary())))
