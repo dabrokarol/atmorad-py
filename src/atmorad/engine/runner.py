@@ -32,13 +32,8 @@ class MCRadiationRunner:
         self.load_checkpoint_fn = load_checkpoint_fn
         self.on_cleanup = on_cleanup
 
-    def run(self):
-        start_time = time.perf_counter()
+    def run(self):  
         self.results = self._run_simulation()
-        end_time = time.perf_counter()
-
-        current_time = self.results.get("simulation_time_s", 0.0)
-        self.results["simulation_time_s"] = current_time + (end_time - start_time)
 
         if self.on_finish:
             self.on_finish(self.results)
@@ -52,6 +47,8 @@ class MCRadiationRunner:
         simulated_photons, all_results = self._load_initial_state()
         total_photons = self.context.config.engine.num_photons
         remaining_photons = total_photons - simulated_photons
+        
+        accumulated_time = all_results.get("simulation_time_s", 0.0)
 
         if remaining_photons <= 0:
             logging.info(
@@ -73,6 +70,8 @@ class MCRadiationRunner:
             results_generator = self._yield_results_serial(batches, simulated_photons, base_seed)
 
         current_photons = simulated_photons
+        
+        run_start_time = time.perf_counter()
 
         with tqdm(
             total=total_photons,
@@ -85,10 +84,16 @@ class MCRadiationRunner:
                 current_photons += chunk_size
                 pbar.update(chunk_size)
                 all_results = merge_incremental(all_results, chunk_res)
+                
+                current_elapsed = time.perf_counter() - run_start_time
+                all_results["simulation_time_s"] = accumulated_time + current_elapsed
 
                 if (i + 1) % CHECKPOINT_INTERVAL == 0:
                     if self.on_checkpoint:
                         self.on_checkpoint(current_photons, all_results)
+                        
+        final_elapsed = time.perf_counter() - run_start_time
+        all_results["simulation_time_s"] = accumulated_time + final_elapsed
 
         return all_results
 

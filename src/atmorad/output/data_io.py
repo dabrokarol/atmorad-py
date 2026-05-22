@@ -230,6 +230,14 @@ class DataIO:
     @classmethod
     def _load_group_to_dict(cls, group) -> dict:
         """Recursively reconstructs a dictionary from NetCDF groups."""
+
+        def parse_key(key_str: str):
+            try:
+                if "." in key_str:
+                    return float(key_str)
+                return int(key_str)
+            except ValueError:
+                return key_str
         res = {}
 
         for attr_name in group.ncattrs():
@@ -239,23 +247,26 @@ class DataIO:
             val = group.getncattr(attr_name)
 
             if val == "__NONE__":
-                res[attr_name] = None
+                parsed_val = None
             elif val == "__BOOL_TRUE__":
-                res[attr_name] = True
+                parsed_val = True
             elif val == "__BOOL_FALSE__":
-                res[attr_name] = False
+                parsed_val = False
             else:
-                res[attr_name] = val
+                parsed_val = val
+                
+            res[parse_key(attr_name)] = parsed_val
 
         for var_name, var in group.variables.items():
-            res[var_name] = np.array(var[:])
+            res[parse_key(var_name)] = np.array(var[:])
 
         for grp_name, grp in group.groups.items():
             sub_dict = cls._load_group_to_dict(grp)
 
             if "__is_list__" in grp.ncattrs():
-                res[grp_name] = [sub_dict[str(i)] for i in range(len(sub_dict))]
+                parsed_val = [sub_dict[i] for i in range(len(sub_dict))]
             else:
-                res[grp_name] = sub_dict
+                parsed_val = sub_dict
+            res[parse_key(grp_name)] = parsed_val    
 
         return res
