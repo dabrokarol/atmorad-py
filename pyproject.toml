@@ -55,3 +55,16 @@ ignore = ["E501"]
 [tool.ruff.lint.per-file-ignores]
 # Ignore "unused import" (F401) in all __init__.py files
 "__init__.py" = ["F401"]
+
+[tool.mypy]
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "cmocean.*",
+    "matplotlib.*",
+    "netCDF4.*",
+    "seaborn.*"
+]
+ignore_missing_imports = true
