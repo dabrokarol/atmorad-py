@@ -43,7 +43,7 @@ atmorad simulation.toml
 - **Plane-parallel approximation**: The atmosphere consists of horizontally uniform layers.
 - **Multi-material atmospheric layers**: Layers can consist of multiple atmospheric materials simultaneously. A photon is assigned a material randomly when it is initialized and again when it crosses into a new layer. Each material has its own extinction coefficient, SSA, and phase function.
 - **Custom Phase Functions**: Henyey-Greenstein and Rayleigh phase functions are built-in, but any custom user-defined function can be constructed using the `Scattering` class.
-- **Surface Reflections**: The surface consists of materials, each with its own albedo, a predefined BRDF reflection model (`Lambertian`, `Mirror`), and a `ProceduralMap` that outputs material IDs based on spatial coordinates.
+- **Surface Reflections**: The surface consists of materials, each with its own albedo, a predefined BRDF reflection model (`Lambertian`, `Specular`), and a `ProceduralMap` that outputs material IDs based on spatial coordinates.
 - **Photon Properties**: Light is treated as monochromatic, non-polarized particles. During the simulation they can be scattered, reflected, or absorbed. 
 - **Incident Irradiance & Adjacency Effect**: Custom detectors allow measuring downward/upward incident flux at any arbitrary altitude, which is helpful for visualizing the adjacency effect.
 
