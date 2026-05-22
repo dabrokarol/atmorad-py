@@ -1,12 +1,30 @@
+from typing import Self
+
 import numpy as np
 
 from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch
+from atmorad.models import BaseResult, PhotonBatch
+from atmorad.registry import register_detector
 
 from .base import BaseDetector
 
 
+class FateResult(BaseResult):
+    photons_absorbed_surface: int = 0
+    photons_absorbed_atmosphere: int = 0
+    photons_escaped_toa: int = 0
+
+    def merge(self, other: Self) -> Self:
+        return self.__class__(
+            photons_absorbed_surface=self.photons_absorbed_surface + other.photons_absorbed_surface,
+            photons_absorbed_atmosphere=self.photons_absorbed_atmosphere
+            + other.photons_absorbed_atmosphere,
+            photons_escaped_toa=self.photons_escaped_toa + other.photons_escaped_toa,
+        )
+
+
+@register_detector("fate")
 class FateDetector(BaseDetector):
     def __init__(self):
         self.absorbed_surface = None
@@ -23,6 +41,11 @@ class FateDetector(BaseDetector):
     def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
         pass
 
+    def record_scattering(
+        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    ):
+        pass
+
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         escaped_toa_mask = self.scene.above_toa(batch.pos) & terminated_mask
         absorbed_surface_mask = self.scene.below_ground(batch.pos) & terminated_mask
@@ -34,9 +57,9 @@ class FateDetector(BaseDetector):
 
     def finalize(self): ...
 
-    def get_results(self) -> dict:
-        return {
-            "photons_absorbed_surface": self.absorbed_surface,
-            "photons_absorbed_atmosphere": self.absorbed_atmosphere,
-            "photons_escaped_toa": self.above_toa_mask,
-        }
+    def get_results(self) -> BaseResult:
+        return FateResult(
+            photons_absorbed_surface=self.absorbed_surface,
+            photons_absorbed_atmosphere=self.absorbed_atmosphere,
+            photons_escaped_toa=self.above_toa_mask,
+        )

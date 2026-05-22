@@ -1,13 +1,31 @@
+from typing import Self
+
 import numpy as np
+from pydantic import ConfigDict
 
 from atmorad.config import SimConfig
 from atmorad.constants import Z
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch
+from atmorad.models import BaseResult, PhotonBatch
+from atmorad.registry import register_detector
 
 from .base import BaseDetector
 
 
+class AbsorptionProfileResult(BaseResult):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    measure_z: np.ndarray
+    absorption_profile_1d: np.ndarray
+
+    def merge(self, other: Self) -> Self:
+        return self.__class__(
+            measure_z=self.measure_z,
+            absorption_profile_1d=self.absorption_profile_1d + other.absorption_profile_1d,
+        )
+
+
+@register_detector("absorption_vertical")
 class AbsorptionProfileDetector(BaseDetector):
     def __init__(self):
         self.spacing = None
@@ -42,8 +60,15 @@ class AbsorptionProfileDetector(BaseDetector):
             layer_counts = np.bincount(layer_indices, minlength=len(self.absorption_profile))
             self.absorption_profile += layer_counts
 
-    def get_results(self) -> dict:
-        return {
-            "absorption_profile_1d": self.absorption_profile,
-            "measure_z": self.measure_z,
-        }
+    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray): ...
+
+    def record_scattering(
+        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    ): ...
+
+    def finalize(self): ...
+
+    def get_results(self) -> AbsorptionProfileResult:
+        return AbsorptionProfileResult(
+            measure_z=self.measure_z, absorption_profile_1d=self.absorption_profile
+        )

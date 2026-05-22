@@ -1,13 +1,46 @@
+from typing import Self
+
 import numpy as np
+from pydantic import ConfigDict
 
 from atmorad.config import SimConfig
 from atmorad.constants import X, Y, Z
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch
+from atmorad.models import BaseResult, PhotonBatch
+from atmorad.registry import register_detector
 
 from .base import BaseDetector
 
 
+class IncidentFluxMapResult(BaseResult):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    x_edges: np.ndarray
+    y_edges: np.ndarray
+    flux_maps_z_levels_km: np.ndarray
+    incident_flux_down_maps_2d: dict[float, np.ndarray]
+    incident_flux_up_maps_2d: dict[float, np.ndarray]
+
+    def merge(self, other: Self) -> Self:
+        merged_down = {
+            z: self.incident_flux_down_maps_2d[z] + other.incident_flux_down_maps_2d[z]
+            for z in self.incident_flux_down_maps_2d
+        }
+        merged_up = {
+            z: self.incident_flux_up_maps_2d[z] + other.incident_flux_up_maps_2d[z]
+            for z in self.incident_flux_up_maps_2d
+        }
+
+        return self.__class__(
+            x_edges=self.x_edges,
+            y_edges=self.y_edges,
+            flux_maps_z_levels_km=self.flux_maps_z_levels_km,
+            incident_flux_down_maps_2d=merged_down,
+            incident_flux_up_maps_2d=merged_up,
+        )
+
+
+@register_detector("plane_flux")
 class IncidentFluxMapDetector(BaseDetector):
     def __init__(self):
         self.target_z_array = None
@@ -102,15 +135,13 @@ class IncidentFluxMapDetector(BaseDetector):
 
         return flux_maps
 
-    def get_results(self) -> dict:
-        return {
-            "x_edges": self.x_edges,
-            "y_edges": self.y_edges,
-            "incident_flux_down_maps_2d": self._build_maps(
+    def get_results(self) -> IncidentFluxMapResult:
+        return IncidentFluxMapResult(
+            x_edges=self.x_edges,
+            y_edges=self.y_edges,
+            flux_maps_z_levels_km=self.target_z_array,
+            incident_flux_down_maps_2d=self._build_maps(
                 self.hit_p_down, self.hit_x_down, self.hit_y_down
             ),
-            "incident_flux_up_maps_2d": self._build_maps(
-                self.hit_p_up, self.hit_x_up, self.hit_y_up
-            ),
-            "flux_maps_z_levels_km": self.target_z_array,
-        }
+            incident_flux_up_maps_2d=self._build_maps(self.hit_p_up, self.hit_x_up, self.hit_y_up),
+        )

@@ -1,12 +1,42 @@
+from typing import Self
+
 import numpy as np
+from pydantic import ConfigDict
 
 from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch
+from atmorad.models import BaseResult, PhotonBatch
+from atmorad.registry import register_detector
 
 from .base import BaseDetector
 
 
+class PathTrackingResult(BaseResult):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    sample_paths: dict[int, list[np.ndarray]]
+    sample_escaped_toa: dict[int, bool]
+    sample_absorbed_atmosphere: dict[int, bool]
+    sample_absorbed_surface: dict[int, bool]
+    toa_z: float
+
+    def merge(self, other: Self) -> Self:
+        return self.__class__(
+            sample_paths={**self.sample_paths, **other.sample_paths},
+            sample_escaped_toa={**self.sample_escaped_toa, **other.sample_escaped_toa},
+            sample_absorbed_atmosphere={
+                **self.sample_absorbed_atmosphere,
+                **other.sample_absorbed_atmosphere,
+            },
+            sample_absorbed_surface={
+                **self.sample_absorbed_surface,
+                **other.sample_absorbed_surface,
+            },
+            toa_z=self.toa_z,
+        )
+
+
+@register_detector("path_tracking")
 class PathTrackingDetector(BaseDetector):
     def __init__(self):
         self.num_track = 0
@@ -49,11 +79,11 @@ class PathTrackingDetector(BaseDetector):
             i: self.scene.below_ground(self.tracked_paths[i][-1]) for i in range(self.num_track)
         }
 
-    def get_results(self) -> dict:
-        return {
-            "sample_paths": self.tracked_paths,
-            "sample_escaped_toa": self.sample_escaped_toa,
-            "sample_absorbed_atmosphere": self.sample_absorbed_atmosphere,
-            "sample_absorbed_surface": self.sample_absorbed_surface,
-            "toa_z": self.toa_z,
-        }
+    def get_results(self) -> PathTrackingResult:
+        return PathTrackingResult(
+            sample_paths=self.tracked_paths,
+            sample_escaped_toa=self.sample_escaped_toa,
+            sample_absorbed_atmosphere=self.sample_absorbed_atmosphere,
+            sample_absorbed_surface=self.sample_absorbed_surface,
+            toa_z=self.toa_z,
+        )

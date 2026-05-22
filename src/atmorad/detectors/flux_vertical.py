@@ -1,13 +1,33 @@
+from typing import Self
+
 import numpy as np
+from pydantic import ConfigDict
 
 from atmorad.config import SimConfig
 from atmorad.constants import Z
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch
+from atmorad.models import BaseResult, PhotonBatch
+from atmorad.registry import register_detector
 
 from .base import BaseDetector
 
 
+class VerticalFluxResult(BaseResult):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    measure_z: np.ndarray
+    flux_up: np.ndarray
+    flux_down: np.ndarray
+
+    def merge(self, other: Self) -> Self:
+        return self.__class__(
+            measure_z=self.measure_z,
+            flux_up=self.flux_up + other.flux_up,
+            flux_down=self.flux_down + other.flux_down,
+        )
+
+
+@register_detector("vertical_flux")
 class VerticalFluxDetector(BaseDetector):
     def __init__(self):
         self.spacing = None
@@ -71,8 +91,16 @@ class VerticalFluxDetector(BaseDetector):
             self.diff_up[0 : start_bins.size] += start_bins
             self.diff_up[0 : end_bins.size] -= end_bins
 
-    def get_results(self) -> dict:
+    def record_scattering(
+        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    ): ...
+
+    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray): ...
+
+    def finalize(self): ...
+
+    def get_results(self) -> VerticalFluxResult:
         flux_down = np.cumsum(self.diff_down)[:-1]
         flux_up = np.cumsum(self.diff_up)[:-1]
 
-        return {"measure_z": self.measure_z, "flux_up": flux_up, "flux_down": flux_down}
+        return VerticalFluxResult(measure_z=self.measure_z, flux_up=flux_up, flux_down=flux_down)

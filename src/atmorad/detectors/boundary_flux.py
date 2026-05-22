@@ -1,13 +1,36 @@
+from typing import Self
+
 import numpy as np
+from pydantic import ConfigDict
 
 from atmorad.config import SimConfig
 from atmorad.constants import X, Y, Z
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch
+from atmorad.models import BaseResult, PhotonBatch
+from atmorad.registry import register_detector
 
 from .base import BaseDetector
 
 
+class BoundaryAbsorptionResult(BaseResult):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    x_edges: np.ndarray
+    y_edges: np.ndarray
+    surface_absorption_map_2d: np.ndarray
+    toa_flux_map_2d: np.ndarray
+
+    def merge(self, other: Self) -> Self:
+        return self.__class__(
+            x_edges=self.x_edges,
+            y_edges=self.y_edges,
+            surface_absorption_map_2d=self.surface_absorption_map_2d
+            + other.surface_absorption_map_2d,
+            toa_flux_map_2d=self.toa_flux_map_2d + other.toa_flux_map_2d,
+        )
+
+
+@register_detector("boundary_flux")
 class BoundaryAbsorptionDetector(BaseDetector):
     def __init__(self):
         self.resolution = None
@@ -51,7 +74,7 @@ class BoundaryAbsorptionDetector(BaseDetector):
             self.space_x.append(wrapped_x[above_toa_mask])
             self.space_y.append(wrapped_y[above_toa_mask])
 
-    def get_results(self) -> dict:
+    def get_results(self) -> BoundaryAbsorptionResult:
         results = {"x_edges": self.x_edges, "y_edges": self.y_edges}
 
         if self.surface_x:
@@ -77,4 +100,9 @@ class BoundaryAbsorptionDetector(BaseDetector):
         else:
             results["toa_flux_map_2d"] = np.zeros((len(self.x_edges) - 1, len(self.y_edges) - 1))
 
-        return results
+        return BoundaryAbsorptionResult(
+            x_edges=self.x_edges,
+            y_edges=self.y_edges,
+            surface_absorption_map_2d=surf_map,
+            toa_flux_map_2d=space_map,
+        )
