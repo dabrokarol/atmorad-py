@@ -29,7 +29,7 @@ albedo = 0.85
 reflection = {type = "lambertian"}
 [surface_materials.ocean]
 albedo = 0.01
-reflection = {type = "mirror", roughness = 0.0}
+reflection = {type = "specular", roughness = 0.0}
 
 [atmosphere_materials.material-1]
 extinction_coeff_per_km = 10

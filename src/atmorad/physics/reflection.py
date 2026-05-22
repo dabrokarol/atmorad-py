@@ -21,8 +21,8 @@ class SurfaceReflection(ABC):
         return self.reflect(direction, rand_1, rand_2)
 
 
-@register_reflection("mirror")
-class MirrorReflection(SurfaceReflection):
+@register_reflection("specular")
+class SpecularReflection(SurfaceReflection):
     def __init__(self, roughness: float = 0.0):
         self.roughness = roughness
 
@@ -31,7 +31,7 @@ class MirrorReflection(SurfaceReflection):
         new_direction[Z] = np.abs(new_direction[Z])
 
         if self.roughness > 0.0:
-            logging.warning("Mirror reflection with roughness > 0 is not yet implemented")
+            logging.warning("Specular reflection with roughness > 0 is not yet implemented")
 
         return new_direction
 

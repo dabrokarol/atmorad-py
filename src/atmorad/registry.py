@@ -16,7 +16,7 @@ def register_reflection(name: str):
 
     Args:
         name (str): The string name used to identify this reflection model
-            in the configuration file (e.g., "lambertian", "mirror").
+            in the configuration file (e.g., "lambertian", "specular").
 
     Returns:
         Callable: The decorator function that adds the class to REFLECTION_MODELS.

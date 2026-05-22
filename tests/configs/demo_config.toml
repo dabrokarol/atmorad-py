@@ -22,7 +22,7 @@ boundary_condition = "periodic"
 vertical_profiles_resolution_km = 1.0
 horizontal_maps_resolution_km = 1.0
 num_full_paths = 200
-flux_maps_measure_z_km = [0, 4.0]
+flux_maps_z_levels_km = [0, 4.0]
 
 [output]
 save_absorption_maps = true
