@@ -1,4 +1,3 @@
-
 import datetime
 import json
 import logging
@@ -13,6 +12,11 @@ from atmorad.config import SimConfig
 
 
 class DataIO:
+    RESULTS_FILE = "data_compressed.npz"
+    METADATA_FILE = "metadata.json"
+    CONFIG_FILE = "runtime_config.toml"
+    CHECKPOINT_FILE = "checkpoint.pkl"
+    
     def __init__(self, config: SimConfig) -> None:
         self.config = config
 
@@ -41,12 +45,25 @@ class DataIO:
             self.base_dir = output_dir / f"{exp_name}-{timestamp}"
 
         self.base_dir.mkdir(parents=True, exist_ok=True)
+        
+    def output_summary(self) -> str:
+        lines = [
+            f"Outputs saved to: {self.base_dir}/"
+        ]
+        files = [self.METADATA_FILE, self.RESULTS_FILE, self.CONFIG_FILE]
+        for i, filename in enumerate(files):
+            if i == len(files) - 1:
+                lines.append(f"  └─ {filename}")
+            else:
+                lines.append(f"  ├─ {filename}")
+
+        return "\n".join(lines)
 
     def _find_latest_checkpoint_dir(self, output_dir: Path, exp_name: str) -> Path | None:
         valid_dirs = [
             d
             for d in output_dir.glob(f"{exp_name}*")
-            if d.is_dir() and (d / "checkpoint.pkl").exists()
+            if d.is_dir() and (d / self.CHECKPOINT_FILE).exists()
         ]
         return max(valid_dirs, key=lambda p: p.stat().st_mtime) if valid_dirs else None
 
@@ -55,13 +72,10 @@ class DataIO:
             logging.error(f"Cannot find original config at {config_file_path.resolve()}")
             return
 
-        destination_path = self.base_dir / "runtime_config.toml"
+        destination_path = self.base_dir / self.CONFIG_FILE
         shutil.copy2(config_file_path, destination_path)
 
-        logging.info(f"Config saved to {destination_path}.")
-
     def save_simulation_run(self, results_dict: dict):
-        logging.info("Saving final results to disk...")
         self.save_metadata(results_dict)
         self.save_results(results_dict)
         if self.config.config_path:
@@ -74,12 +88,10 @@ class DataIO:
             if key in results_dict:
                 metadata[key] = results_dict[key]
 
-        metadata_path = self.base_dir / "metadata.json"
+        metadata_path = self.base_dir / self.METADATA_FILE
 
         with open(metadata_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=4)
-
-        logging.info(f"Metadata saved to: {metadata_path}.")
 
     def save_figure(self, fig: Figure, relative_path: str, dpi: int = 300) -> None:
         full_path = self.base_dir / relative_path
@@ -94,14 +106,12 @@ class DataIO:
             else:
                 npz_ready_dict[k] = v
 
-        results_path = self.base_dir / "data_compressed.npz"
+        results_path = self.base_dir / self.RESULTS_FILE 
         np.savez_compressed(results_path, **npz_ready_dict)
-
-        logging.info(f"Compressed results saved to {results_path}.")
 
     @property
     def checkpoint_path(self):
-        return self.base_dir / "checkpoint.pkl"
+        return self.base_dir / self.CHECKPOINT_FILE
 
     def save_checkpoint(self, simulated_photons: int, results: dict):
         state = {"simulated_photons": simulated_photons, "results": results, "config": self.config}
@@ -117,7 +127,6 @@ class DataIO:
             with open(self.checkpoint_path, "rb") as f:
                 state = pickle.load(f)
                 return state["simulated_photons"], state["results"], state["config"]
-        logging.info("No checkpoint found. Starting a fresh simulation.")
         return 0, {}, None
 
     def delete_checkpoint(self):

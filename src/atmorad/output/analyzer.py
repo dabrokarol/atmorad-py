@@ -16,34 +16,30 @@ class ResultAnalyzer:
         self.config = config
         self.total_photons = config.engine.num_photons
 
-    def summary(self):
-        summary_str = f"---- Simulation Summary ({self.config.metadata.experiment_name}) ----\n"
-        summary_str += f"Total photons simulated: {self.total_photons}\n"
-
-        if "simulation_time_s" in self.results_dict:
-            summary_str += f"Wall time: {self.results_dict['simulation_time_s']:.2f} s\n"
-        if "cpu_time_s" in self.results_dict:
-            summary_str += f"Total CPU time: {self.results_dict['cpu_time_s']:.2f} s\n\n"
-
-        reflected, absorbed_surf, absorbed_atm = 0.0, 0.0, 0.0
-
+    def experiment_summary(self) -> str:
+        experiment_name = self.config.metadata.experiment_name
         num_photons = self.config.engine.num_photons
-        reflected = self.results_dict["photons_escaped_toa"] / num_photons
-        absorbed_surf = self.results_dict["photons_absorbed_surface"] / num_photons
-        absorbed_atm = self.results_dict["photons_absorbed_atmosphere"] / num_photons
+        
+        total_time = self.results_dict.get("simulation_time_s", 0.0)
+        cpu_time = self.results_dict.get("cpu_time_s", 0.0)
 
-        summary_str += f"Reflected (escaped toa): {reflected:.6f} ({reflected * 100:.2f}%)\n"
-        summary_str += f"Surface Absorption: {absorbed_surf:.6f} ({absorbed_surf * 100:.2f}%)\n"
-        summary_str += (
-            f"Absorbed (absorbed by atmosphere): {absorbed_atm:.6f} ({absorbed_atm * 100:.2f}%)\n"
-        )
+        reflected_toa = (self.results_dict.get("photons_escaped_toa", 0) / num_photons) * 100.0
+        absorbed_surf = (self.results_dict.get("photons_absorbed_surface", 0) / num_photons) * 100.0
+        absorbed_atm = (self.results_dict.get("photons_absorbed_atmosphere", 0) / num_photons) * 100.0
 
-        if reflected > 0 or absorbed_surf > 0 or absorbed_atm > 0:
-            total_energy = reflected + absorbed_surf + absorbed_atm
-            summary_str += "-----------------------------------\n"
-            summary_str += f"Energy Balance Check: {total_energy:.6f} (Should be 1.0)\n"
+        balance = reflected_toa + absorbed_surf + absorbed_atm
 
-        return summary_str
+        return "\n".join([
+            f"\n---- Simulation Summary: {experiment_name} ----",
+            f"Time: {total_time:.2f}s (Total) | {cpu_time:.2f}s (CPU)",
+            f"Total Photons: {num_photons:_}\n",
+            "Energy Distribution:",
+            f"  {'Reflected (TOA)':<21}: {reflected_toa:>6.2f}%",
+            f"  {'Surface Absorbed':<21}: {absorbed_surf:>6.2f}%",
+            f"  {'Atmosphere Absorbed':<21}: {absorbed_atm:>6.2f}%",
+            "  " + "-" * 30,
+            f"  {'Energy Balance':<21}: {balance:>6.2f}%\n"
+        ])
 
     def plot_paths(self, title: str = "Sample 3D photon paths"):
         if "sample_paths" not in self.results_dict or not self.results_dict["sample_paths"]:

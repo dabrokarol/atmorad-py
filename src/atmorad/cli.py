@@ -70,16 +70,14 @@ def save_all_figures(analyzer, data_io):
 def run_simulation(config, quiet):
     config_path = config.resolve()
 
-    logging.info(f"Loading configuration from: {config_path.name}...")
+    logging.info(f"Loading configuration from: {config_path.name}")
 
     context = build_context(config_path)
-
-    logging.info("Generating output directory...")
 
     data_io = DataIO(context.config)
 
     logging.info(
-        f"Starting {context.config.engine.cpu_cores}-core simulation ({context.config.engine.num_photons} photons)..."
+        f"Starting {context.config.engine.cpu_cores}-core simulation ({context.config.engine.num_photons:_} photons)"
     )
 
     runner = MCRadiationRunner(context, data_io)
@@ -91,10 +89,7 @@ def run_simulation(config, quiet):
     save_all_figures(analyzer, data_io)
 
     if not quiet:
-        print("\n" + analyzer.summary())
-
-    logging.info("Done! Simulation artifacts saved successfully.")
-
+        print("\n".join((analyzer.experiment_summary(), data_io.output_summary())))
 
 def main():
     parser = setup_parser()
