@@ -89,7 +89,7 @@ class CustomReflection(SurfaceReflection):
 @register_scattering("custom-scattering")
 class CustomScattering(Scattering):
     def __init__(self, g, resolution=1000):
-        self.g = g
+        self.assymetry_factor = g
         cos_grid = np.linspace(-1, 1, resolution)
         pdf = (1 - g**2) / (2 * (1 + g**2 - 2 * g * cos_grid) ** 1.5)
         super().__init__(pdf_array=pdf, resolution=resolution)

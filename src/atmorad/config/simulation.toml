@@ -51,11 +51,11 @@ scattering = {type = "rayleigh"} # rayleigh, hg, isotropic
 [atmosphere_materials.light-clouds]
 extinction_coeff_per_km = 1
 ssa = 0.999999
-scattering = {type = "hg", g = 0.85}
+scattering = {type = "hg", assymetry_factor = 0.85}
 [atmosphere_materials.dark-clouds]
 extinction_coeff_per_km = 5
 ssa = 0.999999
-scattering = {type = "hg", g = 0.85}
+scattering = {type = "hg", assymetry_factor = 0.85}
 
 # Define atmospheric structure from bottom to top
 [[layer]]
