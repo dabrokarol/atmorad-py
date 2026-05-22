@@ -19,11 +19,19 @@ domain_size_y_km = 100
 boundary_condition = "periodic"
 
 [detectors]
+active = [
+    "fate", 
+    "path_tracking", 
+    "vertical_flux", 
+    "absorption_vertical", 
+    "plane_flux", 
+    "boundary_flux"
+]
+
 vertical_profiles_resolution_km = 1.0
 horizontal_maps_resolution_km = 1.0
 
 [output]
-save_absorption_maps = true
 overwrite = true
 path = 'results'
 

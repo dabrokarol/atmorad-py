@@ -6,38 +6,10 @@ from pydantic import ConfigDict
 from atmorad.config import SimConfig
 from atmorad.constants import X, Y, Z
 from atmorad.environment import Scene
-from atmorad.models import BaseResult, PhotonBatch
+from atmorad.models import BaseResult, PhotonBatch, IncidentFluxMapResult
 from atmorad.registry import register_detector
 
 from .base import BaseDetector
-
-
-class IncidentFluxMapResult(BaseResult):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    x_edges: np.ndarray
-    y_edges: np.ndarray
-    flux_maps_z_levels_km: np.ndarray
-    incident_flux_down_maps_2d: dict[float, np.ndarray]
-    incident_flux_up_maps_2d: dict[float, np.ndarray]
-
-    def merge(self, other: Self) -> Self:
-        merged_down = {
-            z: self.incident_flux_down_maps_2d[z] + other.incident_flux_down_maps_2d[z]
-            for z in self.incident_flux_down_maps_2d
-        }
-        merged_up = {
-            z: self.incident_flux_up_maps_2d[z] + other.incident_flux_up_maps_2d[z]
-            for z in self.incident_flux_up_maps_2d
-        }
-
-        return self.__class__(
-            x_edges=self.x_edges,
-            y_edges=self.y_edges,
-            flux_maps_z_levels_km=self.flux_maps_z_levels_km,
-            incident_flux_down_maps_2d=merged_down,
-            incident_flux_up_maps_2d=merged_up,
-        )
 
 
 @register_detector("plane_flux")
@@ -116,6 +88,17 @@ class IncidentFluxMapDetector(BaseDetector):
         )
         self._process_hits(batch, old_pos, up_mask, self.hit_p_up, self.hit_x_up, self.hit_y_up)
 
+    def record_scattering(
+        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    ):
+        pass
+    
+    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
+        pass
+    
+    def finalize(self):
+        pass
+    
     def _build_maps(self, hit_p: list, hit_x: list, hit_y: list) -> dict:
         flux_maps = {}
         if hit_x:

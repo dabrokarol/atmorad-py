@@ -19,7 +19,6 @@ horizontal_maps_resolution_km = 0.1
 flux_maps_measure_z_km = [0, 2, 3, 6, 7]
 
 [output]
-save_absorption_maps = true
 overwrite = true
 path = 'results'
 

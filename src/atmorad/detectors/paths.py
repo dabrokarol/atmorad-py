@@ -5,35 +5,11 @@ from pydantic import ConfigDict
 
 from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import BaseResult, PhotonBatch
+from atmorad.models import PhotonBatch, PathTrackingResult
 from atmorad.registry import register_detector
 
 from .base import BaseDetector
 
-
-class PathTrackingResult(BaseResult):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    sample_paths: dict[int, list[np.ndarray]]
-    sample_escaped_toa: dict[int, bool]
-    sample_absorbed_atmosphere: dict[int, bool]
-    sample_absorbed_surface: dict[int, bool]
-    toa_z: float
-
-    def merge(self, other: Self) -> Self:
-        return self.__class__(
-            sample_paths={**self.sample_paths, **other.sample_paths},
-            sample_escaped_toa={**self.sample_escaped_toa, **other.sample_escaped_toa},
-            sample_absorbed_atmosphere={
-                **self.sample_absorbed_atmosphere,
-                **other.sample_absorbed_atmosphere,
-            },
-            sample_absorbed_surface={
-                **self.sample_absorbed_surface,
-                **other.sample_absorbed_surface,
-            },
-            toa_z=self.toa_z,
-        )
 
 
 @register_detector("path_tracking")
@@ -57,6 +33,11 @@ class PathTrackingDetector(BaseDetector):
 
             for i, pos in zip(tracked_ids, tracked_pos.T):
                 self.tracked_paths[i].append(pos.copy())
+                
+    def record_scattering(
+        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    ):
+        pass
 
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         tracked_term_mask = (batch.ids < self.num_track) & terminated_mask

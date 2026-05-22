@@ -6,28 +6,11 @@ from pydantic import ConfigDict
 from atmorad.config import SimConfig
 from atmorad.constants import X, Y, Z
 from atmorad.environment import Scene
-from atmorad.models import BaseResult, PhotonBatch
+from atmorad.models import PhotonBatch, BoundaryAbsorptionResult
 from atmorad.registry import register_detector
 
 from .base import BaseDetector
 
-
-class BoundaryAbsorptionResult(BaseResult):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    x_edges: np.ndarray
-    y_edges: np.ndarray
-    surface_absorption_map_2d: np.ndarray
-    toa_flux_map_2d: np.ndarray
-
-    def merge(self, other: Self) -> Self:
-        return self.__class__(
-            x_edges=self.x_edges,
-            y_edges=self.y_edges,
-            surface_absorption_map_2d=self.surface_absorption_map_2d
-            + other.surface_absorption_map_2d,
-            toa_flux_map_2d=self.toa_flux_map_2d + other.toa_flux_map_2d,
-        )
 
 
 @register_detector("boundary_flux")
@@ -54,6 +37,12 @@ class BoundaryAbsorptionDetector(BaseDetector):
         self.x_edges = np.linspace(-self.domain_x / 2, self.domain_x / 2, num_bins_x + 1)
         self.y_edges = np.linspace(-self.domain_y / 2, self.domain_y / 2, num_bins_y + 1)
 
+    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
+        pass
+    
+    def record_scattering(self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray):
+        pass
+    
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         if not np.any(terminated_mask):
             return
@@ -73,6 +62,9 @@ class BoundaryAbsorptionDetector(BaseDetector):
         if np.any(above_toa_mask):
             self.space_x.append(wrapped_x[above_toa_mask])
             self.space_y.append(wrapped_y[above_toa_mask])
+            
+    def finalize(self):
+        pass
 
     def get_results(self) -> BoundaryAbsorptionResult:
         results = {"x_edges": self.x_edges, "y_edges": self.y_edges}

@@ -20,7 +20,14 @@ domain_size_y_km = 100
 boundary_condition = "periodic"
 
 [detectors]
-active = ["fate", "vertical_flux", "absorption_vertical"]
+active = [
+    "fate", 
+    "path_tracking", 
+    "vertical_flux", 
+    "absorption_vertical", 
+    "plane_flux", 
+    "boundary_flux"
+]
 
 # Configuration for the active detectors above
 vertical_profiles_resolution_km = 0.5

@@ -4,24 +4,10 @@ import numpy as np
 
 from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import BaseResult, PhotonBatch
+from atmorad.models import PhotonBatch, FateResult
 from atmorad.registry import register_detector
 
 from .base import BaseDetector
-
-
-class FateResult(BaseResult):
-    photons_absorbed_surface: int = 0
-    photons_absorbed_atmosphere: int = 0
-    photons_escaped_toa: int = 0
-
-    def merge(self, other: Self) -> Self:
-        return self.__class__(
-            photons_absorbed_surface=self.photons_absorbed_surface + other.photons_absorbed_surface,
-            photons_absorbed_atmosphere=self.photons_absorbed_atmosphere
-            + other.photons_absorbed_atmosphere,
-            photons_escaped_toa=self.photons_escaped_toa + other.photons_escaped_toa,
-        )
 
 
 @register_detector("fate")
@@ -57,7 +43,7 @@ class FateDetector(BaseDetector):
 
     def finalize(self): ...
 
-    def get_results(self) -> BaseResult:
+    def get_results(self) -> FateResult:
         return FateResult(
             photons_absorbed_surface=self.absorbed_surface,
             photons_absorbed_atmosphere=self.absorbed_atmosphere,

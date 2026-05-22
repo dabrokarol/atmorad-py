@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import pytest
 from pydantic import ValidationError
 
@@ -20,9 +21,15 @@ def test_energy_conservation(sim_context):
     runner = MCRadiationRunner(sim_context)
     runner.run()
     results = runner.get_results()
-    reflected = results.get("photons_escaped_toa", 0)
-    transmitted = results.get("photons_absorbed_surface", 0)
-    absorbed_atm = results.get("photons_absorbed_atmosphere", 0)
+    
+    fate_res = results.detectors.get("fate") or results.detectors.get("FateDetector")
+    
+    if fate_res:
+        reflected = fate_res.photons_escaped_toa
+        transmitted = fate_res.photons_absorbed_surface
+        absorbed_atm = fate_res.photons_absorbed_atmosphere
+    else:
+        reflected = transmitted = absorbed_atm = 0
 
     total_out = reflected + transmitted + absorbed_atm
 
@@ -40,10 +47,22 @@ def test_no_nan_in_maps(sim_context):
     runner.run()
     results = runner.get_results()
 
-    if "surface_flux_map_2d" in results:
-        import numpy as np
+    # Check Boundary Maps (Surface Absorption)
+    boundary_res = results.detectors.get("boundary_flux") or results.detectors.get("BoundaryAbsorptionDetector")
+    if boundary_res and boundary_res.surface_absorption_map_2d is not None:
+        assert not np.isnan(boundary_res.surface_absorption_map_2d).any()
+        
+    # Check Boundary Maps (TOA reflection)
+    if boundary_res and boundary_res.toa_flux_map_2d is not None:
+        assert not np.isnan(boundary_res.toa_flux_map_2d).any()
 
-        assert not np.isnan(results["surface_flux_map_2d"]).any()
+    # Check Incident Plane Maps (Downward and Upward)
+    plane_res = results.detectors.get("plane_flux") or results.detectors.get("IncidentFluxMapDetector")
+    if plane_res:
+        for flux_map in plane_res.incident_flux_down_maps_2d.values():
+            assert not np.isnan(flux_map).any()
+        for flux_map in plane_res.incident_flux_up_maps_2d.values():
+            assert not np.isnan(flux_map).any()
 
 
 def test_invalid_reflection_model_raises_error():

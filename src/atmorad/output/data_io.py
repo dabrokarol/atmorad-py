@@ -139,7 +139,7 @@ class DataIO:
             ncfile.setncattr("config_json", self.config.model_dump_json())
 
             res_grp = ncfile.createGroup("res")
-            self._save_dict_to_group(res_grp, results)
+            self._save_dict_to_group(res_grp, results.model_dump())
 
         shutil.move(tmp_path, self.checkpoint_path)
 
@@ -156,9 +156,11 @@ class DataIO:
                 config_json = str(ncfile.getncattr("config_json"))
                 config = SimConfig.model_validate_json(config_json)
 
-                results = {}
+                results_dict = {}
                 if "res" in ncfile.groups:
-                    results = self._load_group_to_dict(ncfile.groups["res"])
+                    results_dict = self._load_group_to_dict(ncfile.groups["res"])
+                    
+                results = SimulationResults.model_validate(results_dict)
 
                 return simulated_photons, results, config
 
@@ -227,7 +229,7 @@ class DataIO:
                 group.setncattr(k_str, str(v))
 
     @classmethod
-    def _load_group_to_dict(cls, group) -> SimulationResults:
+    def _load_group_to_dict(cls, group) -> dict:
         """Recursively reconstructs a dictionary from NetCDF groups."""
 
         def parse_key(key_str: str):
@@ -269,6 +271,4 @@ class DataIO:
                 parsed_val = sub_dict
             res[parse_key(grp_name)] = parsed_val
 
-        result = SimulationResults.model_validate(res)
-
-        return result
+        return res

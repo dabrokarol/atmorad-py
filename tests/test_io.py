@@ -60,6 +60,20 @@ def assert_dicts_close(dict1, dict2, path="", ignore_keys=None):
                 f"Type mismatch at '{current_path}': {type(v1)} vs {type(v2)}"
             )
             assert_dicts_close(v1, v2, current_path, ignore_keys)
+            
+        elif isinstance(v1, (list, tuple)):
+            assert isinstance(v2, (list, tuple)), f"Type mismatch at '{current_path}': {type(v1)} vs {type(v2)}"
+            assert len(v1) == len(v2), f"Length mismatch at '{current_path}': {len(v1)} vs {len(v2)}"
+            
+            for i, (item1, item2) in enumerate(zip(v1, v2)):
+                if isinstance(item1, np.ndarray):
+                    np.testing.assert_allclose(item1, item2, err_msg=f"Array mismatch at '{current_path}[{i}]'")
+                elif isinstance(item1, dict):
+                    assert_dicts_close(item1, item2, f"{current_path}[{i}]", ignore_keys)
+                elif isinstance(item1, (float, np.floating)):
+                    assert np.isclose(item1, item2), f"Float mismatch at '{current_path}[{i}]': {item1} != {item2}"
+                else:
+                    assert item1 == item2, f"Value mismatch at '{current_path}[{i}]': {item1} != {item2}"
 
         elif isinstance(v1, np.ndarray) or isinstance(v2, np.ndarray):
             np.testing.assert_allclose(v1, v2, err_msg=f"Array mismatch at '{current_path}'")
@@ -106,7 +120,7 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
     config_2.config_path = config.config_path
 
     assert config == config_2, "Loaded configuration does not match the original."
-    assert_dicts_close(results, results_2)
+    assert_dicts_close(results.model_dump(), results_2.model_dump())
 
     data_io.save_checkpoint(simulated_photons=42, results=results)
     photons, results_from_checkpoint, config_from_checkpoint = data_io.load_checkpoint()
@@ -116,4 +130,4 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
 
     assert photons == 42, f"Expected 42 simulated photons, got {photons}"
     assert config == config_from_checkpoint, "Checkpoint configuration does not match the original."
-    assert_dicts_close(results, results_from_checkpoint)
+    assert_dicts_close(results.model_dump(), results_from_checkpoint.model_dump())

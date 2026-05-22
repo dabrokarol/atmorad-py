@@ -6,25 +6,10 @@ from pydantic import ConfigDict
 from atmorad.config import SimConfig
 from atmorad.constants import Z
 from atmorad.environment import Scene
-from atmorad.models import BaseResult, PhotonBatch
+from atmorad.models import PhotonBatch, VerticalFluxResult
 from atmorad.registry import register_detector
 
 from .base import BaseDetector
-
-
-class VerticalFluxResult(BaseResult):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    measure_z: np.ndarray
-    flux_up: np.ndarray
-    flux_down: np.ndarray
-
-    def merge(self, other: Self) -> Self:
-        return self.__class__(
-            measure_z=self.measure_z,
-            flux_up=self.flux_up + other.flux_up,
-            flux_down=self.flux_down + other.flux_down,
-        )
 
 
 @register_detector("vertical_flux")
