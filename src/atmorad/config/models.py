@@ -1,9 +1,45 @@
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from atmorad.registry import SURFACE_MAPS
+
+# ------- Environment Config models: ----------
+
+class SurfaceMaterialConfig(BaseModel):
+    albedo: float = Field(ge=0.0, le=1.0)
+    reflection: dict[str, Any]
+
+    @model_validator(mode="after")
+    def validate_reflection(self) -> "SurfaceMaterialConfig":
+        if "type" not in self.reflection:
+            raise ValueError("Surface reflection configuration must contain a 'type' key.")
+        return self
 
 
+class AtmosphereMaterialConfig(BaseModel):
+    extinction_coeff_per_km: float = Field(ge=0.0)
+    ssa: float = Field(ge=0.0, le=1.0)
+    scattering: dict[str, Any]
+
+    @model_validator(mode="after")
+    def validate_scattering(self) -> "AtmosphereMaterialConfig":
+        if "type" not in self.scattering:
+            raise ValueError("Atmosphere scattering configuration must contain a 'type' key.")
+        return self
+
+
+class LayerMaterialConfig(BaseModel):
+    type: str
+    weight: float = Field(ge=0.0)
+
+
+class LayerConfig(BaseModel):
+    thickness_km: float = Field(gt=0.0)
+    materials: list[LayerMaterialConfig] = Field(min_length=1)
+    
+# -----------------------------------------------------------
 class MetadataConfig(BaseModel):
     experiment_name: str
     description: str = ""
@@ -47,12 +83,33 @@ class GeometryConfig(BaseModel):
 
 
 class EnvironmentConfig(BaseModel):
-    atmosphere_materials: dict[str, Any]
-    layers: list[dict[str, Any]] = Field(min_length=1)
+    atmosphere_materials: dict[str, AtmosphereMaterialConfig]
+    layers: list[LayerConfig] = Field(min_length=1) 
     surface: dict[str, Any]
-    surface_materials: dict[str, Any]
+    surface_materials: dict[str, SurfaceMaterialConfig]
     geometry: GeometryConfig
 
+    @model_validator(mode="after")
+    def validate_environment(self) -> "EnvironmentConfig":
+        map_name = self.surface.get("name")
+        if not map_name or map_name not in SURFACE_MAPS:
+            raise ValueError(f"Valid surface 'name' required. Available: {list(SURFACE_MAPS.keys())}")
+
+        for key in SURFACE_MAPS[map_name]["material_keys"]:
+            if key not in self.surface:
+                raise ValueError(f"Map '{map_name}' requires key '{key}' in [surface].")
+            if self.surface[key] not in self.surface_materials:
+                raise ValueError(f"Material '{self.surface[key]}' not defined in [surface_materials].")
+
+        for i, layer in enumerate(self.layers):
+            for mat in layer.materials:
+                if mat.type not in self.atmosphere_materials:
+                    raise ValueError(
+                        f"Layer {i + 1} references undefined atmosphere material: '{mat.type}'. "
+                        f"Available materials: {list(self.atmosphere_materials.keys())}"
+                    )
+                
+        return self
 
 class SimConfig(BaseModel):
     engine: EngineConfig
@@ -64,14 +121,12 @@ class SimConfig(BaseModel):
     config_path: Path | None = Field(default=None, exclude=True)
 
     def is_compatible_for_resume(self, checkpoint_config: "SimConfig") -> bool:
-        ignored_engine_fields = {
-            "num_photons", 
-            "batch_size", 
-            "cpu_cores", 
-            "resume_from_checkpoint"
+        excluded_fields = {
+            "engine": {"num_photons", "batch_size", "cpu_cores", "resume_from_checkpoint"}
         }
-
-        current_dict = self.model_dump(exclude={"engine": ignored_engine_fields})
-        checkpoint_dict = checkpoint_config.model_dump(exclude={"engine": ignored_engine_fields})
-
-        return current_dict == checkpoint_dict
+        
+        
+        current_dict = self.model_dump(exclude=excluded_fields)
+        checkpoint_dict = checkpoint_config.model_dump(exclude=excluded_fields)
+        
+	 return current_dict == checkpoint_dict

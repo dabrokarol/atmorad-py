@@ -17,14 +17,14 @@ from .models import SimContext
 def _build_atmosphere_materials(materials_data: dict) -> dict[str, AtmosphericMedium]:
     built = {}
     for name, properties in materials_data.items():
-        scat_data = properties["scattering"]
+        scat_data = properties.scattering
         scat_type = scat_data["type"]
         scat_kwargs = {k: v for k, v in scat_data.items() if k != "type"}
         phase_function = SCATTERING_MODELS[scat_type](**scat_kwargs)
 
         built[name] = AtmosphericMedium(
-            extinction_coeff=properties["extinction_coeff_per_km"],
-            ssa=properties["ssa"],
+            extinction_coeff=properties.extinction_coeff_per_km,
+            ssa=properties.ssa,
             phase_function=phase_function,
         )
     return built
@@ -35,13 +35,13 @@ def _build_surface(
 ) -> FlatSurface:
     built_materials = {}
     for material_name, material_data in materials_config.items():
-        ref_data = material_data["reflection"]
+        ref_data = material_data.reflection
         ref_type = ref_data["type"]
         ref_kwargs = {k: v for k, v in ref_data.items() if k != "type"}
         reflection_model = REFLECTION_MODELS[ref_type](**ref_kwargs)
 
         built_materials[material_name] = SurfaceMaterial(
-            albedo=material_data["albedo"], reflection=reflection_model
+            albedo=material_data.albedo, reflection=reflection_model
         )
 
     map_name = surface_config["name"]
@@ -57,9 +57,7 @@ def _build_surface(
 
     ground_map = MapClass(**kwargs)
 
-    ordered_materials = []
-    for name in material_names:
-        ordered_materials.append(built_materials[name])
+    ordered_materials = [built_materials[name] for name in material_names]
 
     return FlatSurface(
         ground_map=ground_map,
@@ -75,8 +73,8 @@ def _build_layers(
 ) -> list[AtmosphericLayer]:
     built_layers = []
     for layer_data in raw_layers:
-        thickness = layer_data["thickness_km"]
-        components = [(atm_materials[m["type"]], m["weight"]) for m in layer_data["materials"]]
+        thickness = layer_data.thickness_km
+        components = [(atm_materials[material.type], material.weight) for material in layer_data.materials]
         built_layers.append(AtmosphericLayer(thickness=thickness, components=components))
     return built_layers
 
