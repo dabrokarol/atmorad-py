@@ -3,20 +3,18 @@ from .context import SimContext
 from .results import (
     AbsorptionProfileResult,
     AnyDetectorResult,
-    BaseResult,
-    BoundaryAbsorptionResult,
     EngineResult,
     FateResult,
     IncidentFluxMapResult,
     PathTrackingResult,
     SimulationResults,
+    SurfaceAbsorptionResult,
     VerticalFluxResult,
 )
 
 __all__ = [
     "PhotonBatch",
     "SimContext",
-    "BaseResult",
     "SimulationResults",
     "EngineResult",
     "PathTrackingResult",
@@ -25,5 +23,5 @@ __all__ = [
     "VerticalFluxResult",
     "FateResult",
     "AbsorptionProfileResult",
-    "BoundaryAbsorptionResult",
+    "SurfaceAbsorptionResult",
 ]

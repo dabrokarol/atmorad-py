@@ -9,6 +9,7 @@ SCATTERING_MODELS: dict[str, type] = {}
 REFLECTION_MODELS: dict[str, type] = {}
 SURFACE_MAPS: dict[str, type] = {}
 DETECTORS: dict[str, type] = {}
+DETECTOR_RESULTS: dict[str, type] = {}
 
 
 def register_reflection(name: str):
@@ -70,11 +71,12 @@ def register_surface_map(name: str, material_keys: list[str]):
     return decorator
 
 
-def register_detector(name: str):
+def register_detector(name: str, result_class: type):
     """Decorator to register a detector model."""
 
     def wrapper(cls):
         DETECTORS[name] = cls
+        DETECTOR_RESULTS[name] = result_class
         return cls
 
     return wrapper

@@ -58,7 +58,12 @@ class MetadataConfig(BaseModel):
 
 
 DetectorName = Literal[
-    "fate", "path_tracking", "vertical_flux", "absorption_vertical", "plane_flux", "boundary_flux"
+    "fate",
+    "plane_flux",
+    "path_tracking",
+    "surface_absorption",
+    "vertical_flux",
+    "absorption_vertical",
 ]
 
 

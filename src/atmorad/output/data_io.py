@@ -1,16 +1,24 @@
-import collections.abc
 import datetime
 import json
 import logging
 import shutil
 from pathlib import Path
 
-import netCDF4 as nc
 import numpy as np
+import xarray as xr
 from matplotlib.figure import Figure
 
 from atmorad.config import SimConfig
-from atmorad.models import SimulationResults
+from atmorad.models.results import (
+    AbsorptionProfileResult,
+    EngineResult,
+    FateResult,
+    IncidentFluxMapResult,
+    PathTrackingResult,
+    SimulationResults,
+    SurfaceAbsorptionResult,
+    VerticalFluxResult,
+)
 
 
 class DataIO:
@@ -102,15 +110,47 @@ class DataIO:
 
     def save_results(self, results: SimulationResults) -> None:
         results_path = self.base_dir / self.RESULTS_FILE
-        with nc.Dataset(results_path, "w", format="NETCDF4") as ncfile:
-            self._save_dict_to_group(ncfile, results.model_dump())
+        ds = self._results_to_dataset(results)
+        ds.to_netcdf(results_path, engine="netcdf4")
+
+    def save_checkpoint(self, simulated_photons: int, results: SimulationResults):
+        tmp_path = self.checkpoint_path.with_suffix(".nc.tmp")
+
+        ds = self._results_to_dataset(results)
+        ds.attrs["_simulated_photons"] = simulated_photons
+        ds.attrs["_config_json"] = self.config.model_dump_json()
+
+        ds.to_netcdf(tmp_path, engine="netcdf4")
+        shutil.move(tmp_path, self.checkpoint_path)
+
+    def load_checkpoint(self):
+        if not self.checkpoint_path.exists():
+            return 0, SimulationResults(), None
+
+        try:
+            with xr.open_dataset(self.checkpoint_path, engine="netcdf4") as ds:
+                ds.load()
+                simulated_photons = int(ds.attrs.get("_simulated_photons", 0))
+
+                from atmorad.config import SimConfig
+
+                config_json = str(ds.attrs.get("_config_json", "{}"))
+                config = SimConfig.model_validate_json(config_json)
+
+                results = self._dataset_to_results(ds)
+
+                return simulated_photons, results, config
+
+        except Exception as e:
+            logging.error(f"Failed to load checkpoint file: {e}")
+            return 0, SimulationResults(), None
+
+    def delete_checkpoint(self):
+        if self.checkpoint_path.exists():
+            self.checkpoint_path.unlink()
 
     @classmethod
     def load_simulation_data(cls, directory: str | Path):
-        """
-        Loads the results and config from a completed simulation.
-        Returns: (config, results)
-        """
         dir_path = Path(directory)
         results_path = dir_path / cls.RESULTS_FILE
         config_path = dir_path / cls.CONFIG_FILE
@@ -118,10 +158,9 @@ class DataIO:
         if not results_path.exists():
             raise FileNotFoundError(f"Could not find results at {results_path.resolve()}")
 
-        with nc.Dataset(results_path, "r") as ncfile:
-            results_dict = cls._load_group_to_dict(ncfile)
-
-        results = SimulationResults.model_validate(results_dict)
+        with xr.open_dataset(results_path, engine="netcdf4") as ds:
+            ds.load()
+            results = cls._dataset_to_results(ds)
 
         config = None
         if config_path.exists():
@@ -131,144 +170,172 @@ class DataIO:
 
         return config, results
 
-    def save_checkpoint(self, simulated_photons: int, results: dict):
-        tmp_path = self.checkpoint_path.with_suffix(".nc.tmp")
+    @classmethod
+    def _results_to_dataset(cls, results: SimulationResults) -> xr.Dataset:
+        data_vars = {}
+        coords = {}
 
-        with nc.Dataset(tmp_path, "w", format="NETCDF4") as ncfile:
-            ncfile.setncattr("simulated_photons", simulated_photons)
-            ncfile.setncattr("config_json", self.config.model_dump_json())
+        attrs = {
+            "engine_cpu_time_s": results.engine.cpu_time_s,
+            "engine_simulation_time_s": results.engine.simulation_time_s,
+        }
 
-            res_grp = ncfile.createGroup("res")
-            self._save_dict_to_group(res_grp, results.model_dump())
+        det_types = {}
 
-        shutil.move(tmp_path, self.checkpoint_path)
+        for det_id, det_res in results.detector_results.items():
+            det_types[det_id] = type(det_res).__name__
+            pfx = det_id
 
-    def load_checkpoint(self):
-        if not self.checkpoint_path.exists():
-            return 0, {}, None
+            if isinstance(det_res, FateResult):
+                attrs[f"{pfx}_photons_absorbed_surface"] = det_res.photons_absorbed_surface
+                attrs[f"{pfx}_photons_absorbed_atmosphere"] = det_res.photons_absorbed_atmosphere
+                attrs[f"{pfx}_photons_escaped_toa"] = det_res.photons_escaped_toa
+                attrs[f"{pfx}_cpu_time_s"] = det_res.cpu_time_s
 
-        try:
-            with nc.Dataset(self.checkpoint_path, "r") as ncfile:
-                simulated_photons = int(ncfile.getncattr("simulated_photons"))
+            elif isinstance(det_res, VerticalFluxResult):
+                dim_z = f"{pfx}_z"
+                coords[dim_z] = (dim_z, det_res.measure_z)
+                data_vars[f"{pfx}_flux_up"] = ([dim_z], det_res.flux_up)
+                data_vars[f"{pfx}_flux_down"] = ([dim_z], det_res.flux_down)
 
-                from atmorad.config import SimConfig
+            elif isinstance(det_res, AbsorptionProfileResult):
+                dim_z = f"{pfx}_center_z"
+                coords[dim_z] = (dim_z, det_res.z_centers)
+                data_vars[f"{pfx}_absorption_profile_1d"] = ([dim_z], det_res.absorption_profile_1d)
 
-                config_json = str(ncfile.getncattr("config_json"))
-                config = SimConfig.model_validate_json(config_json)
+            elif isinstance(det_res, IncidentFluxMapResult):
+                dim_x, dim_y, dim_z = f"{pfx}_x", f"{pfx}_y", f"{pfx}_z"
 
-                results_dict = {}
-                if "res" in ncfile.groups:
-                    results_dict = self._load_group_to_dict(ncfile.groups["res"])
+                coords[dim_x] = (dim_x, det_res.x_centers)
+                coords[dim_y] = (dim_y, det_res.y_centers)
+                coords[dim_z] = (dim_z, det_res.measure_z)
 
-                results = SimulationResults.model_validate(results_dict)
+                data_vars[f"{pfx}_incident_flux_down_3d"] = (
+                    [dim_z, dim_x, dim_y],
+                    det_res.incident_flux_down_3d,
+                )
+                data_vars[f"{pfx}_incident_flux_up_3d"] = (
+                    [dim_z, dim_x, dim_y],
+                    det_res.incident_flux_up_3d,
+                )
 
-                return simulated_photons, results, config
+            elif isinstance(det_res, SurfaceAbsorptionResult):
+                dim_x, dim_y = f"{pfx}_x", f"{pfx}_y"
 
-        except (OSError, FileNotFoundError) as e:
-            logging.error(f"Failed to load checkpoint file: {e}")
-            return 0, {}, None
-        except ValueError as e:
-            logging.error(f"Failed to parse checkpoint data: {e}")
-            return 0, {}, None
+                coords[dim_x] = (dim_x, det_res.x_centers)
+                coords[dim_y] = (dim_y, det_res.y_centers)
 
-    def delete_checkpoint(self):
-        if self.checkpoint_path.exists():
-            self.checkpoint_path.unlink()
+                data_vars[f"{pfx}_surface_absorption_map_2d"] = (
+                    [dim_x, dim_y],
+                    det_res.surface_absorption_map_2d,
+                )
+                data_vars[f"{pfx}_surface_absorption_map_2d"] = (
+                    [dim_x, dim_y],
+                    det_res.surface_absorption_map_2d,
+                )
+            elif isinstance(det_res, PathTrackingResult):
+                attrs[f"{pfx}_toa_z"] = det_res.toa_z
+                if len(det_res.sample_paths_3d) > 0:
+                    dim_p, dim_s, dim_c = f"{pfx}_photon", f"{pfx}_step", f"{pfx}_coord"
+
+                    coords[dim_c] = (dim_c, np.array(["x", "y", "z"]))
+
+                    data_vars[f"{pfx}_sample_paths_3d"] = (
+                        [dim_p, dim_s, dim_c],
+                        det_res.sample_paths_3d,
+                    )
+                    data_vars[f"{pfx}_sample_weights_2d"] = (
+                        [dim_p, dim_s],
+                        det_res.sample_weights_2d,
+                    )
+                    data_vars[f"{pfx}_sample_escaped_toa"] = ([dim_p], det_res.sample_escaped_toa)
+                    data_vars[f"{pfx}_sample_absorbed_atmosphere"] = (
+                        [dim_p],
+                        det_res.sample_absorbed_atmosphere,
+                    )
+                    data_vars[f"{pfx}_sample_absorbed_surface"] = (
+                        [dim_p],
+                        det_res.sample_absorbed_surface,
+                    )
+                else:
+                    attrs[f"{pfx}_empty_paths"] = 1
+
+        attrs["_detector_types"] = json.dumps(det_types)
+        return xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
 
     @classmethod
-    def _save_dict_to_group(cls, group, d: dict):
-        """Recursively saves a dictionary into NetCDF groups and variables."""
+    def _dataset_to_results(cls, ds: xr.Dataset) -> SimulationResults:
+        """Odbudowuje Pythonowe struktury z xarray.Dataset."""
+        engine = EngineResult(
+            cpu_time_s=float(ds.attrs.get("engine_cpu_time_s", 0.0)),
+            simulation_time_s=float(ds.attrs.get("engine_simulation_time_s", 0.0)),
+        )
 
-        for k, v in d.items():
-            k_str = str(k)
+        detector_results = {}
+        det_types = json.loads(ds.attrs.get("_detector_types", "{}"))
 
-            if isinstance(v, (dict, collections.abc.Mapping)):
-                subgroup = group.createGroup(k_str)
-                cls._save_dict_to_group(subgroup, v)
-            elif isinstance(v, (list, tuple)):
-                try:
-                    arr = np.array(v)
-                    if arr.dtype == object:
-                        raise ValueError("Inhomogeneous list elements")
+        for det_id, class_name in det_types.items():
+            pfx = det_id
 
-                    dims = []
-                    for i, dim_size in enumerate(arr.shape):
-                        dim_name = f"{k_str}_dim_{i}"
-                        if dim_name not in group.dimensions:
-                            group.createDimension(dim_name, dim_size)
-                        dims.append(dim_name)
+            if class_name == "FateResult":
+                detector_results[det_id] = FateResult(
+                    photons_absorbed_surface=int(
+                        ds.attrs.get(f"{pfx}_photons_absorbed_surface", 0)
+                    ),
+                    photons_absorbed_atmosphere=int(
+                        ds.attrs.get(f"{pfx}_photons_absorbed_atmosphere", 0)
+                    ),
+                    photons_escaped_toa=int(ds.attrs.get(f"{pfx}_photons_escaped_toa", 0)),
+                    cpu_time_s=float(ds.attrs.get(f"{pfx}_cpu_time_s", 0.0)),
+                )
 
-                    var = group.createVariable(k_str, arr.dtype, tuple(dims))
-                    var[:] = arr
+            elif class_name == "VerticalFluxResult":
+                detector_results[det_id] = VerticalFluxResult(
+                    measure_z=ds.coords[f"{pfx}_z"].values,
+                    flux_up=ds[f"{pfx}_flux_up"].values,
+                    flux_down=ds[f"{pfx}_flux_down"].values,
+                )
 
-                except ValueError:
-                    subgroup = group.createGroup(k_str)
-                    subgroup.setncattr("__is_list__", 1)
-                    list_as_dict = {str(i): item for i, item in enumerate(v)}
-                    cls._save_dict_to_group(subgroup, list_as_dict)
-            elif isinstance(v, np.ndarray):
-                dims = []
-                for i, dim_size in enumerate(v.shape):
-                    dim_name = f"{k_str}_dim_{i}"
-                    if dim_name not in group.dimensions:
-                        group.createDimension(dim_name, dim_size)
-                    dims.append(dim_name)
+            elif class_name == "AbsorptionProfileResult":
+                detector_results[det_id] = AbsorptionProfileResult(
+                    z_centers=ds.coords[f"{pfx}_center_z"].values,
+                    absorption_profile_1d=ds[f"{pfx}_absorption_profile_1d"].values,
+                )
 
-                var = group.createVariable(k_str, v.dtype, tuple(dims))
-                var[:] = v
-            elif v is None:
-                group.setncattr(k_str, "None")
-                group.setncattr(k_str, "__NONE__")
-            elif isinstance(v, (bool, np.bool_)):
-                group.setncattr(k_str, int(v))
-                group.setncattr(k_str, "__BOOL_TRUE__" if v else "__BOOL_FALSE__")
+            elif class_name == "IncidentFluxMapResult":
+                detector_results[det_id] = IncidentFluxMapResult(
+                    x_centers=ds.coords[f"{pfx}_x"].values,
+                    y_centers=ds.coords[f"{pfx}_y"].values,
+                    measure_z=ds.coords[f"{pfx}_z"].values,
+                    incident_flux_down_3d=ds[f"{pfx}_incident_flux_down_3d"].values,
+                    incident_flux_up_3d=ds[f"{pfx}_incident_flux_up_3d"].values,
+                )
 
-            elif isinstance(v, (int, float, str, np.integer, np.floating)):
-                group.setncattr(k_str, v)
-            else:
-                group.setncattr(k_str, str(v))
+            elif class_name == "SurfaceAbsorptionResult":
+                detector_results[det_id] = SurfaceAbsorptionResult(
+                    x_centers=ds.coords[f"{pfx}_x"].values,
+                    y_centers=ds.coords[f"{pfx}_y"].values,
+                    surface_absorption_map_2d=ds[f"{pfx}_surface_absorption_map_2d"].values,
+                )
 
-    @classmethod
-    def _load_group_to_dict(cls, group) -> dict:
-        """Recursively reconstructs a dictionary from NetCDF groups."""
+            elif class_name == "PathTrackingResult":
+                if ds.attrs.get(f"{pfx}_empty_paths", False):
+                    detector_results[det_id] = PathTrackingResult(
+                        sample_paths_3d=np.array([]),
+                        sample_weights_2d=np.array([]),
+                        sample_escaped_toa=np.array([]),
+                        sample_absorbed_atmosphere=np.array([]),
+                        sample_absorbed_surface=np.array([]),
+                        toa_z=float(ds.attrs.get(f"{pfx}_toa_z", 0.0)),
+                    )
+                else:
+                    detector_results[det_id] = PathTrackingResult(
+                        sample_paths_3d=ds[f"{pfx}_sample_paths_3d"].values,
+                        sample_weights_2d=ds[f"{pfx}_sample_weights_2d"].values,
+                        sample_escaped_toa=ds[f"{pfx}_sample_escaped_toa"].values,
+                        sample_absorbed_atmosphere=ds[f"{pfx}_sample_absorbed_atmosphere"].values,
+                        sample_absorbed_surface=ds[f"{pfx}_sample_absorbed_surface"].values,
+                        toa_z=float(ds.attrs.get(f"{pfx}_toa_z", 0.0)),
+                    )
 
-        def parse_key(key_str: str):
-            try:
-                if "." in key_str:
-                    return float(key_str)
-                return int(key_str)
-            except ValueError:
-                return key_str
-
-        res = {}
-
-        for attr_name in group.ncattrs():
-            if attr_name == "__is_list__":
-                continue
-
-            val = group.getncattr(attr_name)
-
-            if val == "__NONE__":
-                parsed_val = None
-            elif val == "__BOOL_TRUE__":
-                parsed_val = True
-            elif val == "__BOOL_FALSE__":
-                parsed_val = False
-            else:
-                parsed_val = val
-
-            res[parse_key(attr_name)] = parsed_val
-
-        for var_name, var in group.variables.items():
-            res[parse_key(var_name)] = np.array(var[:])
-
-        for grp_name, grp in group.groups.items():
-            sub_dict = cls._load_group_to_dict(grp)
-
-            if "__is_list__" in grp.ncattrs():
-                parsed_val = [sub_dict[i] for i in range(len(sub_dict))]
-            else:
-                parsed_val = sub_dict
-            res[parse_key(grp_name)] = parsed_val
-
-        return res
+        return SimulationResults(engine=engine, detector_results=detector_results)

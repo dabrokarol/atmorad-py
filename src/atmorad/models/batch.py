@@ -7,6 +7,7 @@ import numpy as np
 class PhotonBatch:
     pos: np.ndarray
     direction: np.ndarray
+    weight: np.ndarray
     tau_to_travel: np.ndarray
     is_active: np.ndarray
     ids: np.ndarray
@@ -27,5 +28,6 @@ class PhotonBatch:
         self.tau_to_travel = self.tau_to_travel[self.is_active]
         self.material_ids = self.material_ids[self.is_active]
         self.scatter_counts = self.scatter_counts[self.is_active]
+        self.weight = self.weight[self.is_active]
 
         self.is_active = self.is_active[self.is_active]
