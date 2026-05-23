@@ -163,6 +163,7 @@ class Engine:
                 cpu_time_s=self.cpu_time_s,
             ),
             detector_results=detector_results,
+            num_photons=self.num_photons,
         )
 
     def get_results(self):

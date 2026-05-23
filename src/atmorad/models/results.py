@@ -123,8 +123,9 @@ AnyDetectorResult = Union[
 class SimulationResults:
     engine: EngineResult = field(default_factory=EngineResult)
     detector_results: dict[str, AnyDetectorResult] = field(default_factory=dict)
+    num_photons: int = 0
 
-    def merge(self, other: Self) -> Self:
+    def merge(self, other: Self):
         merged_detectors = {}
         all_keys = set(self.detector_results.keys()).union(other.detector_results.keys())
 
@@ -139,5 +140,7 @@ class SimulationResults:
                 merged_detectors[key] = other.detector_results[key]
 
         return SimulationResults(
-            engine=self.engine.merge(other.engine), detector_results=merged_detectors
+            engine=self.engine.merge(other.engine),
+            detector_results=merged_detectors,
+            num_photons=self.num_photons + other.num_photons,
         )

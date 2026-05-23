@@ -86,7 +86,11 @@ class DataIO:
 
     def save_simulation_run(self, results: SimulationResults):
         self.save_metadata(results)
-        self.save_results(results)
+
+        results_path = self.base_dir / self.RESULTS_FILE
+        ds = self._results_to_dataset(results, normalize=True)
+        ds.to_netcdf(results_path, engine=self.NETCDF_ENGINE)
+
         if self.config.config_path:
             self.save_config_file(self.config.config_path)
 
@@ -108,11 +112,6 @@ class DataIO:
     @property
     def checkpoint_path(self):
         return self.base_dir / self.CHECKPOINT_FILE
-
-    def save_results(self, results: SimulationResults) -> None:
-        results_path = self.base_dir / self.RESULTS_FILE
-        ds = self._results_to_dataset(results)
-        ds.to_netcdf(results_path, engine=self.NETCDF_ENGINE)
 
     def save_checkpoint(self, simulated_photons: int, results: SimulationResults):
         tmp_path = self.checkpoint_path.with_suffix(".nc.tmp")
@@ -172,9 +171,13 @@ class DataIO:
         return config, results
 
     @classmethod
-    def _results_to_dataset(cls, results: SimulationResults) -> xr.Dataset:
+    def _results_to_dataset(cls, results: SimulationResults, normalize: bool = False) -> xr.Dataset:
         data_vars = {}
         coords = {}
+
+        n = results.num_photons if (normalize and results.num_photons > 0) else 1
+
+        val_unit = "1" if normalize else "photons"
 
         attrs = {
             "engine_cpu_time_s": results.engine.cpu_time_s,
@@ -188,71 +191,120 @@ class DataIO:
             pfx = det_id
 
             if isinstance(det_res, FateResult):
-                attrs[f"{pfx}_energy_absorbed_surface"] = det_res.energy_absorbed_surface
-                attrs[f"{pfx}_energy_absorbed_atmosphere"] = det_res.energy_absorbed_atmosphere
-                attrs[f"{pfx}_energy_escaped_toa"] = det_res.energy_escaped_toa
+                attrs[f"{pfx}_energy_absorbed_surface"] = det_res.energy_absorbed_surface / n
+                attrs[f"{pfx}_energy_absorbed_atmosphere"] = det_res.energy_absorbed_atmosphere / n
+                attrs[f"{pfx}_energy_escaped_toa"] = det_res.energy_escaped_toa / n
                 attrs[f"{pfx}_cpu_time_s"] = det_res.cpu_time_s
+                attrs[f"{pfx}_energy_units"] = val_unit
 
             elif isinstance(det_res, VerticalFluxResult):
                 dim_z = f"{pfx}_z"
-                coords[dim_z] = (dim_z, det_res.measure_z)
-                data_vars[f"{pfx}_flux_up"] = ([dim_z], det_res.flux_up)
-                data_vars[f"{pfx}_flux_down"] = ([dim_z], det_res.flux_down)
+                coords[dim_z] = (dim_z, det_res.measure_z, {"units": "km", "long_name": "Altitude"})
+
+                data_vars[f"{pfx}_flux_up"] = (
+                    [dim_z],
+                    det_res.flux_up / n,
+                    {"units": val_unit, "long_name": "Upward Flux"},
+                )
+                data_vars[f"{pfx}_flux_down"] = (
+                    [dim_z],
+                    det_res.flux_down / n,
+                    {"units": val_unit, "long_name": "Downward Flux"},
+                )
 
             elif isinstance(det_res, AbsorptionProfileResult):
                 dim_z = f"{pfx}_center_z"
-                coords[dim_z] = (dim_z, det_res.z_centers)
-                data_vars[f"{pfx}_absorption_profile_1d"] = ([dim_z], det_res.absorption_profile_1d)
+                coords[dim_z] = (dim_z, det_res.z_centers, {"units": "km", "long_name": "Altitude"})
+
+                data_vars[f"{pfx}_absorption_profile_1d"] = (
+                    [dim_z],
+                    det_res.absorption_profile_1d / n,
+                    {"units": val_unit, "long_name": "Absorption Profile"},
+                )
 
             elif isinstance(det_res, IncidentFluxMapResult):
                 dim_x, dim_y, dim_z = f"{pfx}_x", f"{pfx}_y", f"{pfx}_z"
 
-                coords[dim_x] = (dim_x, det_res.x_centers)
-                coords[dim_y] = (dim_y, det_res.y_centers)
-                coords[dim_z] = (dim_z, det_res.measure_z)
+                coords[dim_x] = (
+                    dim_x,
+                    det_res.x_centers,
+                    {"units": "km", "long_name": "X Coordinate"},
+                )
+                coords[dim_y] = (
+                    dim_y,
+                    det_res.y_centers,
+                    {"units": "km", "long_name": "Y Coordinate"},
+                )
+                coords[dim_z] = (dim_z, det_res.measure_z, {"units": "km", "long_name": "Altitude"})
 
                 data_vars[f"{pfx}_incident_flux_down_3d"] = (
                     [dim_z, dim_x, dim_y],
-                    det_res.incident_flux_down_3d,
+                    det_res.incident_flux_down_3d / n,
+                    {"units": val_unit, "long_name": "Incident Downward Flux"},
                 )
                 data_vars[f"{pfx}_incident_flux_up_3d"] = (
                     [dim_z, dim_x, dim_y],
-                    det_res.incident_flux_up_3d,
+                    det_res.incident_flux_up_3d / n,
+                    {"units": val_unit, "long_name": "Incident Upward Flux"},
                 )
 
             elif isinstance(det_res, SurfaceAbsorptionResult):
                 dim_x, dim_y = f"{pfx}_x", f"{pfx}_y"
 
-                coords[dim_x] = (dim_x, det_res.x_centers)
-                coords[dim_y] = (dim_y, det_res.y_centers)
+                coords[dim_x] = (
+                    dim_x,
+                    det_res.x_centers,
+                    {"units": "km", "long_name": "X Coordinate"},
+                )
+                coords[dim_y] = (
+                    dim_y,
+                    det_res.y_centers,
+                    {"units": "km", "long_name": "Y Coordinate"},
+                )
 
                 data_vars[f"{pfx}_surface_absorption_map_2d"] = (
                     [dim_x, dim_y],
-                    det_res.surface_absorption_map_2d,
+                    det_res.surface_absorption_map_2d / n,
+                    {"units": val_unit, "long_name": "Surface Absorption"},
                 )
+
             elif isinstance(det_res, PathTrackingResult):
                 attrs[f"{pfx}_toa_z"] = det_res.toa_z
+                attrs[f"{pfx}_toa_z_units"] = "km"
+
                 if len(det_res.sample_paths_3d) > 0:
                     dim_p, dim_s, dim_c = f"{pfx}_photon", f"{pfx}_step", f"{pfx}_coord"
 
-                    coords[dim_c] = (dim_c, np.array(["x", "y", "z"]))
+                    coords[dim_c] = (
+                        dim_c,
+                        np.array(["x", "y", "z"]),
+                        {"long_name": "Spatial Dimension"},
+                    )
 
                     data_vars[f"{pfx}_sample_paths_3d"] = (
                         [dim_p, dim_s, dim_c],
                         det_res.sample_paths_3d,
+                        {"units": "km", "long_name": "Photon Path Coordinates"},
                     )
                     data_vars[f"{pfx}_sample_weights_2d"] = (
                         [dim_p, dim_s],
                         det_res.sample_weights_2d,
+                        {"units": "1", "long_name": "Photon Weight"},
                     )
-                    data_vars[f"{pfx}_sample_escaped_toa"] = ([dim_p], det_res.sample_escaped_toa)
+                    data_vars[f"{pfx}_sample_escaped_toa"] = (
+                        [dim_p],
+                        det_res.sample_escaped_toa,
+                        {"units": "boolean", "long_name": "Escaped TOA Flag"},
+                    )
                     data_vars[f"{pfx}_sample_absorbed_atmosphere"] = (
                         [dim_p],
                         det_res.sample_absorbed_atmosphere,
+                        {"units": "boolean", "long_name": "Absorbed in Atmosphere Flag"},
                     )
                     data_vars[f"{pfx}_sample_absorbed_surface"] = (
                         [dim_p],
                         det_res.sample_absorbed_surface,
+                        {"units": "boolean", "long_name": "Absorbed at Surface Flag"},
                     )
                 else:
                     attrs[f"{pfx}_empty_paths"] = 1
