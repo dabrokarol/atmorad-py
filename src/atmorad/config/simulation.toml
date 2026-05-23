@@ -10,7 +10,7 @@ cpu_cores = 4
 resume_from_checkpoint = false # set to true if simulation got interrupted and you want to resume
 # russian roullette parameters
 photon_weight_treshold = 1e-4
-photon_survivaL_chance = 0.1
+photon_survival_chance = 0.1
 
 [source]
 theta_sun_deg = 30
