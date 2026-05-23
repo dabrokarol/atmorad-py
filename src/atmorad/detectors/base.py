@@ -9,7 +9,7 @@ from atmorad.models import PhotonBatch
 
 class BaseDetector(ABC):
     @abstractmethod
-    def initialize(self, scene: Scene, config: SimConfig):
+    def __init__(self, scene: Scene, config: SimConfig):
         """Called by the Engine before the simulation starts."""
 
     @abstractmethod

@@ -11,15 +11,7 @@ from .base import BaseDetector
 
 @register_detector("surface_absorption", SurfaceAbsorptionResult)
 class SurfaceAbsorptionDetector(BaseDetector):
-    def __init__(self):
-        self.domain_x = None
-        self.domain_y = None
-        self.x_edges = None
-        self.y_edges = None
-        self.scene = None
-        self.surface_map = None
-
-    def initialize(self, scene: Scene, config: SimConfig):
+    def __init__(self, scene: Scene, config: SimConfig):
         self.scene = scene
         self.domain_x = config.environment.geometry.domain_size_x_km
         self.domain_y = config.environment.geometry.domain_size_y_km

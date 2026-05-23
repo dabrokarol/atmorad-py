@@ -11,19 +11,7 @@ from .base import BaseDetector
 
 @register_detector("plane_flux", IncidentFluxMapResult)
 class IncidentFluxMapDetector(BaseDetector):
-    def __init__(self):
-        self.measure_z: np.ndarray | None = None
-        self.domain_x: float | None = None
-        self.domain_y: float | None = None
-
-        self.x_edges: np.ndarray | None = None
-        self.y_edges: np.ndarray | None = None
-        self.p_edges: np.ndarray | None = None
-
-        self.flux_down_3d: np.ndarray | None = None
-        self.flux_up_3d: np.ndarray | None = None
-
-    def initialize(self, scene: Scene, config: SimConfig):
+    def __init__(self, scene: Scene, config: SimConfig):
         resolution = config.detectors.horizontal_maps_resolution_km
 
         self.measure_z = np.array(config.detectors.flux_maps_z_levels_km, dtype=float)

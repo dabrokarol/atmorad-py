@@ -10,13 +10,7 @@ from .base import BaseDetector
 
 @register_detector("fate", FateResult)
 class FateDetector(BaseDetector):
-    def __init__(self):
-        self.absorbed_surface: float | None = None
-        self.absorbed_atmosphere: float | None = None
-        self.escaped_toa: float | None = None
-        self.scene: Scene | None = None
-
-    def initialize(self, scene: Scene, config: SimConfig):
+    def __init__(self, scene: Scene, config: SimConfig):
         self.absorbed_surface = 0.0
         self.absorbed_atmosphere = 0.0
         self.escaped_toa = 0.0

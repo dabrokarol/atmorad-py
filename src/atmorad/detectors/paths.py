@@ -10,14 +10,7 @@ from .base import BaseDetector
 
 @register_detector("path_tracking", PathTrackingResult)
 class PathTrackingDetector(BaseDetector):
-    def __init__(self):
-        self.num_track: int = 0
-        self.tracked_paths: dict[int, list[np.ndarray]] = {}
-        self.tracked_weights: dict[int, list[float]] = {}
-        self.scene: Scene | None = None
-        self.toa_z: float = 0.0
-
-    def initialize(self, scene: Scene, config: SimConfig):
+    def __init__(self, scene: Scene, config: SimConfig):
         self.num_track = min(config.detectors.num_full_paths, config.engine.num_photons)
         self.tracked_paths = {i: [] for i in range(self.num_track)}
         self.tracked_weights = {i: [] for i in range(self.num_track)}

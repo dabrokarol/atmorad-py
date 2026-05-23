@@ -11,14 +11,7 @@ from .base import BaseDetector
 
 @register_detector("absorption_vertical", AbsorptionProfileResult)
 class AbsorptionProfileDetector(BaseDetector):
-    def __init__(self):
-        self.scene: Scene | None = None
-        self.spacing: float | None = None
-        self.measure_z: np.ndarray | None = None
-
-        self.absorption_profile: np.ndarray | None = None
-
-    def initialize(self, scene: Scene, config: SimConfig):
+    def __init__(self, scene: Scene, config: SimConfig):
         self.scene = scene
         top_of_atmosphere = scene.atmosphere.top_of_atmosphere
         self.spacing = config.detectors.vertical_profiles_resolution_km

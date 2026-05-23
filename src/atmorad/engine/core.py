@@ -51,8 +51,7 @@ class Engine:
 
         for det_name in self.config.detectors.active:
             detector_class = DETECTORS[det_name]
-            self.detectors[det_name] = detector_class()
-            self.detectors[det_name].initialize(self.scene, self.config)
+            self.detectors[det_name] = detector_class(self.scene, self.config)
 
     def run(self):
         self._initialize_detectors()
