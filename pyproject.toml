@@ -25,7 +25,7 @@ dependencies = [
     "cmocean>=2.0.0",
     "tqdm>=4.60.0",
     "pydantic>=2.5.0",
-    "xarray>=2025.12.0"
+    "xarray>=2024.12.0"
 ]
 
 [project.scripts]
