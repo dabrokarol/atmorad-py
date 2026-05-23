@@ -14,7 +14,11 @@ class Scene:
         self.atmosphere = atmosphere
 
     def process_interactions(
-        self, batch: PhotonBatch, scatter_mask: np.ndarray, surface_mask: np.ndarray, random_sample: np.ndarray
+        self,
+        batch: PhotonBatch,
+        scatter_mask: np.ndarray,
+        surface_mask: np.ndarray,
+        random_sample: np.ndarray,
     ) -> PhotonBatch:
         """
         Scatters and reflects photons.
@@ -25,13 +29,9 @@ class Scene:
                             for interaction type, theta, and phi respectively.
         """
         atmosphere_mask = self.in_atmosphere(batch.pos) & scatter_mask
-        to_scat = np.zeros_like(random_sample[0], dtype=bool)
-        to_reflect = np.zeros_like(random_sample[0], dtype=bool)
 
         if np.any(atmosphere_mask):
-            batch = self.atmosphere.process_scattering(
-                batch, atmosphere_mask, random_sample
-            )
+            batch = self.atmosphere.process_scattering(batch, atmosphere_mask, random_sample)
 
         if np.any(surface_mask):
             batch = self.surface.process_reflection(batch, surface_mask, random_sample)

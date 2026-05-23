@@ -29,7 +29,12 @@ class SurfaceAbsorptionDetector(BaseDetector):
         pass
 
     def record_interaction(
-        self, batch: PhotonBatch, old_direction: np.ndarray, old_weight: np.ndarray, scatter_mask: np.ndarray, surface_mask: np.ndarray,
+        self,
+        batch: PhotonBatch,
+        old_direction: np.ndarray,
+        old_weight: np.ndarray,
+        scatter_mask: np.ndarray,
+        surface_mask: np.ndarray,
     ):
         if not np.any(surface_mask):
             return
@@ -43,10 +48,7 @@ class SurfaceAbsorptionDetector(BaseDetector):
         wrapped_y = np.mod(hit_y + self.domain_y / 2, self.domain_y) - self.domain_y / 2
 
         batch_map, _, _ = np.histogram2d(
-            wrapped_x, 
-            wrapped_y, 
-            bins=[self.x_edges, self.y_edges], 
-            weights=deposited_energy
+            wrapped_x, wrapped_y, bins=[self.x_edges, self.y_edges], weights=deposited_energy
         )
 
         self.surface_map += batch_map

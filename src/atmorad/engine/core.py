@@ -11,7 +11,6 @@ from atmorad.models import EngineResult, PhotonBatch, SimulationResults
 from atmorad.registry import DETECTORS
 
 
-
 class Engine:
     def __init__(self, config: SimConfig, scene: Scene):
         self.config = config
@@ -86,7 +85,7 @@ class Engine:
             surface_mask = self.scene.at_surface(batch.pos)
 
             in_atmosphere_mask = self.scene.in_atmosphere(batch.pos)
-            
+
             new_layer_mask = ~scatter_mask & in_atmosphere_mask
             batch.material_ids[new_layer_mask] = self.scene.get_material_ids(
                 batch.pos[:, new_layer_mask], rng
@@ -96,16 +95,14 @@ class Engine:
             old_direction = batch.direction.copy()
             old_weight = batch.weight.copy()
 
-            batch = scene.process_interactions(
-                batch, scatter_mask, surface_mask, random_sample
-            )
+            batch = scene.process_interactions(batch, scatter_mask, surface_mask, random_sample)
 
             for det in self.detectors.values():
                 det.record_interaction(
-                    batch, 
-                    old_direction, 
-                    old_weight, 
-                    scatter_mask, 
+                    batch,
+                    old_direction,
+                    old_weight,
+                    scatter_mask,
                     surface_mask,
                 )
 
@@ -128,7 +125,7 @@ class Engine:
                 survive_rolls = rng.random(num_low)
 
                 survivors_submask = survive_rolls < self.survival_chance
-                
+
                 new_weights = np.zeros(num_low)
                 new_weights[survivors_submask] = (
                     batch.weight[low_weight_mask][survivors_submask] * self.weight_multiplier
@@ -140,7 +137,7 @@ class Engine:
                 batch.weight[low_weight_mask] = new_weights
 
             escaped_toa = self.scene.above_toa(batch.pos)
-            
+
             terminated_mask = escaped_toa | killed_by_roulette | exceeded_scatterings_mask
 
             for det in self.detectors.values():

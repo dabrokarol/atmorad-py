@@ -66,7 +66,7 @@ class FlatSurface(BaseSurface):
         batch.weight[surface_mask] *= self.albedos[material_ids]
 
         hit_dirs = batch.direction[:, surface_mask]
-        
+
         r1 = random_samples[1, surface_mask]
         r2 = random_samples[2, surface_mask]
 

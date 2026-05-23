@@ -107,14 +107,13 @@ class Atmosphere:
         batch.weight[atmosphere_mask] *= ssas
 
         cos_theta, sin_theta, cos_phi, sin_phi = self.scatter(
-            batch.material_ids[atmosphere_mask], 
-            random_samples[1, atmosphere_mask], 
-            random_samples[2, atmosphere_mask]
+            batch.material_ids[atmosphere_mask],
+            random_samples[1, atmosphere_mask],
+            random_samples[2, atmosphere_mask],
         )
-        
+
         batch.direction[:, atmosphere_mask] = rotate(
-            batch.direction[:, atmosphere_mask], 
-            cos_theta, sin_theta, cos_phi, sin_phi
+            batch.direction[:, atmosphere_mask], cos_theta, sin_theta, cos_phi, sin_phi
         )
 
         return batch
