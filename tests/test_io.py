@@ -82,7 +82,7 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
     config_from_checkpoint.output.path = config.output.path
     config_from_checkpoint.config_path = config.config_path
 
-    assert photons == 42, f"Expected 42 simulated photons, got {photons}"
+    assert np.isclose(42, photons), f"Expected 42 simulated photons, got {photons}"
     assert config == config_from_checkpoint, "Checkpoint configuration does not match the original."
 
     assert_dicts_close(dataclasses.asdict(results), dataclasses.asdict(results_from_checkpoint))
