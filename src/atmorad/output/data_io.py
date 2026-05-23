@@ -142,8 +142,8 @@ class DataIO:
                 return simulated_photons, results, config
 
         except (OSError, ValueError):
-             logging.exception("Failed to load checkpoint file")
-             return 0, SimulationResults(), None
+            logging.exception("Failed to load checkpoint file")
+            return 0, SimulationResults(), None
 
     def delete_checkpoint(self):
         if self.checkpoint_path.exists():
