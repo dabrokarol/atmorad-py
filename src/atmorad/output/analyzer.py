@@ -28,9 +28,9 @@ class ResultAnalyzer:
         fate_res = self.detectors.get("fate")
 
         if fate_res:
-            escaped_toa = fate_res.photons_escaped_toa
-            abs_surf = fate_res.photons_absorbed_surface
-            abs_atm = fate_res.photons_absorbed_atmosphere
+            escaped_toa = fate_res.energy_escaped_toa
+            abs_surf = fate_res.energy_absorbed_surface
+            abs_atm = fate_res.energy_absorbed_atmosphere
         else:
             escaped_toa = abs_surf = abs_atm = 0.0
 

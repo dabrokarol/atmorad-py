@@ -188,9 +188,9 @@ class DataIO:
             pfx = det_id
 
             if isinstance(det_res, FateResult):
-                attrs[f"{pfx}_photons_absorbed_surface"] = det_res.photons_absorbed_surface
-                attrs[f"{pfx}_photons_absorbed_atmosphere"] = det_res.photons_absorbed_atmosphere
-                attrs[f"{pfx}_photons_escaped_toa"] = det_res.photons_escaped_toa
+                attrs[f"{pfx}_energy_absorbed_surface"] = det_res.energy_absorbed_surface
+                attrs[f"{pfx}_energy_absorbed_atmosphere"] = det_res.energy_absorbed_atmosphere
+                attrs[f"{pfx}_energy_escaped_toa"] = det_res.energy_escaped_toa
                 attrs[f"{pfx}_cpu_time_s"] = det_res.cpu_time_s
 
             elif isinstance(det_res, VerticalFluxResult):
@@ -275,13 +275,13 @@ class DataIO:
 
             if class_name == "FateResult":
                 detector_results[det_id] = FateResult(
-                    photons_absorbed_surface=float(
-                        ds.attrs.get(f"{pfx}_photons_absorbed_surface", 0)
+                    energy_absorbed_surface=float(
+                        ds.attrs.get(f"{pfx}_energy_absorbed_surface", 0)
                     ),
-                    photons_absorbed_atmosphere=float(
-                        ds.attrs.get(f"{pfx}_photons_absorbed_atmosphere", 0)
+                    energy_absorbed_atmosphere=float(
+                        ds.attrs.get(f"{pfx}_energy_absorbed_atmosphere", 0)
                     ),
-                    photons_escaped_toa=float(ds.attrs.get(f"{pfx}_photons_escaped_toa", 0)),
+                    energy_escaped_toa=float(ds.attrs.get(f"{pfx}_energy_escaped_toa", 0)),
                     cpu_time_s=float(ds.attrs.get(f"{pfx}_cpu_time_s", 0.0)),
                 )
 

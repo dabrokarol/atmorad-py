@@ -44,7 +44,7 @@ class FateDetector(BaseDetector):
 
     def get_results(self) -> FateResult:
         return FateResult(
-            photons_absorbed_surface=self.absorbed_surface,
-            photons_absorbed_atmosphere=self.absorbed_atmosphere,
-            photons_escaped_toa=self.escaped_toa,
+            energy_absorbed_surface=self.absorbed_surface,
+            energy_absorbed_atmosphere=self.absorbed_atmosphere,
+            energy_escaped_toa=self.escaped_toa,
         )

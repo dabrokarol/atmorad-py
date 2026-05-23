@@ -18,17 +18,17 @@ class EngineResult:
 
 @dataclass(slots=True)
 class FateResult:
-    photons_absorbed_surface: float = 0.0
-    photons_absorbed_atmosphere: float = 0.0
-    photons_escaped_toa: float = 0.0
+    energy_absorbed_surface: float = 0.0
+    energy_absorbed_atmosphere: float = 0.0
+    energy_escaped_toa: float = 0.0
     cpu_time_s: float = 0.0
 
     def merge(self, other: Self):
         return FateResult(
-            photons_absorbed_surface=self.photons_absorbed_surface + other.photons_absorbed_surface,
-            photons_absorbed_atmosphere=self.photons_absorbed_atmosphere
-            + other.photons_absorbed_atmosphere,
-            photons_escaped_toa=self.photons_escaped_toa + other.photons_escaped_toa,
+            energy_absorbed_surface=self.energy_absorbed_surface + other.energy_absorbed_surface,
+            energy_absorbed_atmosphere=self.energy_absorbed_atmosphere
+            + other.energy_absorbed_atmosphere,
+            energy_escaped_toa=self.energy_escaped_toa + other.energy_escaped_toa,
             cpu_time_s=self.cpu_time_s + other.cpu_time_s,
         )
 
