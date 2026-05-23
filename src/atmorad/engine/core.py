@@ -22,6 +22,9 @@ class Engine:
         self.rng = np.random.default_rng(engine_config.random_seed)
         self.theta_sun = source_config.theta_sun_deg
         self.phi_sun = source_config.phi_sun_deg
+        self.weight_threshold = config.engine.photon_weight_threshold
+        self.survival_chance = config.engine.photon_survival_chance
+        self.weight_multiplier = 1.0 / config.engine.photon_survival_chance
 
         self.results = None
 
@@ -51,8 +54,7 @@ class Engine:
 
         for det_name in self.config.detectors.active:
             detector_class = DETECTORS[det_name]
-            self.detectors[det_name] = detector_class()
-            self.detectors[det_name].initialize(self.scene, self.config)
+            self.detectors[det_name] = detector_class(self.scene, self.config)
 
     def run(self):
         self._initialize_detectors()
@@ -79,41 +81,64 @@ class Engine:
                 det.record_movement(batch, old_pos)
 
             batch.tau_to_travel -= new_tau_to_travel
-            scattering_event_mask = np.isclose(batch.tau_to_travel, 0, atol=EPSILON)
+            scatter_mask = np.isclose(batch.tau_to_travel, 0, atol=EPSILON)
+            surface_mask = self.scene.at_surface(batch.pos)
 
             in_atmosphere_mask = self.scene.in_atmosphere(batch.pos)
-            new_layer_mask = ~scattering_event_mask & in_atmosphere_mask
+
+            new_layer_mask = ~scatter_mask & in_atmosphere_mask
             batch.material_ids[new_layer_mask] = self.scene.get_material_ids(
                 batch.pos[:, new_layer_mask], rng
             )
 
             random_sample = rng.uniform(0, 1, size=(3, batch.active_count))
             old_direction = batch.direction.copy()
-            batch, absorbed_surface, absorbed_atmosphere, scattered = scene.process_interactions(
-                batch, scattering_event_mask, random_sample
-            )
-            batch.deactivate_photons(absorbed_surface | absorbed_atmosphere)
+            old_weight = batch.weight.copy()
+
+            batch = scene.process_interactions(batch, scatter_mask, surface_mask, random_sample)
 
             for det in self.detectors.values():
-                det.record_scattering(batch, old_direction, scattered)
+                det.record_interaction(
+                    batch,
+                    old_direction,
+                    old_weight,
+                    scatter_mask,
+                    surface_mask,
+                )
 
-            batch.scatter_counts[scattered] += 1
+            batch.scatter_counts[scatter_mask] += 1
             exceeded_scatterings_mask = batch.scatter_counts > MAX_SCATTERINGS
             if exceeded_scatterings_mask.any():
                 logging.warning(
-                    f"Killing {np.count_nonzero(exceeded_scatterings_mask)} photons. Scattered more than {MAX_SCATTERINGS} times."
+                    f"Killing {np.count_nonzero(exceeded_scatterings_mask)} photons. "
+                    f"Scattered more than {MAX_SCATTERINGS} times."
                 )
 
-            new_tau_rand = self.random_tau(np.count_nonzero(scattered))
-            batch.tau_to_travel[scattered] = new_tau_rand
+            new_tau_rand = self.random_tau(np.count_nonzero(scatter_mask))
+            batch.tau_to_travel[scatter_mask] = new_tau_rand
 
-            active_mask = (
-                ~self.scene.above_toa(batch.pos)
-                & ~absorbed_surface
-                & ~absorbed_atmosphere
-                & ~exceeded_scatterings_mask
-            )
-            terminated_mask = ~active_mask
+            low_weight_mask = batch.weight < self.weight_threshold
+            killed_by_roulette = np.zeros(batch.active_count, dtype=bool)
+
+            if np.any(low_weight_mask):
+                num_low = np.count_nonzero(low_weight_mask)
+                survive_rolls = rng.random(num_low)
+
+                survivors_submask = survive_rolls < self.survival_chance
+
+                new_weights = np.zeros(num_low)
+                new_weights[survivors_submask] = (
+                    batch.weight[low_weight_mask][survivors_submask] * self.weight_multiplier
+                )
+
+                died_submask = ~survivors_submask
+                killed_by_roulette[low_weight_mask] = died_submask
+
+                batch.weight[low_weight_mask] = new_weights
+
+            escaped_toa = self.scene.above_toa(batch.pos)
+
+            terminated_mask = escaped_toa | killed_by_roulette | exceeded_scatterings_mask
 
             for det in self.detectors.values():
                 det.record_termination(batch, terminated_mask)
@@ -138,6 +163,7 @@ class Engine:
                 cpu_time_s=self.cpu_time_s,
             ),
             detector_results=detector_results,
+            num_photons=self.num_photons,
         )
 
     def get_results(self):

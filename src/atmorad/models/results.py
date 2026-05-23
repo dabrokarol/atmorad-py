@@ -18,17 +18,17 @@ class EngineResult:
 
 @dataclass(slots=True)
 class FateResult:
-    photons_absorbed_surface: float = 0.0
-    photons_absorbed_atmosphere: float = 0.0
-    photons_escaped_toa: float = 0.0
+    energy_absorbed_surface: float = 0.0
+    energy_absorbed_atmosphere: float = 0.0
+    energy_escaped_toa: float = 0.0
     cpu_time_s: float = 0.0
 
     def merge(self, other: Self):
         return FateResult(
-            photons_absorbed_surface=self.photons_absorbed_surface + other.photons_absorbed_surface,
-            photons_absorbed_atmosphere=self.photons_absorbed_atmosphere
-            + other.photons_absorbed_atmosphere,
-            photons_escaped_toa=self.photons_escaped_toa + other.photons_escaped_toa,
+            energy_absorbed_surface=self.energy_absorbed_surface + other.energy_absorbed_surface,
+            energy_absorbed_atmosphere=self.energy_absorbed_atmosphere
+            + other.energy_absorbed_atmosphere,
+            energy_escaped_toa=self.energy_escaped_toa + other.energy_escaped_toa,
             cpu_time_s=self.cpu_time_s + other.cpu_time_s,
         )
 
@@ -123,8 +123,9 @@ AnyDetectorResult = Union[
 class SimulationResults:
     engine: EngineResult = field(default_factory=EngineResult)
     detector_results: dict[str, AnyDetectorResult] = field(default_factory=dict)
+    num_photons: int = 0
 
-    def merge(self, other: Self) -> Self:
+    def merge(self, other: Self):
         merged_detectors = {}
         all_keys = set(self.detector_results.keys()).union(other.detector_results.keys())
 
@@ -139,5 +140,7 @@ class SimulationResults:
                 merged_detectors[key] = other.detector_results[key]
 
         return SimulationResults(
-            engine=self.engine.merge(other.engine), detector_results=merged_detectors
+            engine=self.engine.merge(other.engine),
+            detector_results=merged_detectors,
+            num_photons=self.num_photons + other.num_photons,
         )

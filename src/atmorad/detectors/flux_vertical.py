@@ -11,21 +11,14 @@ from .base import BaseDetector
 
 @register_detector("vertical_flux", VerticalFluxResult)
 class VerticalFluxDetector(BaseDetector):
-    def __init__(self):
-        self.scene: Scene | None = None
-        self.spacing: float | None = None
-        self.measure_z: np.ndarray | None = None
-
-        self.diff_down: np.ndarray | None = None
-        self.diff_up: np.ndarray | None = None
-
-    def initialize(self, scene: Scene, config: SimConfig):
+    def __init__(self, scene: Scene, config: SimConfig):
         self.scene = scene
         top_of_atmosphere = scene.atmosphere.top_of_atmosphere
         self.spacing = config.detectors.vertical_profiles_resolution_km
 
-        num_bins = int(np.round(top_of_atmosphere / self.spacing))
-        self.measure_z = np.linspace(0, top_of_atmosphere, num_bins + 1)
+        self.measure_z = np.arange(0, top_of_atmosphere, self.spacing)
+        if not np.isclose(self.measure_z[-1], top_of_atmosphere):
+            self.measure_z = np.append(self.measure_z, top_of_atmosphere)
 
         self.diff_down = np.zeros(self.measure_z.size + 1, dtype=float)
         self.diff_up = np.zeros(self.measure_z.size + 1, dtype=float)
@@ -72,8 +65,13 @@ class VerticalFluxDetector(BaseDetector):
             self.diff_up += start_bins
             self.diff_up -= end_bins
 
-    def record_scattering(
-        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    def record_interaction(
+        self,
+        batch: PhotonBatch,
+        old_direction: np.ndarray,
+        old_weight: np.ndarray,
+        scatter_mask: np.ndarray,
+        surface_mask: np.ndarray,
     ): ...
 
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray): ...

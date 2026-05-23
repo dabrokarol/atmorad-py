@@ -39,7 +39,7 @@ atmorad simulation.toml
 *Check the `results/` directory for generated simulation artifacts and plots.*
 
 ## Physical Model
-- **Analog Monte Carlo Approach**: Light is simulated using discrete photon packets. Final flux is calculated as a fraction of the total detected packets.
+- **Weight Based Monte Carlo Approach**: Each photon packet carries a weight (representing energy). Upon each interaction with the atmosphere or surface, the packet's weight is incrementally reduced according to the SSA or albedo.
 - **Plane-parallel approximation**: The atmosphere consists of horizontally uniform layers.
 - **Multi-material atmospheric layers**: Layers can consist of multiple atmospheric materials simultaneously. A photon is assigned a material randomly when it is initialized and again when it crosses into a new layer. Each material has its own extinction coefficient, SSA, and phase function.
 - **Custom Phase Functions**: Henyey-Greenstein and Rayleigh phase functions are built-in, but any custom user-defined function can be constructed using the `Scattering` class.

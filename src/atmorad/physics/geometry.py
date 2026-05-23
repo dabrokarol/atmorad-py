@@ -18,7 +18,7 @@ def sun_zenith_to_direction(theta_sun, phi_sun):
 def rotate(direction, cos_theta, sin_theta, cos_phi, sin_phi):
     result = np.zeros_like(direction)
     big_z = np.abs(direction[Z]) > 0.999
-    small_z = ~big_z  # inverted mask
+    small_z = ~big_z
 
     sqrt_z = np.sqrt(1 - direction[Z, small_z] ** 2)
 

@@ -14,8 +14,12 @@ class Scene:
         self.atmosphere = atmosphere
 
     def process_interactions(
-        self, batch: PhotonBatch, to_scatter_mask: np.ndarray, random_sample: np.ndarray
-    ) -> tuple[PhotonBatch, np.ndarray, np.ndarray, np.ndarray]:
+        self,
+        batch: PhotonBatch,
+        scatter_mask: np.ndarray,
+        surface_mask: np.ndarray,
+        random_sample: np.ndarray,
+    ) -> PhotonBatch:
         """
         Scatters and reflects photons.
 
@@ -24,23 +28,15 @@ class Scene:
             random_samples: Array of shape (3, N) containing uniform random numbers
                             for interaction type, theta, and phi respectively.
         """
-        atmosphere_mask = self.in_atmosphere(batch.pos) & to_scatter_mask
-        surface_mask = self.below_ground(batch.pos)
-        to_scat = np.zeros_like(random_sample[0], dtype=bool)
-        to_reflect = np.zeros_like(random_sample[0], dtype=bool)
+        atmosphere_mask = self.in_atmosphere(batch.pos) & scatter_mask
 
         if np.any(atmosphere_mask):
-            batch, to_scat = self.atmosphere.process_scattering(
-                batch, atmosphere_mask, random_sample
-            )
+            batch = self.atmosphere.process_scattering(batch, atmosphere_mask, random_sample)
 
         if np.any(surface_mask):
-            batch, to_reflect = self.surface.process_reflection(batch, surface_mask, random_sample)
+            batch = self.surface.process_reflection(batch, surface_mask, random_sample)
 
-        absorbed_surface = (~to_reflect) & surface_mask
-        absorbed_atmosphere = (~to_scat) & atmosphere_mask
-
-        return batch, absorbed_surface, absorbed_atmosphere, to_scat | to_reflect
+        return batch
 
     def tau_to_boundary(self, batch: PhotonBatch):
         return self.atmosphere.tau_to_boundary(batch)
@@ -48,11 +44,11 @@ class Scene:
     def above_toa(self, pos):
         return self.atmosphere.above_toa(pos)
 
-    def below_ground(self, pos):
-        return self.surface.is_below_ground(pos)
+    def at_surface(self, pos):
+        return self.surface.crossed_ground(pos)
 
     def in_atmosphere(self, pos):
-        return ~self.above_toa(pos) & ~self.below_ground(pos)
+        return ~self.above_toa(pos) & ~self.at_surface(pos)
 
     def adjust_to_boundary_conditions(self, batch: PhotonBatch):
         batch = self.atmosphere.adjust_internal_boundaries(batch)
@@ -86,4 +82,4 @@ class Scene:
         return batch
 
     def get_final_photon_position_data(self, pos):
-        return self.above_toa(pos), self.below_ground(pos), self.atmosphere.get_spatial_indices(pos)
+        return self.above_toa(pos), self.at_surface(pos), self.atmosphere.get_spatial_indices(pos)

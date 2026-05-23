@@ -86,6 +86,9 @@ class Atmosphere:
             layer_idx, component_idx
         ]  # array of column numbers, array of row numbers
 
+    def get_ssas(self, material_ids):
+        return self.ssas[material_ids]
+
     def is_scattered(self, medium_ids, rand_1):
         return rand_1 < self.ssas[medium_ids]
 
@@ -100,18 +103,20 @@ class Atmosphere:
     def process_scattering(
         self, batch: PhotonBatch, atmosphere_mask: np.ndarray, random_samples: np.ndarray
     ):
-        to_scat = np.zeros_like(random_samples[0], dtype=bool)
-        to_scat[atmosphere_mask] = self.is_scattered(
-            batch.material_ids[atmosphere_mask], random_samples[0, atmosphere_mask]
-        )
+        ssas = self.get_ssas(batch.material_ids[atmosphere_mask])
+        batch.weight[atmosphere_mask] *= ssas
+
         cos_theta, sin_theta, cos_phi, sin_phi = self.scatter(
-            batch.material_ids[to_scat], random_samples[1, to_scat], random_samples[2, to_scat]
-        )
-        batch.direction[:, to_scat] = rotate(
-            batch.direction[:, to_scat], cos_theta, sin_theta, cos_phi, sin_phi
+            batch.material_ids[atmosphere_mask],
+            random_samples[1, atmosphere_mask],
+            random_samples[2, atmosphere_mask],
         )
 
-        return batch, to_scat
+        batch.direction[:, atmosphere_mask] = rotate(
+            batch.direction[:, atmosphere_mask], cos_theta, sin_theta, cos_phi, sin_phi
+        )
+
+        return batch
 
     def distance_to_boundary(self, batch: PhotonBatch):
         layer_idx = self._get_layer_idx(batch.pos)

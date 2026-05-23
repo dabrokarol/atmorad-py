@@ -74,15 +74,27 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
 
     assert config == config_2, "Loaded configuration does not match the original."
 
-    assert_dicts_close(dataclasses.asdict(results), dataclasses.asdict(results_2))
+    # normalize test data
+    expected_ds_normalized = data_io._results_to_dataset(results, normalize=True)
+    expected_results_normalized = data_io._dataset_to_results(expected_ds_normalized)
 
+    assert_dicts_close(
+        dataclasses.asdict(expected_results_normalized), dataclasses.asdict(results_2)
+    )
+
+    # test checkpointing
     data_io.save_checkpoint(simulated_photons=42, results=results)
     photons, results_from_checkpoint, config_from_checkpoint = data_io.load_checkpoint()
 
     config_from_checkpoint.output.path = config.output.path
     config_from_checkpoint.config_path = config.config_path
 
-    assert photons == 42, f"Expected 42 simulated photons, got {photons}"
+    assert np.isclose(42, photons), f"Expected 42 simulated photons, got {photons}"
     assert config == config_from_checkpoint, "Checkpoint configuration does not match the original."
 
-    assert_dicts_close(dataclasses.asdict(results), dataclasses.asdict(results_from_checkpoint))
+    expected_ds_raw = data_io._results_to_dataset(results, normalize=False)
+    expected_results_raw = data_io._dataset_to_results(expected_ds_raw)
+
+    assert_dicts_close(
+        dataclasses.asdict(expected_results_raw), dataclasses.asdict(results_from_checkpoint)
+    )

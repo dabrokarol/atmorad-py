@@ -28,9 +28,9 @@ class ResultAnalyzer:
         fate_res = self.detectors.get("fate")
 
         if fate_res:
-            escaped_toa = fate_res.photons_escaped_toa
-            abs_surf = fate_res.photons_absorbed_surface
-            abs_atm = fate_res.photons_absorbed_atmosphere
+            escaped_toa = fate_res.energy_escaped_toa
+            abs_surf = fate_res.energy_absorbed_surface
+            abs_atm = fate_res.energy_absorbed_atmosphere
         else:
             escaped_toa = abs_surf = abs_atm = 0.0
 
@@ -89,7 +89,6 @@ class ResultAnalyzer:
             Y_plot = np.insert(Y_wrapped.astype(float), jump_indices, np.nan)
             Z_plot = np.insert(Z.astype(float), jump_indices, np.nan)
 
-            # Maski boolean w nowej wersji to zgrabne wektory 1D
             if path_res.sample_absorbed_surface[i]:
                 color, alpha = "tab:green", 0.3
                 lbl = "Absorbed by surface" if not labeled_surface else None
@@ -103,7 +102,6 @@ class ResultAnalyzer:
                 lbl = "Absorbed by atmosphere" if not labeled_atmosphere else None
                 labeled_atmosphere = True
 
-            # Matplotlib zignoruje NaN-y na końcu ścieżki automatycznie!
             ax.plot3D(X_plot, Y_plot, Z_plot, alpha=alpha, color=color, label=lbl)
 
         ax.set_title(title, fontsize=20)
@@ -159,7 +157,7 @@ class ResultAnalyzer:
             return None
 
         fig, ax = plt.subplots(figsize=(8, 10))
-        z = flux_res.measure_z  # Tutaj zostaje measure_z (bo płaszczyzny to krawędzie)
+        z = flux_res.measure_z
         flux_down = flux_res.flux_down / self.total_photons
         flux_up = flux_res.flux_up / self.total_photons
         net_flux = flux_down - flux_up

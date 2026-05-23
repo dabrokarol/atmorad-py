@@ -78,6 +78,7 @@ class MCRadiationRunner:
             desc="Simulating Photons",
             unit=" photons",
             disable=self.quiet,
+            smoothing=0.3,
         ) as pbar:
             for i, (chunk_res, chunk_size) in enumerate(results_generator):
                 current_photons += chunk_size

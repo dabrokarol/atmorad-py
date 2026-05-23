@@ -10,13 +10,7 @@ from .base import BaseDetector
 
 @register_detector("fate", FateResult)
 class FateDetector(BaseDetector):
-    def __init__(self):
-        self.absorbed_surface: float | None = None
-        self.absorbed_atmosphere: float | None = None
-        self.escaped_toa: float | None = None
-        self.scene: Scene | None = None
-
-    def initialize(self, scene: Scene, config: SimConfig):
+    def __init__(self, scene: Scene, config: SimConfig):
         self.absorbed_surface = 0.0
         self.absorbed_atmosphere = 0.0
         self.escaped_toa = 0.0
@@ -25,12 +19,16 @@ class FateDetector(BaseDetector):
     def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
         pass
 
-    def record_scattering(
-        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
-    ):
-        pass
+    def record_interaction(self, batch, old_direction, old_weight, scatter_mask, surface_mask):
+        if np.any(scatter_mask):
+            deposited = old_weight[scatter_mask] - batch.weight[scatter_mask]
+            self.absorbed_atmosphere += np.sum(deposited)
 
-    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
+        if np.any(surface_mask):
+            deposited = old_weight[surface_mask] - batch.weight[surface_mask]
+            self.absorbed_surface += np.sum(deposited)
+
+    def record_termination(self, batch, terminated_mask):
         if not np.any(terminated_mask):
             return
 
@@ -38,19 +36,15 @@ class FateDetector(BaseDetector):
         term_weight = batch.weight[terminated_mask]
 
         escaped_toa_mask = self.scene.above_toa(term_pos)
-        absorbed_surface_mask = self.scene.below_ground(term_pos)
-        absorbed_atmosphere_mask = ~escaped_toa_mask & ~absorbed_surface_mask
-
-        self.escaped_toa += np.sum(term_weight[escaped_toa_mask])
-        self.absorbed_surface += np.sum(term_weight[absorbed_surface_mask])
-        self.absorbed_atmosphere += np.sum(term_weight[absorbed_atmosphere_mask])
+        if np.any(escaped_toa_mask):
+            self.escaped_toa += np.sum(term_weight[escaped_toa_mask])
 
     def finalize(self):
         pass
 
     def get_results(self) -> FateResult:
         return FateResult(
-            photons_absorbed_surface=self.absorbed_surface,
-            photons_absorbed_atmosphere=self.absorbed_atmosphere,
-            photons_escaped_toa=self.escaped_toa,
+            energy_absorbed_surface=self.absorbed_surface,
+            energy_absorbed_atmosphere=self.absorbed_atmosphere,
+            energy_escaped_toa=self.escaped_toa,
         )

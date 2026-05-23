@@ -10,14 +10,7 @@ from .base import BaseDetector
 
 @register_detector("path_tracking", PathTrackingResult)
 class PathTrackingDetector(BaseDetector):
-    def __init__(self):
-        self.num_track: int = 0
-        self.tracked_paths: dict[int, list[np.ndarray]] = {}
-        self.tracked_weights: dict[int, list[float]] = {}
-        self.scene: Scene | None = None
-        self.toa_z: float = 0.0
-
-    def initialize(self, scene: Scene, config: SimConfig):
+    def __init__(self, scene: Scene, config: SimConfig):
         self.num_track = min(config.detectors.num_full_paths, config.engine.num_photons)
         self.tracked_paths = {i: [] for i in range(self.num_track)}
         self.tracked_weights = {i: [] for i in range(self.num_track)}
@@ -36,10 +29,14 @@ class PathTrackingDetector(BaseDetector):
                 self.tracked_paths[i].append(pos.T.copy())
                 self.tracked_weights[i].append(w)
 
-    def record_scattering(
-        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
-    ):
-        pass
+    def record_interaction(
+        self,
+        batch: PhotonBatch,
+        old_direction: np.ndarray,
+        old_weight: np.ndarray,
+        scatter_mask: np.ndarray,
+        surface_mask: np.ndarray,
+    ): ...
 
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         tracked_term_mask = (batch.ids < self.num_track) & terminated_mask
@@ -87,7 +84,7 @@ class PathTrackingDetector(BaseDetector):
                 last_pos = path[-1]
                 escaped[i] = self.scene.above_toa(last_pos.reshape(3, 1))[0]
                 abs_atm[i] = self.scene.in_atmosphere(last_pos.reshape(3, 1))[0]
-                abs_surf[i] = self.scene.below_ground(last_pos.reshape(3, 1))[0]
+                abs_surf[i] = self.scene.at_surface(last_pos.reshape(3, 1))[0]
 
         return PathTrackingResult(
             sample_paths_3d=paths_3d,

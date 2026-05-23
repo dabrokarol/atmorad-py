@@ -1,7 +1,6 @@
 import numpy as np
 
 from atmorad.config import SimConfig
-from atmorad.constants import Z
 from atmorad.environment import Scene
 from atmorad.models import AbsorptionProfileResult, PhotonBatch
 from atmorad.registry import register_detector
@@ -11,14 +10,7 @@ from .base import BaseDetector
 
 @register_detector("absorption_vertical", AbsorptionProfileResult)
 class AbsorptionProfileDetector(BaseDetector):
-    def __init__(self):
-        self.scene: Scene | None = None
-        self.spacing: float | None = None
-        self.measure_z: np.ndarray | None = None
-
-        self.absorption_profile: np.ndarray | None = None
-
-    def initialize(self, scene: Scene, config: SimConfig):
+    def __init__(self, scene: Scene, config: SimConfig):
         self.scene = scene
         top_of_atmosphere = scene.atmosphere.top_of_atmosphere
         self.spacing = config.detectors.vertical_profiles_resolution_km
@@ -28,34 +20,32 @@ class AbsorptionProfileDetector(BaseDetector):
 
         self.absorption_profile = np.zeros(num_bins, dtype=np.float64)
 
-    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
-        if not np.any(terminated_mask):
+    def record_interaction(
+        self,
+        batch: PhotonBatch,
+        old_direction: np.ndarray,
+        old_weight: np.ndarray,
+        scatter_mask: np.ndarray,
+        surface_mask: np.ndarray,
+    ):
+        if not np.any(scatter_mask):
             return
 
-        term_pos = batch.pos[:, terminated_mask]
+        deposited_energy = old_weight[scatter_mask] - batch.weight[scatter_mask]
+        hit_z = batch.pos[2, scatter_mask]
 
-        in_atmosphere_mask = self.scene.in_atmosphere(term_pos)
+        layer_indices = (hit_z / self.spacing).astype(np.int64)
+        layer_indices = np.clip(layer_indices, 0, len(self.absorption_profile) - 1)
 
-        if np.any(in_atmosphere_mask):
-            absorbed_z = term_pos[Z, in_atmosphere_mask]
+        layer_counts = np.bincount(
+            layer_indices, weights=deposited_energy, minlength=len(self.absorption_profile)
+        )
+        self.absorption_profile += layer_counts
 
-            term_w = batch.weight[terminated_mask]
-            absorbed_w = term_w[in_atmosphere_mask]
-
-            layer_indices = (absorbed_z / self.spacing).astype(np.int64)
-            layer_indices = np.clip(layer_indices, 0, len(self.absorption_profile) - 1)
-
-            layer_counts = np.bincount(
-                layer_indices, weights=absorbed_w, minlength=len(self.absorption_profile)
-            )
-            self.absorption_profile += layer_counts
-
-    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
+    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         pass
 
-    def record_scattering(
-        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
-    ):
+    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
         pass
 
     def finalize(self):

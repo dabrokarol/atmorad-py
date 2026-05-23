@@ -23,10 +23,10 @@ class BaseSurface(ABC):
     @abstractmethod
     def process_reflection(
         self, batch: PhotonBatch, surface_mask: np.ndarray, random_samples: np.ndarray
-    ) -> tuple[PhotonBatch, np.ndarray]: ...
+    ) -> PhotonBatch: ...
 
     @abstractmethod
-    def is_below_ground(self, pos: np.ndarray) -> np.ndarray: ...
+    def crossed_ground(self, pos: np.ndarray) -> np.ndarray: ...
 
     @abstractmethod
     def adjust_surface_boundary(self, batch: PhotonBatch) -> PhotonBatch: ...
@@ -63,36 +63,30 @@ class FlatSurface(BaseSurface):
             pos_hit[Y] = np.mod(pos_hit[Y] + self.domain_y / 2, self.domain_y) - self.domain_y / 2
 
         material_ids = self.ground_map.get_material_ids(pos_hit)
+        batch.weight[surface_mask] *= self.albedos[material_ids]
 
-        rand_albedo = random_samples[0, surface_mask]
-        survived_albedo = rand_albedo < self.albedos[material_ids]
+        hit_dirs = batch.direction[:, surface_mask]
 
-        to_reflect = np.zeros(batch.active_count, dtype=bool)
-        to_reflect[surface_mask] = survived_albedo
+        r1 = random_samples[1, surface_mask]
+        r2 = random_samples[2, surface_mask]
 
-        if np.any(survived_albedo):
-            survivor_materials = material_ids[survived_albedo]
-            survivor_dirs = batch.direction[:, to_reflect]
-            survivor_r1 = random_samples[1, to_reflect]
-            survivor_r2 = random_samples[2, to_reflect]
+        for mat_id in np.unique(material_ids):
+            material_mask = material_ids == mat_id
+            hit_dirs[:, material_mask] = self.reflections[mat_id].reflect(
+                hit_dirs[:, material_mask],
+                r1[material_mask],
+                r2[material_mask],
+            )
 
-            for mat_id in np.unique(survivor_materials):
-                material_mask = survivor_materials == mat_id
-                survivor_dirs[:, material_mask] = self.reflections[mat_id].reflect(
-                    survivor_dirs[:, material_mask],
-                    survivor_r1[material_mask],
-                    survivor_r2[material_mask],
-                )
+        batch.direction[:, surface_mask] = hit_dirs
 
-            batch.direction[:, to_reflect] = survivor_dirs
+        return batch
 
-        return batch, to_reflect
-
-    def is_below_ground(self, pos):
-        return pos[Z] < 0
+    def crossed_ground(self, pos):
+        return pos[Z] <= 0
 
     def adjust_surface_boundary(self, batch: PhotonBatch):
-        below_ground_mask = self.is_below_ground(batch.pos)
+        below_ground_mask = self.crossed_ground(batch.pos)
         batch.pos[:, below_ground_mask] += (
             (0 - batch.pos[Z, below_ground_mask])
             / batch.direction[Z, below_ground_mask]
