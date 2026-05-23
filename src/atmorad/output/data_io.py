@@ -3,13 +3,22 @@ import json
 import logging
 import shutil
 from pathlib import Path
-import xarray as xr
 
 import numpy as np
+import xarray as xr
 from matplotlib.figure import Figure
 
 from atmorad.config import SimConfig
-from atmorad.models.results import SimulationResults, FateResult, EngineResult, PathTrackingResult, VerticalFluxResult, IncidentFluxMapResult, AbsorptionProfileResult, SurfaceAbsorptionResult
+from atmorad.models.results import (
+    AbsorptionProfileResult,
+    EngineResult,
+    FateResult,
+    IncidentFluxMapResult,
+    PathTrackingResult,
+    SimulationResults,
+    SurfaceAbsorptionResult,
+    VerticalFluxResult,
+)
 
 
 class DataIO:
@@ -106,7 +115,7 @@ class DataIO:
 
     def save_checkpoint(self, simulated_photons: int, results: SimulationResults):
         tmp_path = self.checkpoint_path.with_suffix(".nc.tmp")
-        
+
         ds = self._results_to_dataset(results)
         ds.attrs["_simulated_photons"] = simulated_photons
         ds.attrs["_config_json"] = self.config.model_dump_json()
@@ -124,6 +133,7 @@ class DataIO:
                 simulated_photons = int(ds.attrs.get("_simulated_photons", 0))
 
                 from atmorad.config import SimConfig
+
                 config_json = str(ds.attrs.get("_config_json", "{}"))
                 config = SimConfig.model_validate_json(config_json)
 
@@ -137,8 +147,8 @@ class DataIO:
 
     def delete_checkpoint(self):
         if self.checkpoint_path.exists():
-            self.checkpoint_path.unlink()   
-            
+            self.checkpoint_path.unlink()
+
     @classmethod
     def load_simulation_data(cls, directory: str | Path):
         dir_path = Path(directory)
@@ -155,15 +165,16 @@ class DataIO:
         config = None
         if config_path.exists():
             from atmorad.config import load_config
+
             config = load_config(config_path)
 
-        return config, results        
-    
+        return config, results
+
     @classmethod
     def _results_to_dataset(cls, results: SimulationResults) -> xr.Dataset:
         data_vars = {}
         coords = {}
-        
+
         attrs = {
             "engine_cpu_time_s": results.engine.cpu_time_s,
             "engine_simulation_time_s": results.engine.simulation_time_s,
@@ -173,7 +184,7 @@ class DataIO:
 
         for det_id, det_res in results.detector_results.items():
             det_types[det_id] = type(det_res).__name__
-            pfx = det_id 
+            pfx = det_id
 
             if isinstance(det_res, FateResult):
                 attrs[f"{pfx}_photons_absorbed_surface"] = det_res.photons_absorbed_surface
@@ -199,29 +210,53 @@ class DataIO:
                 coords[dim_y] = (dim_y, det_res.y_centers)
                 coords[dim_z] = (dim_z, det_res.measure_z)
 
-                data_vars[f"{pfx}_incident_flux_down_3d"] = ([dim_z, dim_x, dim_y], det_res.incident_flux_down_3d)
-                data_vars[f"{pfx}_incident_flux_up_3d"] = ([dim_z, dim_x, dim_y], det_res.incident_flux_up_3d)
+                data_vars[f"{pfx}_incident_flux_down_3d"] = (
+                    [dim_z, dim_x, dim_y],
+                    det_res.incident_flux_down_3d,
+                )
+                data_vars[f"{pfx}_incident_flux_up_3d"] = (
+                    [dim_z, dim_x, dim_y],
+                    det_res.incident_flux_up_3d,
+                )
 
             elif isinstance(det_res, SurfaceAbsorptionResult):
                 dim_x, dim_y = f"{pfx}_x", f"{pfx}_y"
 
                 coords[dim_x] = (dim_x, det_res.x_centers)
                 coords[dim_y] = (dim_y, det_res.y_centers)
-                
-                data_vars[f"{pfx}_surface_absorption_map_2d"] = ([dim_x, dim_y], det_res.surface_absorption_map_2d)
-                data_vars[f"{pfx}_surface_absorption_map_2d"] = ([dim_x, dim_y], det_res.surface_absorption_map_2d)
+
+                data_vars[f"{pfx}_surface_absorption_map_2d"] = (
+                    [dim_x, dim_y],
+                    det_res.surface_absorption_map_2d,
+                )
+                data_vars[f"{pfx}_surface_absorption_map_2d"] = (
+                    [dim_x, dim_y],
+                    det_res.surface_absorption_map_2d,
+                )
             elif isinstance(det_res, PathTrackingResult):
                 attrs[f"{pfx}_toa_z"] = det_res.toa_z
                 if len(det_res.sample_paths_3d) > 0:
                     dim_p, dim_s, dim_c = f"{pfx}_photon", f"{pfx}_step", f"{pfx}_coord"
-                    
-                    coords[dim_c] = (dim_c, np.array(['x', 'y', 'z']))
-                    
-                    data_vars[f"{pfx}_sample_paths_3d"] = ([dim_p, dim_s, dim_c], det_res.sample_paths_3d)
-                    data_vars[f"{pfx}_sample_weights_2d"] = ([dim_p, dim_s], det_res.sample_weights_2d)
+
+                    coords[dim_c] = (dim_c, np.array(["x", "y", "z"]))
+
+                    data_vars[f"{pfx}_sample_paths_3d"] = (
+                        [dim_p, dim_s, dim_c],
+                        det_res.sample_paths_3d,
+                    )
+                    data_vars[f"{pfx}_sample_weights_2d"] = (
+                        [dim_p, dim_s],
+                        det_res.sample_weights_2d,
+                    )
                     data_vars[f"{pfx}_sample_escaped_toa"] = ([dim_p], det_res.sample_escaped_toa)
-                    data_vars[f"{pfx}_sample_absorbed_atmosphere"] = ([dim_p], det_res.sample_absorbed_atmosphere)
-                    data_vars[f"{pfx}_sample_absorbed_surface"] = ([dim_p], det_res.sample_absorbed_surface)
+                    data_vars[f"{pfx}_sample_absorbed_atmosphere"] = (
+                        [dim_p],
+                        det_res.sample_absorbed_atmosphere,
+                    )
+                    data_vars[f"{pfx}_sample_absorbed_surface"] = (
+                        [dim_p],
+                        det_res.sample_absorbed_surface,
+                    )
                 else:
                     attrs[f"{pfx}_empty_paths"] = 1
 
@@ -233,7 +268,7 @@ class DataIO:
         """Odbudowuje Pythonowe struktury z xarray.Dataset."""
         engine = EngineResult(
             cpu_time_s=float(ds.attrs.get("engine_cpu_time_s", 0.0)),
-            simulation_time_s=float(ds.attrs.get("engine_simulation_time_s", 0.0))
+            simulation_time_s=float(ds.attrs.get("engine_simulation_time_s", 0.0)),
         )
 
         detector_results = {}
@@ -241,44 +276,48 @@ class DataIO:
 
         for det_id, class_name in det_types.items():
             pfx = det_id
-            
+
             if class_name == "FateResult":
                 detector_results[det_id] = FateResult(
-                    photons_absorbed_surface=int(ds.attrs.get(f"{pfx}_photons_absorbed_surface", 0)),
-                    photons_absorbed_atmosphere=int(ds.attrs.get(f"{pfx}_photons_absorbed_atmosphere", 0)),
+                    photons_absorbed_surface=int(
+                        ds.attrs.get(f"{pfx}_photons_absorbed_surface", 0)
+                    ),
+                    photons_absorbed_atmosphere=int(
+                        ds.attrs.get(f"{pfx}_photons_absorbed_atmosphere", 0)
+                    ),
                     photons_escaped_toa=int(ds.attrs.get(f"{pfx}_photons_escaped_toa", 0)),
-                    cpu_time_s=float(ds.attrs.get(f"{pfx}_cpu_time_s", 0.0))
+                    cpu_time_s=float(ds.attrs.get(f"{pfx}_cpu_time_s", 0.0)),
                 )
-            
+
             elif class_name == "VerticalFluxResult":
                 detector_results[det_id] = VerticalFluxResult(
                     measure_z=ds.coords[f"{pfx}_z"].values,
                     flux_up=ds[f"{pfx}_flux_up"].values,
-                    flux_down=ds[f"{pfx}_flux_down"].values
+                    flux_down=ds[f"{pfx}_flux_down"].values,
                 )
-            
+
             elif class_name == "AbsorptionProfileResult":
                 detector_results[det_id] = AbsorptionProfileResult(
                     z_centers=ds.coords[f"{pfx}_center_z"].values,
-                    absorption_profile_1d=ds[f"{pfx}_absorption_profile_1d"].values
+                    absorption_profile_1d=ds[f"{pfx}_absorption_profile_1d"].values,
                 )
-            
+
             elif class_name == "IncidentFluxMapResult":
                 detector_results[det_id] = IncidentFluxMapResult(
                     x_centers=ds.coords[f"{pfx}_x"].values,
                     y_centers=ds.coords[f"{pfx}_y"].values,
                     measure_z=ds.coords[f"{pfx}_z"].values,
                     incident_flux_down_3d=ds[f"{pfx}_incident_flux_down_3d"].values,
-                    incident_flux_up_3d=ds[f"{pfx}_incident_flux_up_3d"].values
+                    incident_flux_up_3d=ds[f"{pfx}_incident_flux_up_3d"].values,
                 )
-                
+
             elif class_name == "SurfaceAbsorptionResult":
                 detector_results[det_id] = SurfaceAbsorptionResult(
                     x_centers=ds.coords[f"{pfx}_x"].values,
                     y_centers=ds.coords[f"{pfx}_y"].values,
-                    surface_absorption_map_2d=ds[f"{pfx}_surface_absorption_map_2d"].values
+                    surface_absorption_map_2d=ds[f"{pfx}_surface_absorption_map_2d"].values,
                 )
-                
+
             elif class_name == "PathTrackingResult":
                 if ds.attrs.get(f"{pfx}_empty_paths", False):
                     detector_results[det_id] = PathTrackingResult(
@@ -287,7 +326,7 @@ class DataIO:
                         sample_escaped_toa=np.array([]),
                         sample_absorbed_atmosphere=np.array([]),
                         sample_absorbed_surface=np.array([]),
-                        toa_z=float(ds.attrs.get(f"{pfx}_toa_z", 0.0))
+                        toa_z=float(ds.attrs.get(f"{pfx}_toa_z", 0.0)),
                     )
                 else:
                     detector_results[det_id] = PathTrackingResult(
@@ -296,7 +335,7 @@ class DataIO:
                         sample_escaped_toa=ds[f"{pfx}_sample_escaped_toa"].values,
                         sample_absorbed_atmosphere=ds[f"{pfx}_sample_absorbed_atmosphere"].values,
                         sample_absorbed_surface=ds[f"{pfx}_sample_absorbed_surface"].values,
-                        toa_z=float(ds.attrs.get(f"{pfx}_toa_z", 0.0))
+                        toa_z=float(ds.attrs.get(f"{pfx}_toa_z", 0.0)),
                     )
 
         return SimulationResults(engine=engine, detector_results=detector_results)

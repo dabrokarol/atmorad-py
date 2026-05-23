@@ -80,7 +80,9 @@ class ResultAnalyzer:
                 X_wrapped = ((X + limit_x) % Lx) - limit_x
                 Y_wrapped = ((Y + limit_y) % Ly) - limit_y
 
-                jump_mask = (np.abs(np.diff(X_wrapped)) > limit_x) | (np.abs(np.diff(Y_wrapped)) > limit_y)
+                jump_mask = (np.abs(np.diff(X_wrapped)) > limit_x) | (
+                    np.abs(np.diff(Y_wrapped)) > limit_y
+                )
                 jump_indices = np.where(jump_mask)[0] + 1
 
             X_plot = np.insert(X_wrapped.astype(float), jump_indices, np.nan)
@@ -128,7 +130,7 @@ class ResultAnalyzer:
         fig, ax = plt.subplots(figsize=(8, 7))
         X, Y = np.meshgrid(x_centers, y_centers)
 
-        mesh = ax.pcolormesh(X, Y, map_2d_norm.T, cmap=cmo.cm.solar, shading="nearest") 
+        mesh = ax.pcolormesh(X, Y, map_2d_norm.T, cmap=cmo.cm.solar, shading="nearest")
         ax.set_aspect("equal")
         fig.colorbar(mesh, ax=ax, label=label, orientation="horizontal", pad=0.1)
         ax.set_xlabel("Position X [km]")
@@ -157,14 +159,18 @@ class ResultAnalyzer:
             return None
 
         fig, ax = plt.subplots(figsize=(8, 10))
-        z = flux_res.measure_z # Tutaj zostaje measure_z (bo płaszczyzny to krawędzie)
+        z = flux_res.measure_z  # Tutaj zostaje measure_z (bo płaszczyzny to krawędzie)
         flux_down = flux_res.flux_down / self.total_photons
         flux_up = flux_res.flux_up / self.total_photons
         net_flux = flux_down - flux_up
 
-        ax.plot(flux_down, z, label=r"Downward flux ($F^\downarrow$)", color="tab:blue", linewidth=2)
+        ax.plot(
+            flux_down, z, label=r"Downward flux ($F^\downarrow$)", color="tab:blue", linewidth=2
+        )
         ax.plot(flux_up, z, label=r"Upward flux ($F^\uparrow$)", color="tab:orange", linewidth=2)
-        ax.plot(net_flux, z, label=r"Net flux ($F_{net}$)", color="black", linestyle="--", linewidth=2.5)
+        ax.plot(
+            net_flux, z, label=r"Net flux ($F_{net}$)", color="black", linestyle="--", linewidth=2.5
+        )
 
         ax.set_title(title, fontsize=18)
         ax.set_xlabel("Normalized Flux", fontsize=12)
@@ -183,8 +189,8 @@ class ResultAnalyzer:
             return None
 
         fig, ax = plt.subplots(figsize=(6, 8))
-        
-        z_centers = abs_res.z_centers 
+
+        z_centers = abs_res.z_centers
         profile = abs_res.absorption_profile_1d / self.total_photons
         spacing = self.config.detectors.vertical_profiles_resolution_km
 
@@ -225,20 +231,20 @@ class ResultAnalyzer:
                 title_down = f"Incident Downward Flux Map\nHeight: {z_val} km"
                 fig_down = self.plot_2d_map(
                     plane_res.incident_flux_down_3d[i],
-                    plane_res.x_centers, 
-                    plane_res.y_centers, 
-                    title=title_down
+                    plane_res.x_centers,
+                    plane_res.y_centers,
+                    title=title_down,
                 )
                 if fig_down:
                     yield (fig_down, f"incident_flux/downward_z_{z_val:g}km.png")
                     plt.close(fig_down)
-                    
+
                 title_up = f"Incident Upward Flux Map\nHeight: {z_val} km"
                 fig_up = self.plot_2d_map(
                     plane_res.incident_flux_up_3d[i],
-                    plane_res.x_centers, 
-                    plane_res.y_centers, 
-                    title=title_up
+                    plane_res.x_centers,
+                    plane_res.y_centers,
+                    title=title_up,
                 )
                 if fig_up:
                     yield (fig_up, f"incident_flux/upward_z_{z_val:g}km.png")

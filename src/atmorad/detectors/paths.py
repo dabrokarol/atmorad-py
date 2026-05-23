@@ -49,7 +49,7 @@ class PathTrackingDetector(BaseDetector):
             term_pos = batch.pos[:, tracked_term_mask]
             term_w = batch.weight[tracked_term_mask]
 
-            for i, pos,w  in zip(term_ids, term_pos.T, term_w):
+            for i, pos, w in zip(term_ids, term_pos.T, term_w):
                 self.tracked_paths[i].append(pos.copy())
                 self.tracked_weights[i].append(w)
 
@@ -64,7 +64,7 @@ class PathTrackingDetector(BaseDetector):
                 sample_escaped_toa=np.array([]),
                 sample_absorbed_atmosphere=np.array([]),
                 sample_absorbed_surface=np.array([]),
-                toa_z=self.toa_z
+                toa_z=self.toa_z,
             )
 
         max_bounces = max(len(path) for path in self.tracked_paths.values())
@@ -83,7 +83,7 @@ class PathTrackingDetector(BaseDetector):
             if bounces > 0:
                 paths_3d[i, :bounces, :] = np.vstack(path)
                 weights_2d[i, :bounces] = weights
-                
+
                 last_pos = path[-1]
                 escaped[i] = self.scene.above_toa(last_pos.reshape(3, 1))[0]
                 abs_atm[i] = self.scene.in_atmosphere(last_pos.reshape(3, 1))[0]

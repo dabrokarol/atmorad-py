@@ -34,8 +34,9 @@ def test_energy_conservation(sim_context):
     total_energy_out = reflected + transmitted + absorbed_atm
     expected_energy_in = float(sim_context.config.engine.num_photons)
 
-    assert total_energy_out == pytest.approx(expected_energy_in, rel=1e-5), \
+    assert total_energy_out == pytest.approx(expected_energy_in, rel=1e-5), (
         f"Energy mismatch: Out({total_energy_out}) != In({expected_energy_in})"
+    )
 
 
 @pytest.mark.parametrize(
@@ -52,19 +53,22 @@ def test_no_nan_in_maps(sim_context):
     # Check Surface Absorption Map (2D Array)
     surf_res = results.detector_results.get("surface_absorption")
     if surf_res and surf_res.surface_absorption_map_2d is not None:
-        assert not np.isnan(surf_res.surface_absorption_map_2d).any(), \
+        assert not np.isnan(surf_res.surface_absorption_map_2d).any(), (
             "NaN values detected in surface absorption map"
+        )
 
     # Check Incident Plane Maps (3D Arrays)
     plane_res = results.detector_results.get("plane_flux")
     if plane_res:
         if plane_res.incident_flux_down_3d is not None:
-            assert not np.isnan(plane_res.incident_flux_down_3d).any(), \
+            assert not np.isnan(plane_res.incident_flux_down_3d).any(), (
                 "NaN values detected in downward incident flux 3D map"
-        
+            )
+
         if plane_res.incident_flux_up_3d is not None:
-            assert not np.isnan(plane_res.incident_flux_up_3d).any(), \
+            assert not np.isnan(plane_res.incident_flux_up_3d).any(), (
                 "NaN values detected in upward incident flux 3D map"
+            )
 
 
 def test_invalid_reflection_model_raises_error():

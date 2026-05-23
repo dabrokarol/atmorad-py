@@ -25,7 +25,9 @@ class FateDetector(BaseDetector):
     def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
         pass
 
-    def record_scattering(self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray):
+    def record_scattering(
+        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    ):
         pass
 
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
@@ -38,12 +40,12 @@ class FateDetector(BaseDetector):
         escaped_toa_mask = self.scene.above_toa(term_pos)
         absorbed_surface_mask = self.scene.below_ground(term_pos)
         absorbed_atmosphere_mask = ~escaped_toa_mask & ~absorbed_surface_mask
-        
+
         self.escaped_toa += np.sum(term_weight[escaped_toa_mask])
         self.absorbed_surface += np.sum(term_weight[absorbed_surface_mask])
         self.absorbed_atmosphere += np.sum(term_weight[absorbed_atmosphere_mask])
 
-    def finalize(self): 
+    def finalize(self):
         pass
 
     def get_results(self) -> FateResult:

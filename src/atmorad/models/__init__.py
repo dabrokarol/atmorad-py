@@ -3,12 +3,12 @@ from .context import SimContext
 from .results import (
     AbsorptionProfileResult,
     AnyDetectorResult,
-    SurfaceAbsorptionResult,
     EngineResult,
     FateResult,
     IncidentFluxMapResult,
     PathTrackingResult,
     SimulationResults,
+    SurfaceAbsorptionResult,
     VerticalFluxResult,
 )
 

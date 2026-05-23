@@ -5,10 +5,9 @@ import numpy as np
 
 from atmorad.config import SimConfig
 from atmorad.constants import EPSILON, MAX_SCATTERINGS
+from atmorad.detectors import BaseDetector
 from atmorad.environment.scene import Scene
 from atmorad.models import EngineResult, PhotonBatch, SimulationResults
-from atmorad.detectors import BaseDetector
-
 from atmorad.registry import DETECTORS
 
 
@@ -46,7 +45,7 @@ class Engine:
 
     def random_tau(self, size):
         return self.rng.exponential(scale=1.0, size=size)
-    
+
     def _initialize_detectors(self):
         self.detectors: dict[str, BaseDetector] = {}
 
@@ -126,19 +125,19 @@ class Engine:
 
         self.cpu_time_s = end_time - start_time
         self.results = self._build_results()
-        
+
     def _build_results(self) -> SimulationResults:
         detector_results = {}
- 
+
         for det_id, det in self.detectors.items():
             det.finalize()
             detector_results[det_id] = det.get_results()
-            
+
         return SimulationResults(
             engine=EngineResult(
-                cpu_time_s=self.cpu_time_s, 
+                cpu_time_s=self.cpu_time_s,
             ),
-            detector_results=detector_results
+            detector_results=detector_results,
         )
 
     def get_results(self):

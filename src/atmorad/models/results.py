@@ -1,7 +1,8 @@
+from dataclasses import dataclass, field
 from typing import Self, Union
 
 import numpy as np
-from dataclasses import dataclass, field
+
 
 @dataclass(slots=True)
 class EngineResult:
@@ -13,6 +14,8 @@ class EngineResult:
             cpu_time_s=self.cpu_time_s + other.cpu_time_s,
             simulation_time_s=self.simulation_time_s + other.simulation_time_s,
         )
+
+
 @dataclass(slots=True)
 class FateResult:
     photons_absorbed_surface: float = 0.0
@@ -29,6 +32,7 @@ class FateResult:
             cpu_time_s=self.cpu_time_s + other.cpu_time_s,
         )
 
+
 @dataclass(slots=True)
 class VerticalFluxResult:
     measure_z: np.ndarray
@@ -42,6 +46,7 @@ class VerticalFluxResult:
             flux_down=self.flux_down + other.flux_down,
         )
 
+
 @dataclass(slots=True)
 class AbsorptionProfileResult:
     z_centers: np.ndarray
@@ -52,6 +57,7 @@ class AbsorptionProfileResult:
             z_centers=self.z_centers,
             absorption_profile_1d=self.absorption_profile_1d + other.absorption_profile_1d,
         )
+
 
 @dataclass(slots=True)
 class IncidentFluxMapResult:
@@ -70,6 +76,7 @@ class IncidentFluxMapResult:
             incident_flux_up_3d=self.incident_flux_up_3d + other.incident_flux_up_3d,
         )
 
+
 @dataclass(slots=True)
 class SurfaceAbsorptionResult:
     x_centers: np.ndarray
@@ -84,6 +91,7 @@ class SurfaceAbsorptionResult:
             + other.surface_absorption_map_2d,
         )
 
+
 @dataclass(slots=True)
 class PathTrackingResult:
     sample_paths_3d: np.ndarray
@@ -92,11 +100,12 @@ class PathTrackingResult:
     sample_absorbed_atmosphere: np.ndarray
     sample_absorbed_surface: np.ndarray
     toa_z: float
-    
-    def merge(self, other: Self): # returns result for only one non-empty batch 
+
+    def merge(self, other: Self):  # returns result for only one non-empty batch
         if len(self.sample_paths_3d) > 0:
             return self
         return other
+
 
 # --- MASTER SIMULATION MODEL ---
 
@@ -109,9 +118,9 @@ AnyDetectorResult = Union[
     PathTrackingResult,
 ]
 
+
 @dataclass(slots=True)
 class SimulationResults:
-
     engine: EngineResult = field(default_factory=EngineResult)
     detector_results: dict[str, AnyDetectorResult] = field(default_factory=dict)
 
@@ -121,10 +130,14 @@ class SimulationResults:
 
         for key in all_keys:
             if key in self.detector_results and key in other.detector_results:
-                merged_detectors[key] = self.detector_results[key].merge(other.detector_results[key])
+                merged_detectors[key] = self.detector_results[key].merge(
+                    other.detector_results[key]
+                )
             elif key in self.detector_results:
                 merged_detectors[key] = self.detector_results[key]
             else:
                 merged_detectors[key] = other.detector_results[key]
 
-        return SimulationResults(engine=self.engine.merge(other.engine), detector_results=merged_detectors)
+        return SimulationResults(
+            engine=self.engine.merge(other.engine), detector_results=merged_detectors
+        )

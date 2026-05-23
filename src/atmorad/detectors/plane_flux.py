@@ -19,21 +19,21 @@ class IncidentFluxMapDetector(BaseDetector):
         self.x_edges: np.ndarray | None = None
         self.y_edges: np.ndarray | None = None
         self.p_edges: np.ndarray | None = None
-        
+
         self.flux_down_3d: np.ndarray | None = None
         self.flux_up_3d: np.ndarray | None = None
 
     def initialize(self, scene: Scene, config: SimConfig):
         resolution = config.detectors.horizontal_maps_resolution_km
-        
+
         self.measure_z = np.array(config.detectors.flux_maps_z_levels_km, dtype=float)
         self.domain_x = config.environment.geometry.domain_size_x_km
         self.domain_y = config.environment.geometry.domain_size_y_km
-        
+
         num_bins_x = int(np.round(self.domain_x / resolution))
         num_bins_y = int(np.round(self.domain_y / resolution))
         num_planes = len(self.measure_z)
-        
+
         self.x_edges = np.linspace(-self.domain_x / 2, self.domain_x / 2, num_bins_x + 1)
         self.y_edges = np.linspace(-self.domain_y / 2, self.domain_y / 2, num_bins_y + 1)
 
@@ -41,7 +41,7 @@ class IncidentFluxMapDetector(BaseDetector):
 
         self.flux_down_3d = np.zeros((num_planes, num_bins_x, num_bins_y), dtype=np.float64)
         self.flux_up_3d = np.zeros((num_planes, num_bins_x, num_bins_y), dtype=np.float64)
-    
+
     def _process_hits(
         self,
         batch: PhotonBatch,
@@ -72,9 +72,7 @@ class IncidentFluxMapDetector(BaseDetector):
         sample = np.column_stack((plane_idx, wrapped_x, wrapped_y))
 
         batch_hist, _ = np.histogramdd(
-            sample, 
-            bins=[self.p_edges, self.x_edges, self.y_edges],
-            weights=weights
+            sample, bins=[self.p_edges, self.x_edges, self.y_edges], weights=weights
         )
 
         accumulator += batch_hist
@@ -83,7 +81,9 @@ class IncidentFluxMapDetector(BaseDetector):
         old_z = old_pos[Z]
         new_z = batch.pos[Z]
 
-        down_mask = (old_z[:, np.newaxis] > self.measure_z) & (new_z[:, np.newaxis] <= self.measure_z)
+        down_mask = (old_z[:, np.newaxis] > self.measure_z) & (
+            new_z[:, np.newaxis] <= self.measure_z
+        )
         up_mask = (old_z[:, np.newaxis] < self.measure_z) & (new_z[:, np.newaxis] >= self.measure_z)
 
         self._process_hits(batch, old_pos, down_mask, self.flux_down_3d)
@@ -103,11 +103,11 @@ class IncidentFluxMapDetector(BaseDetector):
     def get_results(self) -> IncidentFluxMapResult:
         x_centers = (self.x_edges[:-1] + self.x_edges[1:]) / 2.0
         y_centers = (self.y_edges[:-1] + self.y_edges[1:]) / 2.0
-        
+
         return IncidentFluxMapResult(
             x_centers=x_centers,
             y_centers=y_centers,
             measure_z=self.measure_z,
             incident_flux_down_3d=self.flux_down_3d,
-            incident_flux_up_3d=self.flux_up_3d
+            incident_flux_up_3d=self.flux_up_3d,
         )
