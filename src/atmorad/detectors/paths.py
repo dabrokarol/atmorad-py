@@ -29,11 +29,10 @@ class PathTrackingDetector(BaseDetector):
                 self.tracked_paths[i].append(pos.T.copy())
                 self.tracked_weights[i].append(w)
 
-    def record_scattering(
-        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
-    ):
-        pass
-
+    def record_interaction(
+        self, batch: PhotonBatch, old_direction: np.ndarray, old_weight: np.ndarray, scatter_mask: np.ndarray, surface_mask: np.ndarray,
+    ): ...
+    
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         tracked_term_mask = (batch.ids < self.num_track) & terminated_mask
 
@@ -80,7 +79,7 @@ class PathTrackingDetector(BaseDetector):
                 last_pos = path[-1]
                 escaped[i] = self.scene.above_toa(last_pos.reshape(3, 1))[0]
                 abs_atm[i] = self.scene.in_atmosphere(last_pos.reshape(3, 1))[0]
-                abs_surf[i] = self.scene.below_ground(last_pos.reshape(3, 1))[0]
+                abs_surf[i] = self.scene.at_surface(last_pos.reshape(3, 1))[0]
 
         return PathTrackingResult(
             sample_paths_3d=paths_3d,

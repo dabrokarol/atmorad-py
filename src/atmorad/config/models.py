@@ -93,6 +93,8 @@ class EngineConfig(BaseModel):
     random_seed: int
     cpu_cores: int = Field(ge=1)
     resume_from_checkpoint: bool = False
+    photon_weight_treshold: float = 1e-4
+    photon_survival_chance: float = 0.1
 
 
 class SourceConfig(BaseModel):

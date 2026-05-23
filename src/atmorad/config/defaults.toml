@@ -8,6 +8,8 @@ batch_size = 100_000
 random_seed = 42
 cpu_cores = 4
 resume_from_checkpoint = false
+photon_survivaL_chance = 0.1
+photon_weight_treshold = 1e-4
 
 [source]
 theta_sun_deg = 0

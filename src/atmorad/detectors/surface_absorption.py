@@ -28,31 +28,31 @@ class SurfaceAbsorptionDetector(BaseDetector):
     def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
         pass
 
-    def record_scattering(
-        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
+    def record_interaction(
+        self, batch: PhotonBatch, old_direction: np.ndarray, old_weight: np.ndarray, scatter_mask: np.ndarray, surface_mask: np.ndarray,
     ):
-        pass
-
-    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
-        if not np.any(terminated_mask):
+        if not np.any(surface_mask):
             return
 
-        term_pos = batch.pos[:, terminated_mask]
-        term_weights = batch.weight[terminated_mask]
-        surface_mask = self.scene.below_ground(term_pos)
+        deposited_energy = old_weight[surface_mask] - batch.weight[surface_mask]
 
-        surf_x = term_pos[X, surface_mask]
-        surf_y = term_pos[Y, surface_mask]
-        surf_weights = term_weights[surface_mask]
+        hit_x = batch.pos[X, surface_mask]
+        hit_y = batch.pos[Y, surface_mask]
 
-        wrapped_x = np.mod(surf_x + self.domain_x / 2, self.domain_x) - self.domain_x / 2
-        wrapped_y = np.mod(surf_y + self.domain_y / 2, self.domain_y) - self.domain_y / 2
+        wrapped_x = np.mod(hit_x + self.domain_x / 2, self.domain_x) - self.domain_x / 2
+        wrapped_y = np.mod(hit_y + self.domain_y / 2, self.domain_y) - self.domain_y / 2
 
         batch_map, _, _ = np.histogram2d(
-            wrapped_x, wrapped_y, bins=[self.x_edges, self.y_edges], weights=surf_weights
+            wrapped_x, 
+            wrapped_y, 
+            bins=[self.x_edges, self.y_edges], 
+            weights=deposited_energy
         )
 
         self.surface_map += batch_map
+
+    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
+        pass
 
     def finalize(self):
         pass

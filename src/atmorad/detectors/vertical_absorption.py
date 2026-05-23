@@ -21,34 +21,29 @@ class AbsorptionProfileDetector(BaseDetector):
 
         self.absorption_profile = np.zeros(num_bins, dtype=np.float64)
 
-    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
-        if not np.any(terminated_mask):
+    def record_interaction(
+        self, batch: PhotonBatch, old_direction: np.ndarray, old_weight: np.ndarray, scatter_mask: np.ndarray, surface_mask: np.ndarray,
+    ):
+        if not np.any(scatter_mask):
             return
 
-        term_pos = batch.pos[:, terminated_mask]
+        deposited_energy = old_weight[scatter_mask] - batch.weight[scatter_mask]
+        hit_z = batch.pos[2, scatter_mask] 
 
-        in_atmosphere_mask = self.scene.in_atmosphere(term_pos)
+        layer_indices = (hit_z / self.spacing).astype(np.int64)
+        layer_indices = np.clip(layer_indices, 0, len(self.absorption_profile) - 1)
 
-        if np.any(in_atmosphere_mask):
-            absorbed_z = term_pos[Z, in_atmosphere_mask]
+        layer_counts = np.bincount(
+            layer_indices, 
+            weights=deposited_energy, 
+            minlength=len(self.absorption_profile)
+        )
+        self.absorption_profile += layer_counts
 
-            term_w = batch.weight[terminated_mask]
-            absorbed_w = term_w[in_atmosphere_mask]
-
-            layer_indices = (absorbed_z / self.spacing).astype(np.int64)
-            layer_indices = np.clip(layer_indices, 0, len(self.absorption_profile) - 1)
-
-            layer_counts = np.bincount(
-                layer_indices, weights=absorbed_w, minlength=len(self.absorption_profile)
-            )
-            self.absorption_profile += layer_counts
-
-    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
+    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         pass
 
-    def record_scattering(
-        self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
-    ):
+    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
         pass
 
     def finalize(self):
