@@ -32,6 +32,7 @@ class Engine:
         batch = PhotonBatch(
             pos=pos,
             direction=direction,
+            weight=np.ones(self.num_photons, dtype=float),
             is_active=np.ones(self.num_photons, dtype=bool),
             tau_to_travel=self.random_tau(self.num_photons),
             ids=np.arange(self.num_photons),
@@ -122,7 +123,7 @@ class Engine:
             det.finalize()
             detector_results[det.__class__.__name__] = det.get_results()
 
-        self.results = SimulationResults(engine=engine_results, detectors=detector_results)
+        self.results = SimulationResults(engine=engine_results, detector_results=detector_results)
 
     def get_results(self):
         if self.results is None:
