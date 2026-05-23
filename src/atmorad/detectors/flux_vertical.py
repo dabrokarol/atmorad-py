@@ -23,9 +23,10 @@ class VerticalFluxDetector(BaseDetector):
         self.scene = scene
         top_of_atmosphere = scene.atmosphere.top_of_atmosphere
         self.spacing = config.detectors.vertical_profiles_resolution_km
-
-        num_bins = int(np.round(top_of_atmosphere / self.spacing))
-        self.measure_z = np.linspace(0, top_of_atmosphere, num_bins + 1)
+        
+        self.measure_z = np.arange(0, top_of_atmosphere, self.spacing)
+        if not np.isclose(self.measure_z[-1], top_of_atmosphere):
+            self.measure_z = np.append(self.measure_z, top_of_atmosphere)
 
         self.diff_down = np.zeros(self.measure_z.size + 1, dtype=float)
         self.diff_up = np.zeros(self.measure_z.size + 1, dtype=float)
