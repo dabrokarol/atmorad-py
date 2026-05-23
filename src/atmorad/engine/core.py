@@ -22,7 +22,7 @@ class Engine:
         self.rng = np.random.default_rng(engine_config.random_seed)
         self.theta_sun = source_config.theta_sun_deg
         self.phi_sun = source_config.phi_sun_deg
-        self.weight_treshold = config.engine.photon_weight_treshold
+        self.weight_threshold = config.engine.photon_weight_threshold
         self.survival_chance = config.engine.photon_survival_chance
         self.weight_multiplier = 1.0 / config.engine.photon_survival_chance
 
@@ -117,7 +117,7 @@ class Engine:
             new_tau_rand = self.random_tau(np.count_nonzero(scatter_mask))
             batch.tau_to_travel[scatter_mask] = new_tau_rand
 
-            low_weight_mask = batch.weight < self.weight_treshold
+            low_weight_mask = batch.weight < self.weight_threshold
             killed_by_roulette = np.zeros(batch.active_count, dtype=bool)
 
             if np.any(low_weight_mask):
