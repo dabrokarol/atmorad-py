@@ -141,9 +141,9 @@ class DataIO:
 
                 return simulated_photons, results, config
 
-        except Exception as e:
-            logging.error(f"Failed to load checkpoint file: {e}")
-            return 0, SimulationResults(), None
+        except (OSError, ValueError):
+             logging.exception("Failed to load checkpoint file")
+             return 0, SimulationResults(), None
 
     def delete_checkpoint(self):
         if self.checkpoint_path.exists():
@@ -229,10 +229,6 @@ class DataIO:
                     [dim_x, dim_y],
                     det_res.surface_absorption_map_2d,
                 )
-                data_vars[f"{pfx}_surface_absorption_map_2d"] = (
-                    [dim_x, dim_y],
-                    det_res.surface_absorption_map_2d,
-                )
             elif isinstance(det_res, PathTrackingResult):
                 attrs[f"{pfx}_toa_z"] = det_res.toa_z
                 if len(det_res.sample_paths_3d) > 0:
@@ -265,7 +261,6 @@ class DataIO:
 
     @classmethod
     def _dataset_to_results(cls, ds: xr.Dataset) -> SimulationResults:
-        """Odbudowuje Pythonowe struktury z xarray.Dataset."""
         engine = EngineResult(
             cpu_time_s=float(ds.attrs.get("engine_cpu_time_s", 0.0)),
             simulation_time_s=float(ds.attrs.get("engine_simulation_time_s", 0.0)),
@@ -279,13 +274,13 @@ class DataIO:
 
             if class_name == "FateResult":
                 detector_results[det_id] = FateResult(
-                    photons_absorbed_surface=int(
+                    photons_absorbed_surface=float(
                         ds.attrs.get(f"{pfx}_photons_absorbed_surface", 0)
                     ),
-                    photons_absorbed_atmosphere=int(
+                    photons_absorbed_atmosphere=float(
                         ds.attrs.get(f"{pfx}_photons_absorbed_atmosphere", 0)
                     ),
-                    photons_escaped_toa=int(ds.attrs.get(f"{pfx}_photons_escaped_toa", 0)),
+                    photons_escaped_toa=float(ds.attrs.get(f"{pfx}_photons_escaped_toa", 0)),
                     cpu_time_s=float(ds.attrs.get(f"{pfx}_cpu_time_s", 0.0)),
                 )
 

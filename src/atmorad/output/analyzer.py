@@ -157,7 +157,7 @@ class ResultAnalyzer:
             return None
 
         fig, ax = plt.subplots(figsize=(8, 10))
-        z = flux_res.measure_z
+        z = flux_res.measure_z  # Keep measure_z here because the planes represent bin edges.
         flux_down = flux_res.flux_down / self.total_photons
         flux_up = flux_res.flux_up / self.total_photons
         net_flux = flux_down - flux_up
