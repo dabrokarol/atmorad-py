@@ -250,11 +250,7 @@ You can track specific photon behaviors by subclassing `BaseDetector` and implem
 ```python
 from dataclasses import dataclass
 import numpy as np
-from atmorad import BaseDetector, register_detector
-from atmorad.config import SimConfig
-from atmorad.environment import Scene
-from atmorad.models import PhotonBatch
-
+from atmorad import BaseDetector, register_detector, SimConfig, Scene, PhotonBatch
 @dataclass(slots=True)
 class FateResult:
     energy_absorbed_surface: float = 0.0

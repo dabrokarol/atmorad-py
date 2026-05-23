@@ -1,7 +1,9 @@
 from .api import load, run
+from .config import SimConfig
 from .constants import X, Y, Z
 from .detectors import BaseDetector
-from .environment import BaseSurfaceMap
+from .environment import BaseSurfaceMap, Scene
+from .models import PhotonBatch
 from .physics import Scattering, SurfaceReflection
 from .registry import (
     register_detector,
@@ -19,11 +21,14 @@ __all__ = [
     "register_reflection",
     "register_scattering",
     "register_surface_map",
-    # Base Classes
+    # Base Classes & Core Types for Plugins
     "BaseDetector",
     "Scattering",
     "SurfaceReflection",
     "BaseSurfaceMap",
+    "SimConfig",
+    "Scene",
+    "PhotonBatch",
     # Constants
     "X",
     "Y",
