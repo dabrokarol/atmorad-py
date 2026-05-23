@@ -26,6 +26,7 @@ class DataIO:
     METADATA_FILE = "metadata.json"
     CONFIG_FILE = "runtime_config.toml"
     CHECKPOINT_FILE = "checkpoint.nc"
+    NETCDF_ENGINE = "h5netcdf"
 
     def __init__(self, config: SimConfig) -> None:
         self.config = config
@@ -111,7 +112,7 @@ class DataIO:
     def save_results(self, results: SimulationResults) -> None:
         results_path = self.base_dir / self.RESULTS_FILE
         ds = self._results_to_dataset(results)
-        ds.to_netcdf(results_path, engine="netcdf4")
+        ds.to_netcdf(results_path, engine=self.NETCDF_ENGINE)
 
     def save_checkpoint(self, simulated_photons: int, results: SimulationResults):
         tmp_path = self.checkpoint_path.with_suffix(".nc.tmp")
@@ -120,7 +121,7 @@ class DataIO:
         ds.attrs["_simulated_photons"] = simulated_photons
         ds.attrs["_config_json"] = self.config.model_dump_json()
 
-        ds.to_netcdf(tmp_path, engine="netcdf4")
+        ds.to_netcdf(tmp_path, engine=self.NETCDF_ENGINE)
         shutil.move(tmp_path, self.checkpoint_path)
 
     def load_checkpoint(self):
@@ -128,7 +129,7 @@ class DataIO:
             return 0, SimulationResults(), None
 
         try:
-            with xr.open_dataset(self.checkpoint_path, engine="netcdf4") as ds:
+            with xr.open_dataset(self.checkpoint_path, engine=self.NETCDF_ENGINE) as ds:
                 ds.load()
                 simulated_photons = int(ds.attrs.get("_simulated_photons", 0))
 
@@ -158,7 +159,7 @@ class DataIO:
         if not results_path.exists():
             raise FileNotFoundError(f"Could not find results at {results_path.resolve()}")
 
-        with xr.open_dataset(results_path, engine="netcdf4") as ds:
+        with xr.open_dataset(results_path, engine=cls.NETCDF_ENGINE) as ds:
             ds.load()
             results = cls._dataset_to_results(ds)
 

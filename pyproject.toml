@@ -27,6 +27,7 @@ dependencies = [
     "pydantic>=2.5.0",
     "xarray>=2024.12.0",
     "h5netcdf>=1.8.0",
+    "h5py>=3.16.0",
 ]
 
 [project.scripts]
