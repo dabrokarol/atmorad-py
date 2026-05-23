@@ -19,7 +19,7 @@ class FateDetector(BaseDetector):
     def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
         pass
 
-    def record_interaction(self, batch, old_direction, old_weight, surface_mask, scatter_mask):
+    def record_interaction(self, batch, old_direction, old_weight, scatter_mask, surface_mask):
         if np.any(scatter_mask):
             deposited = old_weight[scatter_mask] - batch.weight[scatter_mask]
             self.absorbed_atmosphere += np.sum(deposited)
