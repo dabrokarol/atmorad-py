@@ -7,13 +7,15 @@ from atmorad.config import SimConfig
 from atmorad.constants import EPSILON, MAX_SCATTERINGS
 from atmorad.environment.scene import Scene
 from atmorad.models import EngineResult, PhotonBatch, SimulationResults
+from atmorad.detectors import BaseDetector
+
+from atmorad.registry import DETECTORS
 
 
 class Engine:
-    def __init__(self, config: SimConfig, scene: Scene, detectors: list):
+    def __init__(self, config: SimConfig, scene: Scene):
         self.config = config
         self.scene = scene
-        self.detectors = detectors
 
         engine_config = config.engine
         source_config = config.source
@@ -44,11 +46,17 @@ class Engine:
 
     def random_tau(self, size):
         return self.rng.exponential(scale=1.0, size=size)
+    
+    def _initialize_detectors(self):
+        self.detectors: dict[str, BaseDetector] = {}
+
+        for det_name in self.config.detectors.active:
+            detector_class = DETECTORS[det_name]
+            self.detectors[det_name] = detector_class()
+            self.detectors[det_name].initialize(self.scene, self.config)
 
     def run(self):
-        for det in self.detectors:
-            det.initialize(self.scene, self.config)
-
+        self._initialize_detectors()
         batch = self._init_arrays()
 
         scene = self.scene
@@ -68,7 +76,7 @@ class Engine:
             old_pos = batch.pos.copy()
             batch = scene.move_photons(batch, new_tau_to_travel)
 
-            for det in self.detectors:
+            for det in self.detectors.values():
                 det.record_movement(batch, old_pos)
 
             batch.tau_to_travel -= new_tau_to_travel
@@ -87,7 +95,7 @@ class Engine:
             )
             batch.deactivate_photons(absorbed_surface | absorbed_atmosphere)
 
-            for det in self.detectors:
+            for det in self.detectors.values():
                 det.record_scattering(batch, old_direction, scattered)
 
             batch.scatter_counts[scattered] += 1
@@ -108,7 +116,7 @@ class Engine:
             )
             terminated_mask = ~active_mask
 
-            for det in self.detectors:
+            for det in self.detectors.values():
                 det.record_termination(batch, terminated_mask)
 
             batch.deactivate_photons(terminated_mask)
@@ -116,14 +124,22 @@ class Engine:
 
         end_time = time.process_time()
 
-        engine_results = EngineResult(cpu_time_s=end_time - start_time)
-
+        self.cpu_time_s = end_time - start_time
+        self.results = self._build_results()
+        
+    def _build_results(self) -> SimulationResults:
         detector_results = {}
-        for det in self.detectors:
+ 
+        for det_id, det in self.detectors.items():
             det.finalize()
-            detector_results[det.__class__.__name__] = det.get_results()
-
-        self.results = SimulationResults(engine=engine_results, detector_results=detector_results)
+            detector_results[det_id] = det.get_results()
+            
+        return SimulationResults(
+            engine=EngineResult(
+                cpu_time_s=self.cpu_time_s, 
+            ),
+            detector_results=detector_results
+        )
 
     def get_results(self):
         if self.results is None:

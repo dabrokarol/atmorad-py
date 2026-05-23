@@ -22,7 +22,7 @@ active = [
     "vertical_flux", 
     "absorption_vertical", 
     "plane_flux", 
-    "boundary_flux"
+    "surface_absorption"
 ]
 
 num_full_paths = 0

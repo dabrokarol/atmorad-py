@@ -9,42 +9,45 @@ from atmorad.registry import register_detector
 from .base import BaseDetector
 
 
-@register_detector("plane_flux")
+@register_detector("plane_flux", IncidentFluxMapResult)
 class IncidentFluxMapDetector(BaseDetector):
     def __init__(self):
-        self.target_z_array = None
+        self.measure_z: np.ndarray | None = None
+        self.domain_x: float | None = None
+        self.domain_y: float | None = None
 
-        self.domain_x = None
-        self.domain_y = None
-        self.resolution = None
-
-        self.hit_p_down, self.hit_x_down, self.hit_y_down = [], [], []
-        self.hit_p_up, self.hit_x_up, self.hit_y_up = [], [], []
-
-        self.x_edges = None
-        self.y_edges = None
+        self.x_edges: np.ndarray | None = None
+        self.y_edges: np.ndarray | None = None
+        self.p_edges: np.ndarray | None = None
+        
+        self.flux_down_3d: np.ndarray | None = None
+        self.flux_up_3d: np.ndarray | None = None
 
     def initialize(self, scene: Scene, config: SimConfig):
-        self.target_z_array = np.array(config.detectors.flux_maps_z_levels_km, dtype=float)
-        self.resolution = config.detectors.horizontal_maps_resolution_km
+        resolution = config.detectors.horizontal_maps_resolution_km
+        
+        self.measure_z = np.array(config.detectors.flux_maps_z_levels_km, dtype=float)
         self.domain_x = config.environment.geometry.domain_size_x_km
         self.domain_y = config.environment.geometry.domain_size_y_km
+        
+        num_bins_x = int(np.round(self.domain_x / resolution))
+        num_bins_y = int(np.round(self.domain_y / resolution))
+        num_planes = len(self.measure_z)
+        
+        self.x_edges = np.linspace(-self.domain_x / 2, self.domain_x / 2, num_bins_x + 1)
+        self.y_edges = np.linspace(-self.domain_y / 2, self.domain_y / 2, num_bins_y + 1)
 
-        self.x_edges = np.arange(
-            -self.domain_x / 2, self.domain_x / 2 + self.resolution, self.resolution
-        )
-        self.y_edges = np.arange(
-            -self.domain_y / 2, self.domain_y / 2 + self.resolution, self.resolution
-        )
+        self.p_edges = np.arange(num_planes + 1) - 0.5
 
+        self.flux_down_3d = np.zeros((num_planes, num_bins_x, num_bins_y), dtype=np.float64)
+        self.flux_up_3d = np.zeros((num_planes, num_bins_x, num_bins_y), dtype=np.float64)
+    
     def _process_hits(
         self,
         batch: PhotonBatch,
         old_pos: np.ndarray,
         crossed_mask: np.ndarray,
-        p_list: list,
-        x_list: list,
-        y_list: list,
+        accumulator: np.ndarray,
     ):
         if not np.any(crossed_mask):
             return
@@ -53,7 +56,7 @@ class IncidentFluxMapDetector(BaseDetector):
 
         crossed_old_z = old_pos[Z, photon_idx]
         crossed_dir_z = batch.direction[Z, photon_idx]
-        crossed_target_z = self.target_z_array[plane_idx]
+        crossed_target_z = self.measure_z[plane_idx]
 
         with np.errstate(divide="ignore", invalid="ignore"):
             t = (crossed_target_z - crossed_old_z) / crossed_dir_z
@@ -64,25 +67,27 @@ class IncidentFluxMapDetector(BaseDetector):
         wrapped_x = np.mod(exact_x + self.domain_x / 2, self.domain_x) - self.domain_x / 2
         wrapped_y = np.mod(exact_y + self.domain_y / 2, self.domain_y) - self.domain_y / 2
 
-        p_list.append(plane_idx)
-        x_list.append(wrapped_x)
-        y_list.append(wrapped_y)
+        weights = batch.weight[photon_idx]
+
+        sample = np.column_stack((plane_idx, wrapped_x, wrapped_y))
+
+        batch_hist, _ = np.histogramdd(
+            sample, 
+            bins=[self.p_edges, self.x_edges, self.y_edges],
+            weights=weights
+        )
+
+        accumulator += batch_hist
 
     def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
         old_z = old_pos[Z]
         new_z = batch.pos[Z]
 
-        down_mask = (old_z[:, np.newaxis] > self.target_z_array) & (
-            new_z[:, np.newaxis] <= self.target_z_array
-        )
-        up_mask = (old_z[:, np.newaxis] < self.target_z_array) & (
-            new_z[:, np.newaxis] >= self.target_z_array
-        )
+        down_mask = (old_z[:, np.newaxis] > self.measure_z) & (new_z[:, np.newaxis] <= self.measure_z)
+        up_mask = (old_z[:, np.newaxis] < self.measure_z) & (new_z[:, np.newaxis] >= self.measure_z)
 
-        self._process_hits(
-            batch, old_pos, down_mask, self.hit_p_down, self.hit_x_down, self.hit_y_down
-        )
-        self._process_hits(batch, old_pos, up_mask, self.hit_p_up, self.hit_x_up, self.hit_y_up)
+        self._process_hits(batch, old_pos, down_mask, self.flux_down_3d)
+        self._process_hits(batch, old_pos, up_mask, self.flux_up_3d)
 
     def record_scattering(
         self, batch: PhotonBatch, old_direction: np.ndarray, scattered_mask: np.ndarray
@@ -95,32 +100,14 @@ class IncidentFluxMapDetector(BaseDetector):
     def finalize(self):
         pass
 
-    def _build_maps(self, hit_p: list, hit_x: list, hit_y: list) -> dict:
-        flux_maps = {}
-        if hit_x:
-            all_p = np.concatenate(hit_p)
-            all_x = np.concatenate(hit_x)
-            all_y = np.concatenate(hit_y)
-
-            for i, z_val in enumerate(self.target_z_array):
-                p_mask = all_p == i
-                flux_map, _, _ = np.histogram2d(
-                    all_x[p_mask], all_y[p_mask], bins=[self.x_edges, self.y_edges]
-                )
-                flux_maps[float(z_val)] = flux_map
-        else:
-            for z_val in self.target_z_array:
-                flux_maps[float(z_val)] = np.zeros((len(self.x_edges) - 1, len(self.y_edges) - 1))
-
-        return flux_maps
-
     def get_results(self) -> IncidentFluxMapResult:
+        x_centers = (self.x_edges[:-1] + self.x_edges[1:]) / 2.0
+        y_centers = (self.y_edges[:-1] + self.y_edges[1:]) / 2.0
+        
         return IncidentFluxMapResult(
-            x_edges=self.x_edges,
-            y_edges=self.y_edges,
-            flux_maps_z_levels_km=self.target_z_array,
-            incident_flux_down_maps_2d=self._build_maps(
-                self.hit_p_down, self.hit_x_down, self.hit_y_down
-            ),
-            incident_flux_up_maps_2d=self._build_maps(self.hit_p_up, self.hit_x_up, self.hit_y_up),
+            x_centers=x_centers,
+            y_centers=y_centers,
+            measure_z=self.measure_z,
+            incident_flux_down_3d=self.flux_down_3d,
+            incident_flux_up_3d=self.flux_up_3d
         )

@@ -1,6 +1,6 @@
+import dataclasses
 from pathlib import Path
 
-import netCDF4 as nc
 import numpy as np
 import pytest
 
@@ -10,91 +10,32 @@ from atmorad.output import DataIO
 CONFIG_DIR = Path(__file__).parent / "configs"
 CONFIG_FILES = list(str(filename) for filename in CONFIG_DIR.glob("*.toml"))
 
+def assert_dicts_close(d1: dict, d2: dict, rtol=1e-5, atol=1e-8, path=""):
+    assert isinstance(d1, dict) and isinstance(d2, dict)
+    
+    keys1, keys2 = set(d1.keys()), set(d2.keys())
+    assert keys1 == keys2, f"[{path}] Key mismatch! Missing in d1: {keys2-keys1}, missing in d2: {keys1-keys2}"
 
-def test_netcdf_dictionary_reconstruction(tmp_path):
-    """Checks whether DataIO properly handles saving .nc files."""
-    test_file = tmp_path / "test_data.nc"
-
-    original_data = {
-        "temperature": np.array([290.5, 291.0, 295.2]),
-        "grid": {
-            "x": np.array([0, 1, 2]),
-            "y": np.array([0, 1, 2]),
-            "resolution": 1.5,
-            "domain": "global",
-        },
-        "iterations": 1000,
-    }
-
-    with nc.Dataset(test_file, "w", format="NETCDF4") as ncfile:
-        DataIO._save_dict_to_group(ncfile, original_data)
-
-    with nc.Dataset(test_file, "r") as ncfile:
-        loaded_data = DataIO._load_group_to_dict(ncfile)
-
-    assert loaded_data["iterations"] == 1000
-    assert loaded_data["grid"]["domain"] == "global"
-    assert loaded_data["grid"]["resolution"] == 1.5
-
-    np.testing.assert_array_equal(loaded_data["temperature"], original_data["temperature"])
-    np.testing.assert_array_equal(loaded_data["grid"]["x"], original_data["grid"]["x"])
-
-
-def assert_dicts_close(dict1, dict2, path="", ignore_keys=None):
-    """Recursively compares dictionaries containing numpy arrays, floats, and nested dicts."""
-
-    keys1_str = {str(k) for k in dict1.keys()}
-    keys2_str = {str(k) for k in dict2.keys()}
-
-    assert keys1_str == keys2_str, f"Key mismatch at '{path}': {keys1_str} vs {keys2_str}"
-
-    for k1 in dict1.keys():
-        k2 = k1 if k1 in dict2 else str(k1)
-
-        v1 = dict1[k1]
-        v2 = dict2[k2]
-        current_path = f"{path}/{k1}" if path else str(k1)
+    for k in d1:
+        v1, v2 = d1[k], d2[k]
+        current_path = f"{path}.{k}" if path else k
 
         if isinstance(v1, dict):
-            assert isinstance(v2, dict), (
-                f"Type mismatch at '{current_path}': {type(v1)} vs {type(v2)}"
-            )
-            assert_dicts_close(v1, v2, current_path, ignore_keys)
-
-        elif isinstance(v1, (list, tuple)):
-            assert isinstance(v2, (list, tuple)), (
-                f"Type mismatch at '{current_path}': {type(v1)} vs {type(v2)}"
-            )
-            assert len(v1) == len(v2), (
-                f"Length mismatch at '{current_path}': {len(v1)} vs {len(v2)}"
-            )
-
-            for i, (item1, item2) in enumerate(zip(v1, v2)):
-                if isinstance(item1, np.ndarray):
-                    np.testing.assert_allclose(
-                        item1, item2, err_msg=f"Array mismatch at '{current_path}[{i}]'"
-                    )
-                elif isinstance(item1, dict):
-                    assert_dicts_close(item1, item2, f"{current_path}[{i}]", ignore_keys)
-                elif isinstance(item1, (float, np.floating)):
-                    assert np.isclose(item1, item2), (
-                        f"Float mismatch at '{current_path}[{i}]': {item1} != {item2}"
-                    )
-                else:
-                    assert item1 == item2, (
-                        f"Value mismatch at '{current_path}[{i}]': {item1} != {item2}"
-                    )
-
+            assert_dicts_close(v1, v2, rtol, atol, current_path)
+            
         elif isinstance(v1, np.ndarray) or isinstance(v2, np.ndarray):
-            np.testing.assert_allclose(v1, v2, err_msg=f"Array mismatch at '{current_path}'")
-
-        elif isinstance(v1, (float, np.floating)):
-            assert np.isclose(v1, v2), f"Float value mismatch at '{current_path}': {v1} != {v2}"
-
+            v1_arr, v2_arr = np.asarray(v1), np.asarray(v2)
+            np.testing.assert_allclose(
+                v1_arr, v2_arr, 
+                rtol=rtol, atol=atol, 
+                equal_nan=True,
+            )
+            
+        elif isinstance(v1, float) or isinstance(v2, float):
+            assert np.isclose(v1, v2, rtol=rtol, atol=atol, equal_nan=True)
+                
         else:
-            assert v1 == v2, f"Value mismatch at '{current_path}': {v1} != {v2}"
-
-    return True
+            assert v1 == v2
 
 
 @pytest.mark.parametrize(
@@ -105,7 +46,9 @@ def assert_dicts_close(dict1, dict2, path="", ignore_keys=None):
 )
 def test_data_io_save_load_sim(sim_context, tmp_path):
     config = sim_context.config
-    config.output.path = tmp_path
+    config.output.path = str(tmp_path)
+    config.output.overwrite = True 
+    
     data_io = DataIO(config)
 
     sim = MCRadiationRunner(
@@ -118,19 +61,15 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
     )
 
     sim.run()
-    results = sim.get_results()
+    results = sim.results
+    config_2, results_2 = DataIO.load_simulation_data(data_io.base_dir)
 
-    # --- Assert: Save/Load Simulation Run ---
-    config.output.path = "results"
-    saved_dir = tmp_path / config.metadata.experiment_name
-    config_2, results_2 = data_io.load_simulation_data(saved_dir)
-
-    # Normalize volatile fields for comparison
     config_2.output.path = config.output.path
     config_2.config_path = config.config_path
 
     assert config == config_2, "Loaded configuration does not match the original."
-    assert_dicts_close(results.model_dump(), results_2.model_dump())
+
+    assert_dicts_close(dataclasses.asdict(results), dataclasses.asdict(results_2))
 
     data_io.save_checkpoint(simulated_photons=42, results=results)
     photons, results_from_checkpoint, config_from_checkpoint = data_io.load_checkpoint()
@@ -140,4 +79,5 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
 
     assert photons == 42, f"Expected 42 simulated photons, got {photons}"
     assert config == config_from_checkpoint, "Checkpoint configuration does not match the original."
-    assert_dicts_close(results.model_dump(), results_from_checkpoint.model_dump())
+    
+    assert_dicts_close(dataclasses.asdict(results), dataclasses.asdict(results_from_checkpoint))

@@ -25,7 +25,7 @@ active = [
     "vertical_flux", 
     "absorption_vertical", 
     "plane_flux", 
-    "boundary_flux"
+    "surface_absorption"
 ]
 
 vertical_profiles_resolution_km = 1.0

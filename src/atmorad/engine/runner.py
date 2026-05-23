@@ -8,7 +8,6 @@ import numpy as np
 from tqdm import tqdm
 
 from atmorad.constants import CHECKPOINT_INTERVAL
-from atmorad.detectors import build_detectors_from_config
 from atmorad.models import SimContext, SimulationResults
 
 from .core import Engine
@@ -20,7 +19,7 @@ class MCRadiationRunner:
         context: SimContext,
         quiet: bool = False,
         on_checkpoint: Callable[[int, SimulationResults], None] = None,
-        on_finish: Callable[[dict], None] = None,
+        on_finish: Callable[[SimulationResults], None] = None,
         load_checkpoint_fn: Callable[[], tuple] = None,
         on_cleanup: Callable[[], None] = None,
     ):
@@ -175,9 +174,8 @@ def run_chunk(
     new_config = context.config.model_copy(
         update={"engine": new_engine_config, "detectors": new_detector_config}
     )
-    detectors = build_detectors_from_config(new_config)
-
-    sim = Engine(new_config, context.scene, detectors)
+    
+    sim = Engine(new_config, context.scene)
     sim.run()
 
     return sim.get_results()

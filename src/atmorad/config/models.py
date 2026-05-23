@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from atmorad.registry import REFLECTION_MODELS, SCATTERING_MODELS, SURFACE_MAPS
+from atmorad.registry import REFLECTION_MODELS, SCATTERING_MODELS, SURFACE_MAPS, DETECTORS
 
 # ------- Environment Config models: ----------
 
@@ -58,10 +58,13 @@ class MetadataConfig(BaseModel):
 
 
 DetectorName = Literal[
-    "fate", "path_tracking", "vertical_flux", "absorption_vertical", "plane_flux", "boundary_flux"
+    "fate",
+    "plane_flux",
+    "path_tracking",
+    "surface_absorption",
+    "vertical_flux",
+    "absorption_vertical"
 ]
-
-
 class DetectorConfig(BaseModel):
     active: list[DetectorName] = Field(
         default=["fate"], description="List of active detectors to run during the simulation."

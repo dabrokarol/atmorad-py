@@ -4,7 +4,7 @@ import numpy as np
 
 from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import BaseResult, PhotonBatch
+from atmorad.models import PhotonBatch
 
 
 class BaseDetector(ABC):
@@ -27,4 +27,4 @@ class BaseDetector(ABC):
     def finalize(self): ...
 
     @abstractmethod
-    def get_results(self) -> BaseResult: ...
+    def get_results(self): ...

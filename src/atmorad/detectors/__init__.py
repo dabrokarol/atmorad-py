@@ -1,12 +1,11 @@
-__all__ = ["build_detectors_from_config", "BaseDetector"]
+__all__ = ["BaseDetector"]
 
 from . import (
-    absorption_vertical,
-    boundary_flux,
     fate,
     flux_vertical,
     paths,
     plane_flux,
+    surface_absorption,
+    vertical_absorption,
 )
 from .base import BaseDetector
-from .builder import build_detectors_from_config
