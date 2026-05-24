@@ -344,8 +344,10 @@ class SimResults:
             config = SimConfig.model_validate_json(ds.attrs["_simulation_config"])
         else:
             config = None
-            
 
         return cls(
-            engine_result=engine, detector_results=detector_results, total_photons=num_photons, config=config
+            engine_result=engine,
+            detector_results=detector_results,
+            total_photons=num_photons,
+            config=config,
         )
