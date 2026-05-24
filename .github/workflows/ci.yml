@@ -8,9 +8,10 @@ on:
 
 jobs:
   test-and-lint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
         resolution: ["locked", "lowest-direct"]
 
     steps:
@@ -29,6 +30,7 @@ jobs:
           python-version-file: "pyproject.toml"
 
       - name: Install Dependencies
+        shell: bash
         run: |
           if [ "${{ matrix.resolution }}" = "lowest-direct" ]; then
             uv venv
@@ -38,7 +40,7 @@ jobs:
           fi
 
       - name: Ruff
-        if: matrix.resolution == 'locked'
+        if: matrix.resolution == 'locked' && matrix.os == 'ubuntu-latest'
         run: |
           uv run ruff check .
           uv run ruff format --check .
