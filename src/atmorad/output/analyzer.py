@@ -126,7 +126,7 @@ class ResultAnalyzer:
                 labeled_surface = True
             elif reflected_toa[i]:
                 color, alpha = "tab:grey", 0.2
-                lbl = "Escaped atmosphere" if not labeled_above_toa else None
+                lbl = "Escaped TOA" if not labeled_above_toa else None
                 labeled_above_toa = True
             else:
                 color, alpha = "tab:red", 0.3
