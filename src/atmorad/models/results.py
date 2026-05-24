@@ -21,9 +21,13 @@ def coord_field(nc_name: str, units: str, long_name: str, on_merge: str | None =
         long_name: Descriptive name for the NetCDF attribute.
         on_merge: Merge strategy ('keep', 'sum', 'concat'). Defaults to 'keep' for coordinates.
     """
-    metadata = {"role": "coord", "nc_name": nc_name, "units": units, "long_name": long_name}
-    if on_merge is not None:
-        metadata["on_merge"] = on_merge
+    metadata = {
+        "role": "coord",
+        "nc_name": nc_name,
+        "units": units,
+        "long_name": long_name,
+        "on_merge": on_merge,
+    }
 
     return field(metadata=metadata)
 
@@ -33,7 +37,7 @@ def data_field(
     normalize: bool = False,
     long_name: str = "",
     units: str | None = None,
-    on_merge: str | None = None,
+    on_merge: str = "sum",
 ):
     """Creates a data field (e.g., a results array) for simulation results.
 
@@ -44,23 +48,28 @@ def data_field(
         units: Physical units. Overrides default normalization units if provided.
         on_merge: Merge strategy ('keep', 'sum', 'concat'). Defaults to 'sum' for data.
     """
-    metadata = {"role": "data", "dims": dims, "normalize": normalize, "long_name": long_name}
+    metadata = {
+        "role": "data",
+        "dims": dims,
+        "normalize": normalize,
+        "long_name": long_name,
+        "on_merge": on_merge,
+    }
     if units is not None:
         metadata["units"] = units
-    if on_merge is not None:
-        metadata["on_merge"] = on_merge
 
     return field(metadata=metadata)
 
 
-def attr_field(normalize: bool = False, units: str | None = None):
+def attr_field(normalize: bool = False, units: str | None = None, on_merge: str = "first"):
     """Creates an attribute field (e.g., scalar values, summaries).
 
     Args:
         normalize: Whether to divide the attribute by the number of simulated photons.
         units: Physical units of the attribute.
+        on_merge: Merge strategy ('keep', 'sum', 'concat'). Defaults to 'keep' for attrributes.
     """
-    metadata = {"role": "attr", "normalize": normalize}
+    metadata = {"role": "attr", "normalize": normalize, "on_merge": on_merge}
     if units is not None:
         metadata["units"] = units
 
@@ -85,9 +94,7 @@ class BaseResult(ABC):
         for f in fields(self):
             v1, v2 = getattr(self, f.name), getattr(other, f.name)
 
-            role = f.metadata.get("role", "attr")
-            # By default, sum data variables, and keep the first value for coordinates and attributes
-            op = f.metadata.get("on_merge", "keep" if role in ("coord", "attr") else "sum")
+            op = f.metadata["on_merge"]
 
             if op == "sum":
                 kwargs[f.name] = v1 + v2
@@ -185,9 +192,9 @@ class EngineResult:
 
 @dataclass(slots=True)
 class FateResult(BaseResult):
-    energy_absorbed_surface: float = attr_field(normalize=True)
-    energy_absorbed_atmosphere: float = attr_field(normalize=True)
-    energy_reflected_toa: float = attr_field(normalize=True)
+    energy_absorbed_surface: float = attr_field(normalize=True, on_merge="sum")
+    energy_absorbed_atmosphere: float = attr_field(normalize=True, on_merge="sum")
+    energy_reflected_toa: float = attr_field(normalize=True, on_merge="sum")
 
 
 @dataclass(slots=True)

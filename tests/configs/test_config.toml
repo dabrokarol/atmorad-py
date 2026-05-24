@@ -3,8 +3,8 @@ experiment_name = "test001"
 description = "Test config."
 
 [engine]
-num_photons = 5000
-batch_size = 5000
+num_photons = 2000
+batch_size = 400
 random_seed = 42
 cpu_cores = 1
 
