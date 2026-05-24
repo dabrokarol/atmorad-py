@@ -47,7 +47,6 @@ class CustomReflection(SurfaceReflection):
 @register_scattering("custom-scattering")
 class CustomScattering(Scattering):
     def __init__(self, g, resolution=1000):
-        self.asymmetry_factor = g
         cos_grid = np.linspace(-1, 1, resolution)
 
         # Calculate the Probability Density Function (PDF)
