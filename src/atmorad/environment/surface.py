@@ -22,7 +22,7 @@ class BaseSurface(ABC):
 
     @abstractmethod
     def process_reflection(
-        self, batch: PhotonBatch, surface_mask: np.ndarray, random_samples: np.ndarray
+        self, batch: PhotonBatch, surface_mask: np.ndarray, rng: np.random.Generator
     ) -> PhotonBatch: ...
 
     @abstractmethod
@@ -54,7 +54,7 @@ class FlatSurface(BaseSurface):
         self.is_periodic = is_periodic
 
     def process_reflection(
-        self, batch: PhotonBatch, surface_mask: np.ndarray, random_samples: np.ndarray
+        self, batch: PhotonBatch, surface_mask: np.ndarray, rng: np.random.Generator
     ):
         pos_hit = batch.pos[:, surface_mask]
 
@@ -67,8 +67,8 @@ class FlatSurface(BaseSurface):
 
         hit_dirs = batch.direction[:, surface_mask]
 
-        r1 = random_samples[1, surface_mask]
-        r2 = random_samples[2, surface_mask]
+        r1 = rng.random(np.count_nonzero(surface_mask))
+        r2 = rng.random(np.count_nonzero(surface_mask))
 
         for mat_id in np.unique(material_ids):
             material_mask = material_ids == mat_id

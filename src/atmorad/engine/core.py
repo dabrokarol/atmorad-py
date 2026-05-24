@@ -91,11 +91,10 @@ class Engine:
                 batch.pos[:, new_layer_mask], rng
             )
 
-            random_sample = rng.uniform(0, 1, size=(3, batch.active_count))
             old_direction = batch.direction.copy()
             old_weight = batch.weight.copy()
 
-            batch = scene.process_interactions(batch, scatter_mask, surface_mask, random_sample)
+            batch = scene.process_interactions(batch, scatter_mask, surface_mask, rng)
 
             for det in self.detectors.values():
                 det.record_interaction(

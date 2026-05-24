@@ -101,15 +101,15 @@ class Atmosphere:
         return new_directions
 
     def process_scattering(
-        self, batch: PhotonBatch, atmosphere_mask: np.ndarray, random_samples: np.ndarray
+        self, batch: PhotonBatch, atmosphere_mask: np.ndarray, rng: np.random.Generator
     ):
         ssas = self.get_ssas(batch.material_ids[atmosphere_mask])
         batch.weight[atmosphere_mask] *= ssas
 
         cos_theta, sin_theta, cos_phi, sin_phi = self.scatter(
             batch.material_ids[atmosphere_mask],
-            random_samples[1, atmosphere_mask],
-            random_samples[2, atmosphere_mask],
+            rng.random(np.count_nonzero(atmosphere_mask)),
+            rng.random(np.count_nonzero(atmosphere_mask)),
         )
 
         batch.direction[:, atmosphere_mask] = rotate(
