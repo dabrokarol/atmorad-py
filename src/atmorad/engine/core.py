@@ -57,6 +57,8 @@ class Engine:
             self.detectors[det_name] = detector_class(self.scene, self.config)
 
     def run(self):
+        np.seterr(divide="ignore", invalid="ignore")
+
         self._initialize_detectors()
         batch = self._init_arrays()
 
@@ -68,22 +70,17 @@ class Engine:
         while batch.active_count > 0:
             logging.debug(f"Active photons: {batch.active_count}")
 
-            tau_to_boundary = scene.tau_to_boundary(batch)
+            batch, dist_moved, tau_consumed = scene.move_photons(batch)
 
-            new_tau_to_travel = np.where(
-                tau_to_boundary < batch.tau_to_travel, tau_to_boundary, batch.tau_to_travel
-            )
+            batch.tau_to_travel -= tau_consumed
 
-            old_pos = batch.pos.copy()
-            batch = scene.move_photons(batch, new_tau_to_travel)
+            old_pos = batch.pos - batch.direction * dist_moved
 
             for det in self.detectors.values():
                 det.record_movement(batch, old_pos)
 
-            batch.tau_to_travel -= new_tau_to_travel
-            scatter_mask = np.isclose(batch.tau_to_travel, 0, atol=EPSILON)
+            scatter_mask = batch.tau_to_travel <= EPSILON
             surface_mask = self.scene.at_surface(batch.pos)
-
             in_atmosphere_mask = self.scene.in_atmosphere(batch.pos)
 
             new_layer_mask = ~scatter_mask & in_atmosphere_mask

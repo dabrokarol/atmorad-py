@@ -38,9 +38,6 @@ class Scene:
 
         return batch
 
-    def tau_to_boundary(self, batch: PhotonBatch):
-        return self.atmosphere.tau_to_boundary(batch)
-
     def above_toa(self, pos):
         return self.atmosphere.above_toa(pos)
 
@@ -75,11 +72,13 @@ class Scene:
         rand_component = rng.uniform(0, 1, pos.shape[1])
         return self.atmosphere.get_material_ids(pos, rand_component)
 
-    def move_photons(self, batch: PhotonBatch, tau_to_move: np.ndarray):
-        dist = self.atmosphere.tau_to_distance(batch, tau_to_move)
-        batch.pos += batch.direction * dist
+    def move_photons(self, batch: PhotonBatch):
+        dist_move, tau_consumed = self.atmosphere.step_to_boundary(batch)
+
+        batch.pos += batch.direction * dist_move
         batch = self.adjust_to_boundary_conditions(batch)
-        return batch
+
+        return batch, dist_move, tau_consumed
 
     def get_final_photon_position_data(self, pos):
         return self.above_toa(pos), self.at_surface(pos), self.atmosphere.get_spatial_indices(pos)
