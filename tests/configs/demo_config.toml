@@ -28,9 +28,9 @@ active = [
     "surface_absorption"
 ]
 
-vertical_profiles_resolution_km = 1.0
+vertical_profiles_resolution_km = 20.0
 horizontal_maps_resolution_km = 1.0
-num_full_paths = 200
+num_full_paths = 10
 flux_maps_z_levels_km = [0, 4.0]
 
 [output]
