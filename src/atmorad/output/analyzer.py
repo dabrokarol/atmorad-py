@@ -206,6 +206,8 @@ class ResultAnalyzer:
         ax.set_ylabel("Altitude Z [km]", fontsize=12)
         ax.grid(True, linestyle=":", alpha=0.7)
         ax.legend(fontsize=11)
+        
+        return fig
 
     def plot_absorption_profile(self, prefix: str, title="Atmospheric Absorption Profile"):
         var_name = f"{prefix}_absorption_profile_1d"

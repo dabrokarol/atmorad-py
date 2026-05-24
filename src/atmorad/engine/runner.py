@@ -172,7 +172,7 @@ def run_chunk(
     )
 
     new_config = context.config.model_copy(
-        update={"engine_result": new_engine_config, "detectors": new_detector_config}
+        update={"engine": new_engine_config, "detectors": new_detector_config}
     )
 
     sim = Engine(new_config, context.scene)

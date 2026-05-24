@@ -96,7 +96,7 @@ class EngineConfig(BaseModel):
     cpu_cores: int = Field(ge=1)
     resume_from_checkpoint: bool = False
     photon_weight_threshold: float = 1e-4
-    photon_survival_chance: float = 0.1
+    photon_survival_chance: float = Field(default=0.1, ge=0.0, le=1.0)
 
 
 class SourceConfig(BaseModel):
@@ -168,7 +168,6 @@ class SimConfig(BaseModel):
         """Returns attributes that will be saved to at root in netCDF file."""
         return {
             "experiment_name": self.metadata.experiment_name,
-            "num_photons": self.engine.num_photons,
             "domain_size_x_km": self.environment.geometry.domain_size_x_km,
             "domain_size_y_km": self.environment.geometry.domain_size_y_km,
             "boundary_condition": self.environment.geometry.boundary_condition,
