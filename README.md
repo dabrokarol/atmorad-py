@@ -270,6 +270,7 @@ class CustomScattering(Scattering):
 
 
 if __name__ == "__main__":
+    # 4. Run the experiment
     results = atmorad.run("simulation.toml")
 
 ```
@@ -363,6 +364,7 @@ class FateDetector(BaseDetector):
 
 
 if __name__ == "__main__":
+    # 3. Run the simulation
     results = atmorad.run("simulation.toml")
 
 ```

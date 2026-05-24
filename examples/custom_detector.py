@@ -60,4 +60,5 @@ class FateDetector(BaseDetector):
 
 
 if __name__ == "__main__":
+    # 3. Run the simulation
     results = atmorad.run("simulation.toml")

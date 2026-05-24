@@ -59,4 +59,5 @@ class CustomScattering(Scattering):
 
 
 if __name__ == "__main__":
+    # 4. Run the experiment
     results = atmorad.run("simulation.toml")

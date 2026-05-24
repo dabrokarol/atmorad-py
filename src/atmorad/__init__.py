@@ -24,7 +24,7 @@ from .registry import (
 )
 
 __all__ = [
-    # Main API
+    # Main api
     "run",
     "load",
     # Registry decorators
@@ -32,7 +32,7 @@ __all__ = [
     "register_reflection",
     "register_scattering",
     "register_surface_map",
-    # Base Classes & Core Types for Plugins
+    # Base classes and types for custom objects
     "BaseDetector",
     "Scattering",
     "SurfaceReflection",
