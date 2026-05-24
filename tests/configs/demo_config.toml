@@ -55,11 +55,11 @@ path = 'results'
     [atmosphere_materials.light_clouds]
     extinction_coeff_per_km = 1
     ssa = 0.999999
-    scattering = {type = "hg", assymetry_factor = 0.85}
+    scattering = {type = "hg", g = 0.85}
     [atmosphere_materials.dark_clouds]
     extinction_coeff_per_km = 5
     ssa = 0.999999
-    scattering = {type = "hg", assymetry_factor = 0.85}
+    scattering = {type = "hg", g = 0.85}
 
 [[layer]]
 thickness_km = 2
