@@ -1,13 +1,27 @@
+from dataclasses import dataclass
+
 import numpy as np
 
-from atmorad.config import SimConfig
-from atmorad.environment import Scene
-from atmorad.models import FateResult
-from atmorad.registry import register_detector
+import atmorad
+from atmorad import (
+    BaseDetector,
+    BaseResult,
+    Scene,
+    SimConfig,
+    nc_attr,
+    register_detector,
+)
 
-from .base import BaseDetector
+
+# 1. Define the result structure using AtmoRad's field wrappers
+@dataclass(slots=True)
+class FateResult(BaseResult):
+    energy_absorbed_surface: float = nc_attr(normalize=True)
+    energy_absorbed_atmosphere: float = nc_attr(normalize=True)
+    energy_reflected_toa: float = nc_attr(normalize=True)
 
 
+# 2. Implement the detector logic
 @register_detector("fate", FateResult)
 class FateDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
@@ -17,6 +31,7 @@ class FateDetector(BaseDetector):
         self.scene = scene
 
     def record_interaction(self, batch, old_direction, old_weight, scatter_mask, surface_mask):
+        # Calculate deposited energy by subtracting the photon's new weight from its old weight.
         if np.any(scatter_mask):
             deposited = old_weight[scatter_mask] - batch.weight[scatter_mask]
             self.absorbed_atmosphere += np.sum(deposited)
@@ -42,3 +57,8 @@ class FateDetector(BaseDetector):
             energy_absorbed_atmosphere=self.absorbed_atmosphere,
             energy_reflected_toa=self.reflected_toa,
         )
+
+
+if __name__ == "__main__":
+    # 3. Run the simulation
+    results = atmorad.run("simulation.toml")

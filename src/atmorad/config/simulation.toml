@@ -1,21 +1,22 @@
 [metadata]
 experiment_name = "demo001"
-description = "A demo simulation."
+description = "A demo simulation of 3D radiative transfer over a heterogeneous surface."
 
 [engine]
 num_photons = 100_000
-batch_size = 100_000
+batch_size = 100_000  # photons will be processed in arrays of batch_size in parallel       
 random_seed = 42
-cpu_cores = 4
-resume_from_checkpoint = false # set to true if simulation got interrupted and you want to resume
-# russian roullette parameters
-photon_weight_threshold = 1e-4
-photon_survival_chance = 0.1
+cpu_cores = 1
+resume_from_checkpoint = false
+
+# Russian Roulette params
+photon_weight_threshold = 1e-4 
+photon_survival_chance = 0.1    # 10% chance to survive with 10x multiplied weight
 
 [source]
-theta_sun_deg = 30
-phi_sun_deg = 0 
-wavelength_nm = 530
+theta_sun_deg = 30           # solar zenith angle (0 = directly upwards)
+phi_sun_deg = 0              # solar azimuth angle
+wavelength_nm = 530          # only for reference, wavelength-dependent parameters are not implemented yet
 
 [geometry]
 domain_size_x_km = 100
@@ -23,7 +24,7 @@ domain_size_y_km = 100
 boundary_condition = "periodic"
 
 [detectors]
-active = [
+active = [ # list of supported detectors
     "fate", 
     "path_tracking", 
     "vertical_flux", 
@@ -31,48 +32,53 @@ active = [
     "plane_flux", 
     "surface_absorption"
 ]
-
-# Configuration for the active detectors above
+# spatial resolution for bins in detectors
 vertical_profiles_resolution_km = 0.5
 horizontal_maps_resolution_km = 1.0
-num_full_paths = 100
-flux_maps_z_levels_km = [0.0, 4.0, 10.0]
+num_full_paths = 100 # 100 photon paths will be saved to results
+flux_maps_z_levels_km = [0.0, 4.0, 10.0] # planes at which vertical flux will be counted
 
 [output]
 save_plots = true
 overwrite = true
 path = 'results'
 
-[surface_materials]
+# --- material names and properties (can be added or changed) ---
+
 [surface_materials.snow]
-albedo = 0.85
+albedo = 0.85             
 reflection = {type = "lambertian"}
+
 [surface_materials.ocean]
-albedo = 0.01
+albedo = 0.01                
 reflection = {type = "specular", roughness = 0.0}
 
-
-[atmosphere_materials]
 [atmosphere_materials.air]
-extinction_coeff_per_km = 0.01
+extinction_coeff_per_km = 0.01 # optical density
 ssa = 0.9
-scattering = {type = "rayleigh"} # rayleigh, hg, isotropic
+scattering = {type = "rayleigh"} 
+
 [atmosphere_materials.light_clouds]
-extinction_coeff_per_km = 1
-ssa = 0.999999
-scattering = {type = "hg", assymetry_factor = 0.85}
+extinction_coeff_per_km = 1  
+ssa = 0.999999               # almost no absorption, scattering
+scattering = {type = "hg", g = 0.85} # g > 0 means forward scattering
+
 [atmosphere_materials.dark_clouds]
 extinction_coeff_per_km = 5
 ssa = 0.999999
-scattering = {type = "hg", assymetry_factor = 0.85}
+scattering = {type = "hg", g = 0.85}
 
-# Define atmospheric structure from bottom to top
-[[layer]]
+
+# ___ atmospheric layers (bottom to top) ___
+
+[[layer]] ## double square brackets are used for a list item
 thickness_km = 2
 materials = [{type = "air", weight = 1.0}]
 
 [[layer]]
 thickness_km = 4
+# when multiple materials are provided, collision material 
+# is randomly sampled when photon enters this atmospheric layer.
 materials = [
     {type = "air", weight = 0.1},
     {type = "dark_clouds", weight = 0.9}
@@ -82,12 +88,20 @@ materials = [
 thickness_km = 4
 materials = [{type = "air", weight = 1.0}]
 
-# ___ Surface Map Configuration ___
-# Choose one surface map by commenting out the others
+# [[layer]] ... more layers can be added
+
+# ___ surface map configuration ___
+# choose one surface map by commenting out the others
 
 # [surface]
 # name = "uniform"
 # material = "snow"
+
+[surface]
+name = "circle"
+radius_km = 20
+material_in = "snow"
+material_out = "ocean"
 
 # [surface]
 # name = "split_half_x"
@@ -100,8 +114,5 @@ materials = [{type = "air", weight = 1.0}]
 # material_a = "snow"
 # material_b = "ocean"
 
-[surface]
-name = "circle"
-radius_km = 20
-material_in = "snow"
-material_out = "ocean"
+# to implement a custom surface map, scattering function, reflection function
+# see examples

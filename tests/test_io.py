@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from atmorad.engine import MCRadiationRunner
+from atmorad.models.results import SimResults
 from atmorad.output import DataIO
 
 CONFIG_DIR = Path(__file__).parent / "configs"
@@ -53,6 +54,7 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
     config = sim_context.config
     config.output.path = str(tmp_path)
     config.output.overwrite = True
+    assert config is not None
 
     data_io = DataIO(config)
 
@@ -67,33 +69,45 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
 
     sim.run()
     results = sim.results
-    config_2, results_2 = DataIO.load_simulation_data(data_io.base_dir)
+    assert results.config == config and results.config is not None
 
-    config_2.output.path = config.output.path
-    config_2.config_path = config.config_path
-
+    results_2 = DataIO.load_simulation_data(data_io.base_dir)
+    config_2 = results_2.config
+    assert config_2 is not None
+    config_2 = config_2.model_copy(
+        update={
+            "config_path": config.config_path,
+            "output": config_2.output.model_copy(update={"path": config.output.path}),
+        }
+    )
     assert config == config_2, "Loaded configuration does not match the original."
 
-    # normalize test data
-    expected_ds_normalized = data_io._results_to_dataset(results, normalize=True)
-    expected_results_normalized = data_io._dataset_to_results(expected_ds_normalized)
+    expected_ds_normalized = results.to_dataset(normalize=True)
+    expected_results_normalized = SimResults.from_dataset(expected_ds_normalized)
 
     assert_dicts_close(
         dataclasses.asdict(expected_results_normalized), dataclasses.asdict(results_2)
     )
 
     # test checkpointing
-    data_io.save_checkpoint(simulated_photons=42, results=results)
-    photons, results_from_checkpoint, config_from_checkpoint = data_io.load_checkpoint()
-
-    config_from_checkpoint.output.path = config.output.path
-    config_from_checkpoint.config_path = config.config_path
-
+    results.total_photons = 42
+    data_io.save_checkpoint(results=results)
+    results_from_checkpoint = data_io.load_checkpoint()
+    assert results_from_checkpoint is not None
+    photons = results_from_checkpoint.total_photons
+    config_from_checkpoint = results_from_checkpoint.config
+    assert config_from_checkpoint is not None
+    config_from_checkpoint = config_from_checkpoint.model_copy(
+        update={
+            "config_path": config.config_path,
+            "output": config_from_checkpoint.output.model_copy(update={"path": config.output.path}),
+        }
+    )
     assert np.isclose(42, photons), f"Expected 42 simulated photons, got {photons}"
     assert config == config_from_checkpoint, "Checkpoint configuration does not match the original."
 
-    expected_ds_raw = data_io._results_to_dataset(results, normalize=False)
-    expected_results_raw = data_io._dataset_to_results(expected_ds_raw)
+    expected_ds_raw = results.to_dataset(normalize=False)
+    expected_results_raw = SimResults.from_dataset(expected_ds_raw)
 
     assert_dicts_close(
         dataclasses.asdict(expected_results_raw), dataclasses.asdict(results_from_checkpoint)

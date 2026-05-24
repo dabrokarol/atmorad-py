@@ -10,7 +10,7 @@ def save_all_figures(analyzer, data_io):
         data_io.save_figure(fig, relative_path)
 
 
-def run(config_path: str | Path, quiet: bool = False) -> dict:
+def run(config_path: str | Path, quiet: bool = False):
     """High-level API to run the simulation."""
     path = Path(config_path).resolve()
     context = build_context(path)
@@ -28,7 +28,7 @@ def run(config_path: str | Path, quiet: bool = False) -> dict:
     runner.run()
     results = runner.get_results()
 
-    analyzer = ResultAnalyzer(results, context.config)
+    analyzer = ResultAnalyzer(results.to_dataset(normalize=True))
     if context.config.output.save_plots:
         save_all_figures(analyzer, data_io)
 

@@ -42,18 +42,16 @@ class Scattering:
 
 @register_scattering("hg")
 class HenyeyGreensteinScattering(Scattering):
-    def __init__(self, assymetry_factor: float, resolution=PRECOMPUTED_RESOLUTION):
-        self.g = assymetry_factor
+    def __init__(self, g: float, resolution=PRECOMPUTED_RESOLUTION):
+        self.g = g
         cos_grid = np.linspace(-1, 1, resolution)
 
-        if np.isclose(assymetry_factor, 1.0, atol=EPSILON):
+        if np.isclose(g, 1.0, atol=EPSILON):
             pdf = np.isclose(cos_grid, 1.0, atol=EPSILON).astype(float)
-        elif np.isclose(assymetry_factor, -1.0, atol=EPSILON):
+        elif np.isclose(g, -1.0, atol=EPSILON):
             pdf = np.isclose(cos_grid, -1.0, atol=EPSILON).astype(float)
         else:
-            pdf = (1 - assymetry_factor**2) / (
-                2 * (1 + assymetry_factor**2 - 2 * assymetry_factor * cos_grid) ** 1.5
-            )
+            pdf = (1 - g**2) / (2 * (1 + g**2 - 2 * g * cos_grid) ** 1.5)
 
         super().__init__(pdf_array=pdf, resolution=resolution)
 

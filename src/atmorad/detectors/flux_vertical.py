@@ -65,19 +65,6 @@ class VerticalFluxDetector(BaseDetector):
             self.diff_up += start_bins
             self.diff_up -= end_bins
 
-    def record_interaction(
-        self,
-        batch: PhotonBatch,
-        old_direction: np.ndarray,
-        old_weight: np.ndarray,
-        scatter_mask: np.ndarray,
-        surface_mask: np.ndarray,
-    ): ...
-
-    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray): ...
-
-    def finalize(self): ...
-
     def get_results(self) -> VerticalFluxResult:
         flux_down = np.cumsum(self.diff_down)[:-1]
         flux_up = np.cumsum(self.diff_up)[:-1]

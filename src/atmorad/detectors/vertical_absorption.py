@@ -13,10 +13,14 @@ class AbsorptionProfileDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
         self.scene = scene
         top_of_atmosphere = scene.atmosphere.top_of_atmosphere
-        self.spacing = config.detectors.vertical_profiles_resolution_km
+        self.spacing = min(
+            config.detectors.vertical_profiles_resolution_km, top_of_atmosphere
+        )  # to ensure that at least one bin is created
 
-        num_bins = int(np.round(top_of_atmosphere / self.spacing))
-        self.measure_z = np.linspace(0, top_of_atmosphere, num_bins + 1)
+        self.measure_z = np.arange(
+            0, top_of_atmosphere + self.spacing * 0.1, self.spacing
+        )  # to mitigate possible floating point inaccuracies
+        num_bins = len(self.measure_z) - 1
 
         self.absorption_profile = np.zeros(num_bins, dtype=np.float64)
 
@@ -41,15 +45,6 @@ class AbsorptionProfileDetector(BaseDetector):
             layer_indices, weights=deposited_energy, minlength=len(self.absorption_profile)
         )
         self.absorption_profile += layer_counts
-
-    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
-        pass
-
-    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
-        pass
-
-    def finalize(self):
-        pass
 
     def get_results(self) -> AbsorptionProfileResult:
         z_centers = (self.measure_z[:-1] + self.measure_z[1:]) / 2.0

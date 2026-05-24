@@ -5,11 +5,13 @@ This module provides dictionaries and decorators to register classes so they
 can be dynamically loaded from string names in the configuration files.
 """
 
-SCATTERING_MODELS: dict[str, type] = {}
-REFLECTION_MODELS: dict[str, type] = {}
-SURFACE_MAPS: dict[str, type] = {}
-DETECTORS: dict[str, type] = {}
-DETECTOR_RESULTS: dict[str, type] = {}
+from typing import Any
+
+SCATTERING_MODELS: dict[str, Any] = {}
+REFLECTION_MODELS: dict[str, Any] = {}
+SURFACE_MAPS: dict[str, Any] = {}
+DETECTORS: dict[str, Any] = {}
+DETECTOR_RESULTS: dict[str, Any] = {}
 
 
 def register_reflection(name: str):
@@ -71,11 +73,14 @@ def register_surface_map(name: str, material_keys: list[str]):
     return decorator
 
 
-def register_detector(name: str, result_class: type):
+def register_detector(name: str, result_class: Any):
     """Decorator to register a detector model."""
 
     def wrapper(cls):
         DETECTORS[name] = cls
+
+        # sets registry name inside the class for easier lookup
+        result_class._registry_id = name
         DETECTOR_RESULTS[name] = result_class
         return cls
 

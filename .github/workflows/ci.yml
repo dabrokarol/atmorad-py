@@ -6,11 +6,39 @@ on:
   pull_request:
     branches: [ "main" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  test-and-lint:
+  lint:
+    name: Lint & Format
     runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Ruff Check & Format
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+  test:
+    name: Test (${{ matrix.os }}, ${{ matrix.resolution }})
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
         resolution: ["locked", "lowest-direct"]
 
     steps:
@@ -23,25 +51,15 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version-file: "pyproject.toml"
-
       - name: Install Dependencies
+        shell: bash
         run: |
           if [ "${{ matrix.resolution }}" = "lowest-direct" ]; then
-            uv venv
+            uv venv --python 3.10
             uv pip install -e ".[dev]" --resolution lowest-direct
           else
             uv sync --all-extras --dev
           fi
-
-      - name: Ruff
-        if: matrix.resolution == 'locked'
-        run: |
-          uv run ruff check .
-          uv run ruff format --check .
 
       - name: Pytests
         run: uv run pytest tests/

@@ -3,8 +3,8 @@ experiment_name = "test001"
 description = "Test config."
 
 [engine]
-num_photons = 5000
-batch_size = 5000
+num_photons = 2000
+batch_size = 400
 random_seed = 42
 cpu_cores = 1
 
@@ -28,8 +28,8 @@ active = [
     "surface_absorption"
 ]
 
-vertical_profiles_resolution_km = 1.0
-horizontal_maps_resolution_km = 1.0
+vertical_profiles_resolution_km = 11.3
+horizontal_maps_resolution_km = 5
 
 [output]
 overwrite = true

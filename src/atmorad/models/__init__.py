@@ -2,12 +2,12 @@ from .batch import PhotonBatch
 from .context import SimContext
 from .results import (
     AbsorptionProfileResult,
-    AnyDetectorResult,
+    BaseResult,
     EngineResult,
     FateResult,
     IncidentFluxMapResult,
     PathTrackingResult,
-    SimulationResults,
+    SimResults,
     SurfaceAbsorptionResult,
     VerticalFluxResult,
 )
@@ -15,13 +15,13 @@ from .results import (
 __all__ = [
     "PhotonBatch",
     "SimContext",
-    "SimulationResults",
+    "SimResults",
     "EngineResult",
     "PathTrackingResult",
-    "AnyDetectorResult",
     "IncidentFluxMapResult",
     "VerticalFluxResult",
     "FateResult",
     "AbsorptionProfileResult",
     "SurfaceAbsorptionResult",
+    "BaseResult",
 ]

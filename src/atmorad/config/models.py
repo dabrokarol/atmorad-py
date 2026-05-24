@@ -3,7 +3,12 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from atmorad.registry import REFLECTION_MODELS, SCATTERING_MODELS, SURFACE_MAPS
+from atmorad.registry import (
+    DETECTORS,
+    REFLECTION_MODELS,
+    SCATTERING_MODELS,
+    SURFACE_MAPS,
+)
 
 # ------- Environment Config models: ----------
 
@@ -18,8 +23,8 @@ class SurfaceMaterialConfig(BaseModel):
             raise ValueError("Surface reflection configuration must contain a 'type' key.")
         if self.reflection["type"] not in REFLECTION_MODELS:
             raise ValueError(
-                f"Surface reflection model not found: {self.reflection['type']}"
-                f"Supported reflection models are: {list(REFLECTION_MODELS.keys())}"
+                f"Surface reflection model not found: {self.reflection['type']}. "
+                f"Available: {list(REFLECTION_MODELS.keys())}"
             )
         return self
 
@@ -35,8 +40,8 @@ class AtmosphereMaterialConfig(BaseModel):
             raise ValueError("Atmosphere scattering configuration must contain a 'type' key.")
         if self.scattering["type"] not in SCATTERING_MODELS:
             raise ValueError(
-                f"Scattering model not found: {self.scattering['type']}"
-                f"Supported scattering models are: {list(SCATTERING_MODELS.keys())}"
+                f"Scattering model not found: {self.scattering['type']}. "
+                f"Available: {list(SCATTERING_MODELS.keys())}"
             )
         return self
 
@@ -57,18 +62,8 @@ class MetadataConfig(BaseModel):
     description: str = ""
 
 
-DetectorName = Literal[
-    "fate",
-    "plane_flux",
-    "path_tracking",
-    "surface_absorption",
-    "vertical_flux",
-    "absorption_vertical",
-]
-
-
 class DetectorConfig(BaseModel):
-    active: list[DetectorName] = Field(
+    active: list[str] = Field(
         default=["fate"], description="List of active detectors to run during the simulation."
     )
 
@@ -77,6 +72,13 @@ class DetectorConfig(BaseModel):
     num_full_paths: int = Field(ge=0)
     flux_maps_z_levels_km: list[float] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def validate_detectors(self) -> "DetectorConfig":
+        for det in self.active:
+            if det not in DETECTORS.keys():
+                raise ValueError(f"Unknown detector: '{det}'. Available: {list(DETECTORS.keys())}")
+        return self
+
 
 class OutputConfig(BaseModel):
     overwrite: bool = False
@@ -84,7 +86,7 @@ class OutputConfig(BaseModel):
         default=True,
         description="If true, generates and saves standard PNG plots for all active detectors.",
     )
-    path: str | Path
+    path: Path | str
 
 
 class EngineConfig(BaseModel):
@@ -94,7 +96,7 @@ class EngineConfig(BaseModel):
     cpu_cores: int = Field(ge=1)
     resume_from_checkpoint: bool = False
     photon_weight_threshold: float = 1e-4
-    photon_survival_chance: float = 0.1
+    photon_survival_chance: float = Field(default=0.1, ge=0.0, le=1.0)
 
 
 class SourceConfig(BaseModel):
@@ -161,3 +163,15 @@ class SimConfig(BaseModel):
         checkpoint_dict = checkpoint_config.model_dump(exclude=excluded_fields)
 
         return current_dict == checkpoint_dict
+
+    def get_experiment_attributes(self) -> dict[str, float | int | str]:
+        """Returns attributes that will be saved to at root in netCDF file."""
+        return {
+            "experiment_name": self.metadata.experiment_name,
+            "domain_size_x_km": self.environment.geometry.domain_size_x_km,
+            "domain_size_y_km": self.environment.geometry.domain_size_y_km,
+            "boundary_condition": self.environment.geometry.boundary_condition,
+            "vertical_resolution_km": self.detectors.vertical_profiles_resolution_km,
+            "source_theta_sun_deg": self.source.theta_sun_deg,
+            "source_phi_sun_deg": self.source.phi_sun_deg,
+        }

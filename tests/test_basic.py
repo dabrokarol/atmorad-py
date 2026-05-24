@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from atmorad.config.models import AtmosphereMaterialConfig, SurfaceMaterialConfig
 from atmorad.engine import MCRadiationRunner
+from atmorad.models.results import FateResult, IncidentFluxMapResult, SurfaceAbsorptionResult
 
 CONFIG_DIR = Path(__file__).parent / "configs"
 CONFIG_FILES = list(str(filename) for filename in CONFIG_DIR.glob("*.toml"))
@@ -25,7 +26,8 @@ def test_energy_conservation(sim_context):
     fate_res = results.detector_results.get("fate")
 
     if fate_res:
-        reflected = fate_res.energy_escaped_toa
+        assert isinstance(fate_res, FateResult)
+        reflected = fate_res.energy_reflected_toa
         transmitted = fate_res.energy_absorbed_surface
         absorbed_atm = fate_res.energy_absorbed_atmosphere
     else:
@@ -52,6 +54,7 @@ def test_no_nan_in_maps(sim_context):
 
     # Check Surface Absorption Map (2D Array)
     surf_res = results.detector_results.get("surface_absorption")
+    assert isinstance(surf_res, SurfaceAbsorptionResult)
     if surf_res and surf_res.surface_absorption_map_2d is not None:
         assert not np.isnan(surf_res.surface_absorption_map_2d).any(), (
             "NaN values detected in surface absorption map"
@@ -60,6 +63,7 @@ def test_no_nan_in_maps(sim_context):
     # Check Incident Plane Maps (3D Arrays)
     plane_res = results.detector_results.get("plane_flux")
     if plane_res:
+        assert isinstance(plane_res, IncidentFluxMapResult)
         if plane_res.incident_flux_down_3d is not None:
             assert not np.isnan(plane_res.incident_flux_down_3d).any(), (
                 "NaN values detected in downward incident flux 3D map"
