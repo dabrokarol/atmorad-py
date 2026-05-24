@@ -57,7 +57,7 @@ class PathTrackingDetector(BaseDetector):
         paths_3d = np.full((self.num_track, max_bounces, 3), np.nan)
         weights_2d = np.full((self.num_track, max_bounces), np.nan)
 
-        escaped = np.zeros(self.num_track, dtype=bool)
+        reflected = np.zeros(self.num_track, dtype=bool)
         abs_atm = np.zeros(self.num_track, dtype=bool)
         abs_surf = np.zeros(self.num_track, dtype=bool)
 
@@ -70,14 +70,14 @@ class PathTrackingDetector(BaseDetector):
                 weights_2d[i, :bounces] = weights
 
                 last_pos = path[-1]
-                escaped[i] = self.scene.above_toa(last_pos.reshape(3, 1))[0]
+                reflected[i] = self.scene.above_toa(last_pos.reshape(3, 1))[0]
                 abs_atm[i] = self.scene.in_atmosphere(last_pos.reshape(3, 1))[0]
                 abs_surf[i] = self.scene.at_surface(last_pos.reshape(3, 1))[0]
 
         return PathTrackingResult(
             sample_paths_3d=paths_3d,
             sample_weights_2d=weights_2d,
-            sample_reflected_toa=escaped,
+            sample_reflected_toa=reflected,
             sample_absorbed_atmosphere=abs_atm,
             sample_absorbed_surface=abs_surf,
             toa_z=self.toa_z,

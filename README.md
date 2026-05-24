@@ -112,14 +112,14 @@ active = [ # list of supported detectors
 vertical_profiles_resolution_km = 0.5
 horizontal_maps_resolution_km = 1.0
 num_full_paths = 100 # 100 photon paths will be saved to results
-flux_maps_z_levels_km = [0.0, 4.0, 10.0] # planes at which vertical vlux will be counted
+flux_maps_z_levels_km = [0.0, 4.0, 10.0] # planes at which vertical flux will be counted
 
 [output]
 save_plots = true
 overwrite = true
 path = 'results'
 
-# --- material names and properties (new be added or changed) ---
+# --- material names and properties (can be added or changed) ---
 
 [surface_materials.snow]
 albedo = 0.85             
@@ -416,7 +416,7 @@ ds = xr.open_dataset("results/demo001/data.nc", engine="h5netcdf")
 
 # Access variables and attributes ({detector_name}_{attribute_name})
 map_2d = ds["surface_absorption_surface_absorption_map_2d"].values
-total_escaped_energy = ds.attrs["fate_energy_reflected_toa"]
+total_reflected_energy = ds.attrs["fate_energy_reflected_toa"]
 
 ```
 <!-- [[[end]]] -->

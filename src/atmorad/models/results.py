@@ -240,7 +240,7 @@ class PathTrackingResult(BaseResult):
         dims=["photon", "step"], units="1", on_merge="concat", long_name="Photon Weight"
     )
     sample_reflected_toa: np.ndarray = data_field(
-        dims=["photon"], units="boolean", on_merge="concat", long_name="Escaped TOA Flag"
+        dims=["photon"], units="boolean", on_merge="concat", long_name="Reflected TOA Flag"
     )
     sample_absorbed_atmosphere: np.ndarray = data_field(
         dims=["photon"], units="boolean", on_merge="concat", long_name="Absorbed in Atmosphere Flag"
