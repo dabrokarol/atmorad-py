@@ -79,8 +79,8 @@ experiment_name = "demo001"
 description = "A demo simulation of 3D radiative transfer over a heterogeneous surface."
 
 [engine]
-num_photons = 10_000
-batch_size = 10_000  # photons will be processed in arrays of batch_size in parallel       
+num_photons = 100_000
+batch_size = 100_000  # photons will be processed in arrays of batch_size in parallel       
 random_seed = 42
 cpu_cores = 1
 resume_from_checkpoint = false
@@ -137,12 +137,12 @@ scattering = {type = "rayleigh"}
 [atmosphere_materials.light_clouds]
 extinction_coeff_per_km = 1  
 ssa = 0.999999               # almost no absorption, scattering
-scattering = {type = "hg", asymmetry_factor = 0.85} # g > 0 means forward scattering
+scattering = {type = "hg", g = 0.85} # g > 0 means forward scattering
 
 [atmosphere_materials.dark_clouds]
 extinction_coeff_per_km = 5
 ssa = 0.999999
-scattering = {type = "hg", asymmetry_factor = 0.85}
+scattering = {type = "hg", g = 0.85}
 
 
 # ___ atmospheric layers (bottom to top) ___
@@ -258,7 +258,6 @@ class CustomReflection(SurfaceReflection):
 @register_scattering("custom-scattering")
 class CustomScattering(Scattering):
     def __init__(self, g, resolution=1000):
-        self.asymmetry_factor = g
         cos_grid = np.linspace(-1, 1, resolution)
 
         # Calculate the Probability Density Function (PDF)

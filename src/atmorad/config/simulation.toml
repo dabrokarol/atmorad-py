@@ -3,8 +3,8 @@ experiment_name = "demo001"
 description = "A demo simulation of 3D radiative transfer over a heterogeneous surface."
 
 [engine]
-num_photons = 10_000
-batch_size = 10_000  # photons will be processed in arrays of batch_size in parallel       
+num_photons = 100_000
+batch_size = 100_000  # photons will be processed in arrays of batch_size in parallel       
 random_seed = 42
 cpu_cores = 1
 resume_from_checkpoint = false
