@@ -29,15 +29,6 @@ class PathTrackingDetector(BaseDetector):
                 self.tracked_paths[i].append(pos.T.copy())
                 self.tracked_weights[i].append(w)
 
-    def record_interaction(
-        self,
-        batch: PhotonBatch,
-        old_direction: np.ndarray,
-        old_weight: np.ndarray,
-        scatter_mask: np.ndarray,
-        surface_mask: np.ndarray,
-    ): ...
-
     def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
         tracked_term_mask = (batch.ids < self.num_track) & terminated_mask
 
@@ -49,9 +40,6 @@ class PathTrackingDetector(BaseDetector):
             for i, pos, w in zip(term_ids, term_pos.T, term_w):
                 self.tracked_paths[i].append(pos.copy())
                 self.tracked_weights[i].append(w)
-
-    def finalize(self):
-        pass
 
     def get_results(self) -> PathTrackingResult:
         if self.num_track == 0 or not self.tracked_paths:

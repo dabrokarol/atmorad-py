@@ -25,9 +25,6 @@ class SurfaceAbsorptionDetector(BaseDetector):
 
         self.surface_map = np.zeros((num_bins_x, num_bins_y), dtype=float)
 
-    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
-        pass
-
     def record_interaction(
         self,
         batch: PhotonBatch,
@@ -52,12 +49,6 @@ class SurfaceAbsorptionDetector(BaseDetector):
         )
 
         self.surface_map += batch_map
-
-    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
-        pass
-
-    def finalize(self):
-        pass
 
     def get_results(self) -> SurfaceAbsorptionResult:
         x_centers = (self.x_edges[:-1] + self.x_edges[1:]) / 2.0

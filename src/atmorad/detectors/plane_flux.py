@@ -77,21 +77,6 @@ class IncidentFluxMapDetector(BaseDetector):
         self._process_hits(batch, old_pos, down_mask, self.flux_down_3d)
         self._process_hits(batch, old_pos, up_mask, self.flux_up_3d)
 
-    def record_interaction(
-        self,
-        batch: PhotonBatch,
-        old_direction: np.ndarray,
-        old_weight: np.ndarray,
-        scatter_mask: np.ndarray,
-        surface_mask: np.ndarray,
-    ): ...
-
-    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
-        pass
-
-    def finalize(self):
-        pass
-
     def get_results(self) -> IncidentFluxMapResult:
         x_centers = (self.x_edges[:-1] + self.x_edges[1:]) / 2.0
         y_centers = (self.y_edges[:-1] + self.y_edges[1:]) / 2.0

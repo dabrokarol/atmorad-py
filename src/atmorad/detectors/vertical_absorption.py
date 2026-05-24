@@ -42,15 +42,6 @@ class AbsorptionProfileDetector(BaseDetector):
         )
         self.absorption_profile += layer_counts
 
-    def record_termination(self, batch: PhotonBatch, terminated_mask: np.ndarray):
-        pass
-
-    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
-        pass
-
-    def finalize(self):
-        pass
-
     def get_results(self) -> AbsorptionProfileResult:
         z_centers = (self.measure_z[:-1] + self.measure_z[1:]) / 2.0
 

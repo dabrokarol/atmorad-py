@@ -2,7 +2,7 @@ import numpy as np
 
 from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import FateResult, PhotonBatch
+from atmorad.models import FateResult
 from atmorad.registry import register_detector
 
 from .base import BaseDetector
@@ -15,9 +15,6 @@ class FateDetector(BaseDetector):
         self.absorbed_atmosphere = 0.0
         self.escaped_toa = 0.0
         self.scene = scene
-
-    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
-        pass
 
     def record_interaction(self, batch, old_direction, old_weight, scatter_mask, surface_mask):
         if np.any(scatter_mask):
@@ -38,9 +35,6 @@ class FateDetector(BaseDetector):
         escaped_toa_mask = self.scene.above_toa(term_pos)
         if np.any(escaped_toa_mask):
             self.escaped_toa += np.sum(term_weight[escaped_toa_mask])
-
-    def finalize(self):
-        pass
 
     def get_results(self) -> FateResult:
         return FateResult(
