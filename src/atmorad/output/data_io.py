@@ -93,7 +93,7 @@ class DataIO:
             self.save_config_file(self.config.config_path)
 
     def save_figure(self, fig: Figure, relative_path: str, dpi: int = 300) -> None:
-        full_path = self.base_dir / relative_path.lstrip("/") / self.FIG_DIR
+        full_path = self.base_dir / self.FIG_DIR / relative_path.lstrip("/")
         full_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(full_path, dpi=dpi, bbox_inches="tight")
 
