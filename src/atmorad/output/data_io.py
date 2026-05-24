@@ -1,5 +1,6 @@
 import datetime
 import logging
+import re
 import shutil
 from pathlib import Path
 
@@ -61,13 +62,23 @@ class DataIO:
         return "\n".join(lines)
 
     def _find_latest_checkpoint_dir(self, output_dir: Path, exp_name: str) -> Path | None:
-        valid_dirs = [
-            d
-            for d in output_dir.glob(f"{exp_name}*")
-            if d.is_dir() and (d / self.CHECKPOINT_FILE).exists()
-        ]
-        # Sortujemy po st_mtime samego pliku checkpointu, co daje 100% pewności
-        return (
+        """Return latest checkpoint dir for exp_name or exp_name-YYYYMMDD-HHMMSS."""
+        timestamp_pattern = re.compile(r"^\d{8}-\d{6}$")
+        valid_dirs = []
+        for candidate in output_dir.glob(f"{exp_name}-*"):
+            if not candidate.is_dir():
+                continue
+            suffix = candidate.name[len(exp_name) + 1 :]
+            if not timestamp_pattern.fullmatch(suffix):
+                continue
+            if (candidate / self.CHECKPOINT_FILE).exists():
+                valid_dirs.append(candidate)
+
+        base_dir = output_dir / exp_name
+        if base_dir.is_dir() and (base_dir / self.CHECKPOINT_FILE).exists():
+            valid_dirs.append(base_dir)
+
+        return (  # take the most recent from matching files
             max(valid_dirs, key=lambda p: (p / self.CHECKPOINT_FILE).stat().st_mtime)
             if valid_dirs
             else None
