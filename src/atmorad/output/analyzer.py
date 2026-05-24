@@ -28,13 +28,13 @@ class ResultAnalyzer:
         fate_res = self.detectors.get("fate")
 
         if fate_res:
-            escaped_toa = fate_res.energy_escaped_toa
+            reflected_toa = fate_res.energy_reflected_toa
             abs_surf = fate_res.energy_absorbed_surface
             abs_atm = fate_res.energy_absorbed_atmosphere
         else:
-            escaped_toa = abs_surf = abs_atm = 0.0
+            reflected_toa = abs_surf = abs_atm = 0.0
 
-        reflected_toa_pct = (escaped_toa / num_photons) * 100.0
+        reflected_toa_pct = (reflected_toa / num_photons) * 100.0
         absorbed_surf_pct = (abs_surf / num_photons) * 100.0
         absorbed_atm_pct = (abs_atm / num_photons) * 100.0
 
@@ -93,7 +93,7 @@ class ResultAnalyzer:
                 color, alpha = "tab:green", 0.3
                 lbl = "Absorbed by surface" if not labeled_surface else None
                 labeled_surface = True
-            elif path_res.sample_escaped_toa[i]:
+            elif path_res.sample_reflected_toa[i]:
                 color, alpha = "tab:grey", 0.2
                 lbl = "Escaped atmosphere" if not labeled_above_toa else None
                 labeled_above_toa = True

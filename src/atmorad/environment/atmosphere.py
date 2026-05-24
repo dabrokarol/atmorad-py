@@ -153,13 +153,13 @@ class Atmosphere:
         return pos[Z] > self.top_of_atmosphere
 
     def adjust_internal_boundaries(self, batch: PhotonBatch):
-        escaped_toa = self.above_toa(batch.pos)
-        batch.pos[:, escaped_toa] += (
-            (self.top_of_atmosphere - batch.pos[Z, escaped_toa])
-            / batch.direction[Z, escaped_toa]
-            * batch.direction[:, escaped_toa]
+        reflected_toa = self.above_toa(batch.pos)
+        batch.pos[:, reflected_toa] += (
+            (self.top_of_atmosphere - batch.pos[Z, reflected_toa])
+            / batch.direction[Z, reflected_toa]
+            * batch.direction[:, reflected_toa]
         )
-        batch.pos[Z, escaped_toa] = self.top_of_atmosphere + EPSILON
+        batch.pos[Z, reflected_toa] = self.top_of_atmosphere + EPSILON
 
         for boundary_z in self.boundaries:
             on_boundary_mask = np.isclose(batch.pos[Z], boundary_z, atol=EPSILON)

@@ -136,9 +136,9 @@ class Engine:
 
                 batch.weight[low_weight_mask] = new_weights
 
-            escaped_toa = self.scene.above_toa(batch.pos)
+            reflected_toa = self.scene.above_toa(batch.pos)
 
-            terminated_mask = escaped_toa | killed_by_roulette | exceeded_scatterings_mask
+            terminated_mask = reflected_toa | killed_by_roulette | exceeded_scatterings_mask
 
             for det in self.detectors.values():
                 det.record_termination(batch, terminated_mask)

@@ -179,7 +179,7 @@ class EngineResult:
 class FateResult(BaseResult):
     energy_absorbed_surface: float = attr_field(normalize=True)
     energy_absorbed_atmosphere: float = attr_field(normalize=True)
-    energy_escaped_toa: float = attr_field(normalize=True)
+    energy_reflected_toa: float = attr_field(normalize=True)
 
 
 @dataclass(slots=True)
@@ -231,7 +231,7 @@ class PathTrackingResult(BaseResult):
     sample_weights_2d: np.ndarray = data_field(
         dims=["photon", "step"], units="1", on_merge="concat", long_name="Photon Weight"
     )
-    sample_escaped_toa: np.ndarray = data_field(
+    sample_reflected_toa: np.ndarray = data_field(
         dims=["photon"], units="boolean", on_merge="concat", long_name="Escaped TOA Flag"
     )
     sample_absorbed_atmosphere: np.ndarray = data_field(
