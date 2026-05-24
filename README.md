@@ -314,22 +314,39 @@ class FateDetector(BaseDetector):
 </details>
 
 ## Loading Results
-Simulation results and configuration can be loaded into a Python environment (e.g., Jupyter Notebook) for further analysis:
+Simulation results and configurations can be loaded into a Python environment (e.g., Jupyter Notebook) for further analysis in two ways:
+
+### 1. Using the built-in `atmorad.load()`
+This method loads both the exact configuration used (as a `SimConfig` instance) and the structured results containing native NumPy arrays.
 
 ```python
 import atmorad
 import matplotlib.pyplot as plt
 
-# 1. Load the completed simulation
+# Load the completed simulation
 config, results = atmorad.load("results/demo001")
 
-# 2. Access physical data as NumPy arrays
+# Access physical data as NumPy arrays
 map_2d = results.detector_results["surface_absorption"].surface_absorption_map_2d
 
-# 3. Analyze or plot
+# Analyze or plot
 plt.imshow(map_2d)
 plt.title(f"Flux Map for {config.metadata.experiment_name}")
 plt.show()
+```
+
+### 2. Using standard NetCDF libraries
+Because AtmoRad saves data in the standard NetCDF4/HDF5 format, you can read the `data.nc` file directly using widely available scientific libraries such as `xarray` or `netCDF4`.
+
+```python
+import xarray as xr
+
+# Open the NetCDF file directly
+ds = xr.open_dataset("results/demo001/data.nc", engine="h5netcdf")
+
+# Access variables and attributes ({detector_name}_{attribute_name})
+map_2d = ds["surface_absorption_surface_absorption_map_2d"].values
+total_escaped_energy = ds.attrs["fate_energy_escaped_toa"]
 ```
 
 ## Project Structure

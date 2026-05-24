@@ -4,24 +4,16 @@ import logging
 import shutil
 from pathlib import Path
 
-import numpy as np
 import xarray as xr
 from matplotlib.figure import Figure
 
 from atmorad.config import SimConfig
-from atmorad.models.results import (
-    AbsorptionProfileResult,
-    EngineResult,
-    FateResult,
-    IncidentFluxMapResult,
-    PathTrackingResult,
-    SimulationResults,
-    SurfaceAbsorptionResult,
-    VerticalFluxResult,
-)
+from atmorad.models.results import SimulationResults
 
 
 class DataIO:
+    """Handles all file system operations: saving results, config, and checkpoints."""
+
     RESULTS_FILE = "data.nc"
     METADATA_FILE = "metadata.json"
     CONFIG_FILE = "runtime_config.toml"
@@ -88,7 +80,9 @@ class DataIO:
         self.save_metadata(results)
 
         results_path = self.base_dir / self.RESULTS_FILE
-        ds = self._results_to_dataset(results, normalize=True)
+
+        ds = results.to_dataset(normalize=True)
+
         ds.to_netcdf(results_path, engine=self.NETCDF_ENGINE)
 
         if self.config.config_path:
@@ -116,7 +110,8 @@ class DataIO:
     def save_checkpoint(self, simulated_photons: int, results: SimulationResults):
         tmp_path = self.checkpoint_path.with_suffix(".nc.tmp")
 
-        ds = self._results_to_dataset(results)
+        ds = results.to_dataset(normalize=False)
+
         ds.attrs["_simulated_photons"] = simulated_photons
         ds.attrs["_config_json"] = self.config.model_dump_json()
 
@@ -137,7 +132,7 @@ class DataIO:
                 config_json = str(ds.attrs.get("_config_json", "{}"))
                 config = SimConfig.model_validate_json(config_json)
 
-                results = self._dataset_to_results(ds)
+                results = SimulationResults.from_dataset(ds)
 
                 return simulated_photons, results, config
 
@@ -160,7 +155,7 @@ class DataIO:
 
         with xr.open_dataset(results_path, engine=cls.NETCDF_ENGINE) as ds:
             ds.load()
-            results = cls._dataset_to_results(ds)
+            results = SimulationResults.from_dataset(ds)
 
         config = None
         if config_path.exists():
@@ -169,221 +164,3 @@ class DataIO:
             config = load_config(config_path)
 
         return config, results
-
-    @classmethod
-    def _results_to_dataset(cls, results: SimulationResults, normalize: bool = False) -> xr.Dataset:
-        data_vars = {}
-        coords = {}
-
-        n = results.num_photons if (normalize and results.num_photons > 0) else 1
-
-        val_unit = "1" if normalize else "photons"
-
-        attrs = {
-            "engine_cpu_time_s": results.engine.cpu_time_s,
-            "engine_simulation_time_s": results.engine.simulation_time_s,
-        }
-
-        det_types = {}
-
-        for det_id, det_res in results.detector_results.items():
-            det_types[det_id] = type(det_res).__name__
-            pfx = det_id
-
-            if isinstance(det_res, FateResult):
-                attrs[f"{pfx}_energy_absorbed_surface"] = det_res.energy_absorbed_surface / n
-                attrs[f"{pfx}_energy_absorbed_atmosphere"] = det_res.energy_absorbed_atmosphere / n
-                attrs[f"{pfx}_energy_escaped_toa"] = det_res.energy_escaped_toa / n
-                attrs[f"{pfx}_cpu_time_s"] = det_res.cpu_time_s
-                attrs[f"{pfx}_energy_units"] = val_unit
-
-            elif isinstance(det_res, VerticalFluxResult):
-                dim_z = f"{pfx}_z"
-                coords[dim_z] = (dim_z, det_res.measure_z, {"units": "km", "long_name": "Altitude"})
-
-                data_vars[f"{pfx}_flux_up"] = (
-                    [dim_z],
-                    det_res.flux_up / n,
-                    {"units": val_unit, "long_name": "Upward Flux"},
-                )
-                data_vars[f"{pfx}_flux_down"] = (
-                    [dim_z],
-                    det_res.flux_down / n,
-                    {"units": val_unit, "long_name": "Downward Flux"},
-                )
-
-            elif isinstance(det_res, AbsorptionProfileResult):
-                dim_z = f"{pfx}_center_z"
-                coords[dim_z] = (dim_z, det_res.z_centers, {"units": "km", "long_name": "Altitude"})
-
-                data_vars[f"{pfx}_absorption_profile_1d"] = (
-                    [dim_z],
-                    det_res.absorption_profile_1d / n,
-                    {"units": val_unit, "long_name": "Absorption Profile"},
-                )
-
-            elif isinstance(det_res, IncidentFluxMapResult):
-                dim_x, dim_y, dim_z = f"{pfx}_x", f"{pfx}_y", f"{pfx}_z"
-
-                coords[dim_x] = (
-                    dim_x,
-                    det_res.x_centers,
-                    {"units": "km", "long_name": "X Coordinate"},
-                )
-                coords[dim_y] = (
-                    dim_y,
-                    det_res.y_centers,
-                    {"units": "km", "long_name": "Y Coordinate"},
-                )
-                coords[dim_z] = (dim_z, det_res.measure_z, {"units": "km", "long_name": "Altitude"})
-
-                data_vars[f"{pfx}_incident_flux_down_3d"] = (
-                    [dim_z, dim_x, dim_y],
-                    det_res.incident_flux_down_3d / n,
-                    {"units": val_unit, "long_name": "Incident Downward Flux"},
-                )
-                data_vars[f"{pfx}_incident_flux_up_3d"] = (
-                    [dim_z, dim_x, dim_y],
-                    det_res.incident_flux_up_3d / n,
-                    {"units": val_unit, "long_name": "Incident Upward Flux"},
-                )
-
-            elif isinstance(det_res, SurfaceAbsorptionResult):
-                dim_x, dim_y = f"{pfx}_x", f"{pfx}_y"
-
-                coords[dim_x] = (
-                    dim_x,
-                    det_res.x_centers,
-                    {"units": "km", "long_name": "X Coordinate"},
-                )
-                coords[dim_y] = (
-                    dim_y,
-                    det_res.y_centers,
-                    {"units": "km", "long_name": "Y Coordinate"},
-                )
-
-                data_vars[f"{pfx}_surface_absorption_map_2d"] = (
-                    [dim_x, dim_y],
-                    det_res.surface_absorption_map_2d / n,
-                    {"units": val_unit, "long_name": "Surface Absorption"},
-                )
-
-            elif isinstance(det_res, PathTrackingResult):
-                attrs[f"{pfx}_toa_z"] = det_res.toa_z
-                attrs[f"{pfx}_toa_z_units"] = "km"
-
-                if len(det_res.sample_paths_3d) > 0:
-                    dim_p, dim_s, dim_c = f"{pfx}_photon", f"{pfx}_step", f"{pfx}_coord"
-
-                    coords[dim_c] = (
-                        dim_c,
-                        np.array(["x", "y", "z"]),
-                        {"long_name": "Spatial Dimension"},
-                    )
-
-                    data_vars[f"{pfx}_sample_paths_3d"] = (
-                        [dim_p, dim_s, dim_c],
-                        det_res.sample_paths_3d,
-                        {"units": "km", "long_name": "Photon Path Coordinates"},
-                    )
-                    data_vars[f"{pfx}_sample_weights_2d"] = (
-                        [dim_p, dim_s],
-                        det_res.sample_weights_2d,
-                        {"units": "1", "long_name": "Photon Weight"},
-                    )
-                    data_vars[f"{pfx}_sample_escaped_toa"] = (
-                        [dim_p],
-                        det_res.sample_escaped_toa,
-                        {"units": "boolean", "long_name": "Escaped TOA Flag"},
-                    )
-                    data_vars[f"{pfx}_sample_absorbed_atmosphere"] = (
-                        [dim_p],
-                        det_res.sample_absorbed_atmosphere,
-                        {"units": "boolean", "long_name": "Absorbed in Atmosphere Flag"},
-                    )
-                    data_vars[f"{pfx}_sample_absorbed_surface"] = (
-                        [dim_p],
-                        det_res.sample_absorbed_surface,
-                        {"units": "boolean", "long_name": "Absorbed at Surface Flag"},
-                    )
-                else:
-                    attrs[f"{pfx}_empty_paths"] = 1
-
-        attrs["_detector_types"] = json.dumps(det_types)
-        return xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
-
-    @classmethod
-    def _dataset_to_results(cls, ds: xr.Dataset) -> SimulationResults:
-        engine = EngineResult(
-            cpu_time_s=float(ds.attrs.get("engine_cpu_time_s", 0.0)),
-            simulation_time_s=float(ds.attrs.get("engine_simulation_time_s", 0.0)),
-        )
-
-        detector_results = {}
-        det_types = json.loads(ds.attrs.get("_detector_types", "{}"))
-
-        for det_id, class_name in det_types.items():
-            pfx = det_id
-
-            if class_name == "FateResult":
-                detector_results[det_id] = FateResult(
-                    energy_absorbed_surface=float(
-                        ds.attrs.get(f"{pfx}_energy_absorbed_surface", 0)
-                    ),
-                    energy_absorbed_atmosphere=float(
-                        ds.attrs.get(f"{pfx}_energy_absorbed_atmosphere", 0)
-                    ),
-                    energy_escaped_toa=float(ds.attrs.get(f"{pfx}_energy_escaped_toa", 0)),
-                    cpu_time_s=float(ds.attrs.get(f"{pfx}_cpu_time_s", 0.0)),
-                )
-
-            elif class_name == "VerticalFluxResult":
-                detector_results[det_id] = VerticalFluxResult(
-                    measure_z=ds.coords[f"{pfx}_z"].values,
-                    flux_up=ds[f"{pfx}_flux_up"].values,
-                    flux_down=ds[f"{pfx}_flux_down"].values,
-                )
-
-            elif class_name == "AbsorptionProfileResult":
-                detector_results[det_id] = AbsorptionProfileResult(
-                    z_centers=ds.coords[f"{pfx}_center_z"].values,
-                    absorption_profile_1d=ds[f"{pfx}_absorption_profile_1d"].values,
-                )
-
-            elif class_name == "IncidentFluxMapResult":
-                detector_results[det_id] = IncidentFluxMapResult(
-                    x_centers=ds.coords[f"{pfx}_x"].values,
-                    y_centers=ds.coords[f"{pfx}_y"].values,
-                    measure_z=ds.coords[f"{pfx}_z"].values,
-                    incident_flux_down_3d=ds[f"{pfx}_incident_flux_down_3d"].values,
-                    incident_flux_up_3d=ds[f"{pfx}_incident_flux_up_3d"].values,
-                )
-
-            elif class_name == "SurfaceAbsorptionResult":
-                detector_results[det_id] = SurfaceAbsorptionResult(
-                    x_centers=ds.coords[f"{pfx}_x"].values,
-                    y_centers=ds.coords[f"{pfx}_y"].values,
-                    surface_absorption_map_2d=ds[f"{pfx}_surface_absorption_map_2d"].values,
-                )
-
-            elif class_name == "PathTrackingResult":
-                if ds.attrs.get(f"{pfx}_empty_paths", False):
-                    detector_results[det_id] = PathTrackingResult(
-                        sample_paths_3d=np.array([]),
-                        sample_weights_2d=np.array([]),
-                        sample_escaped_toa=np.array([]),
-                        sample_absorbed_atmosphere=np.array([]),
-                        sample_absorbed_surface=np.array([]),
-                        toa_z=float(ds.attrs.get(f"{pfx}_toa_z", 0.0)),
-                    )
-                else:
-                    detector_results[det_id] = PathTrackingResult(
-                        sample_paths_3d=ds[f"{pfx}_sample_paths_3d"].values,
-                        sample_weights_2d=ds[f"{pfx}_sample_weights_2d"].values,
-                        sample_escaped_toa=ds[f"{pfx}_sample_escaped_toa"].values,
-                        sample_absorbed_atmosphere=ds[f"{pfx}_sample_absorbed_atmosphere"].values,
-                        sample_absorbed_surface=ds[f"{pfx}_sample_absorbed_surface"].values,
-                        toa_z=float(ds.attrs.get(f"{pfx}_toa_z", 0.0)),
-                    )
-
-        return SimulationResults(engine=engine, detector_results=detector_results)
