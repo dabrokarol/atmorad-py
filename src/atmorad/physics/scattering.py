@@ -44,29 +44,52 @@ class Scattering:
 class HenyeyGreensteinScattering(Scattering):
     def __init__(self, g: float, resolution=PRECOMPUTED_RESOLUTION):
         self.g = g
-        cos_grid = np.linspace(-1, 1, resolution)
+        pass
 
-        if np.isclose(g, 1.0, atol=EPSILON):
-            pdf = np.isclose(cos_grid, 1.0, atol=EPSILON).astype(float)
-        elif np.isclose(g, -1.0, atol=EPSILON):
-            pdf = np.isclose(cos_grid, -1.0, atol=EPSILON).astype(float)
+    def scatter(self, rand_1, rand_2):
+        if np.isclose(self.g, 0.0, atol=EPSILON):
+            cos_theta = 2.0 * rand_1 - 1.0
         else:
-            pdf = (1 - g**2) / (2 * (1 + g**2 - 2 * g * cos_grid) ** 1.5)
+            sq = (1.0 - self.g**2) / (1.0 - self.g + 2.0 * self.g * rand_1)
+            cos_theta = (1.0 + self.g**2 - sq**2) / (2.0 * self.g)
 
-        super().__init__(pdf_array=pdf, resolution=resolution)
+        sin_theta = np.sqrt(1.0 - np.clip(cos_theta**2, 0.0, 1.0))
+        phi = 2.0 * np.pi * rand_2
+        return np.array((cos_theta, sin_theta, np.cos(phi), np.sin(phi)))
+
+    def __call__(self, rand_1, rand_2):
+        return self.scatter(rand_1, rand_2)
 
 
 @register_scattering("isotropic")
 class IsotropicScattering(Scattering):
     def __init__(self, resolution=PRECOMPUTED_RESOLUTION):
-        cos_grid = np.linspace(-1, 1, resolution)
-        pdf = np.ones_like(cos_grid)
-        super().__init__(pdf_array=pdf, resolution=resolution)
+        pass
+
+    def scatter(self, rand_1, rand_2):
+        cos_theta = 2.0 * rand_1 - 1.0
+        sin_theta = np.sqrt(1.0 - cos_theta**2)
+
+        phi = 2.0 * np.pi * rand_2
+        return np.array((cos_theta, sin_theta, np.cos(phi), np.sin(phi)))
+
+    def __call__(self, rand_1, rand_2):
+        return self.scatter(rand_1, rand_2)
 
 
 @register_scattering("rayleigh")
 class RayleighScattering(Scattering):
     def __init__(self, resolution=PRECOMPUTED_RESOLUTION):
-        cos_grid = np.linspace(-1, 1, resolution)
-        pdf = 1.0 + cos_grid**2
-        super().__init__(pdf_array=pdf, resolution=resolution)
+        pass
+
+    def scatter(self, rand_1, rand_2):
+        u = 2.0 * rand_1 - 1.0
+        w = np.cbrt(2.0 * u + np.sqrt(4.0 * u**2 + 1.0))
+        cos_theta = w - 1.0 / w
+
+        sin_theta = np.sqrt(1.0 - np.clip(cos_theta**2, 0.0, 1.0))
+        phi = 2.0 * np.pi * rand_2
+        return np.array((cos_theta, sin_theta, np.cos(phi), np.sin(phi)))
+
+    def __call__(self, rand_1, rand_2):
+        return self.scatter(rand_1, rand_2)
