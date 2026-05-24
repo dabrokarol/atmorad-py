@@ -15,7 +15,7 @@ AtmoRad is a Python framework for 3D atmospheric radiative transfer simulations 
 
 ## Installation
 
-Using [`uv`](https://docs.astral.sh/uv/getting-started/installation/) (Recommended):
+Using [`uv`](https://docs.astral.sh/uv/getting-started/installation/) (Recommended for project isolation):
 ```bash
 > uv tool install atmorad-py
 ```
@@ -68,6 +68,10 @@ Outputs saved to: results/demo001/
 
 <details>
 <summary>The simulation is controlled via a TOML configuration file (click to expand).</summary>
+<!-- [[[cog
+import cog
+cog.out(f'\n```toml\n{open("src/atmorad/config/simulation.toml").read()}\n```')
+]]] -->
 
 ```toml
 [metadata]
@@ -75,28 +79,28 @@ experiment_name = "demo001"
 description = "A demo simulation of 3D radiative transfer over a heterogeneous surface."
 
 [engine]
-num_photons = 100_000
-batch_size = 100_000         # Memory vs speed tradeoff (controls NumPy array sizes)
-random_seed = 42             # Set for reproducible stochastic results
+num_photons = 10_000
+batch_size = 10_000  # photons will be processed in arrays of batch_size in parallel       
+random_seed = 42
 cpu_cores = 1
 resume_from_checkpoint = false
 
-# Continuous Absorption & Variance Reduction parameters
-photon_weight_threshold = 1e-4  # Weight below which Russian Roulette is triggered
+# Russian Roullette params
+photon_weight_threshold = 1e-4 
 photon_survival_chance = 0.1    # 10% chance to survive with 10x multiplied weight
 
 [source]
-theta_sun_deg = 30           # Solar zenith angle (0 = directly overhead, 90 = horizon)
-phi_sun_deg = 0              # Solar azimuth angle
-wavelength_nm = 530          # Monochromatic wavelength reference
+theta_sun_deg = 30           # solar zenith angle (0 = directly upwards)
+phi_sun_deg = 0              # solar azimuth angle
+wavelength_nm = 530          # only for reference, wavelength-dependent parameters are not implemented yet
 
 [geometry]
-domain_size_x_km = 50
+domain_size_x_km = 100
 domain_size_y_km = 100
-boundary_condition = "periodic" # Photons exiting sides will wrap around to the other side
+boundary_condition = "periodic"
 
 [detectors]
-active = [
+active = [ # list of supported detectors
     "fate", 
     "path_tracking", 
     "vertical_flux", 
@@ -104,50 +108,53 @@ active = [
     "plane_flux", 
     "surface_absorption"
 ]
-
-# Spatial resolution for binning energy in detectors
+# spatial resolution for bins in detectors
 vertical_profiles_resolution_km = 0.5
 horizontal_maps_resolution_km = 1.0
-num_full_paths = 100
-flux_maps_z_levels_km = [0.0, 4.0, 10.0]
+num_full_paths = 100 # 100 photon paths will be saved to results
+flux_maps_z_levels_km = [0.0, 4.0, 10.0] # planes at which vertical vlux will be counted
 
 [output]
 save_plots = true
 overwrite = true
 path = 'results'
 
-# --- Physical Properties of Materials ---
+# --- material names and properties (new be added or changed) ---
 
 [surface_materials.snow]
-albedo = 0.85                # Reflects 85% of energy, absorbs 15%
-reflection = {type = "lambertian"} # Diffuse, perfectly isotropic reflection
+albedo = 0.85             
+reflection = {type = "lambertian"}
+
 [surface_materials.ocean]
-albedo = 0.01                # Highly absorptive
-reflection = {type = "specular", roughness = 0.0} # Mirror-like reflection
+albedo = 0.01                
+reflection = {type = "specular", roughness = 0.0}
 
 [atmosphere_materials.air]
-extinction_coeff_per_km = 0.01 # Clear air, very long mean free path
-ssa = 0.9                    # Single Scattering Albedo (Fraction of energy surviving collision)
+extinction_coeff_per_km = 0.01 # optical density
+ssa = 0.9
 scattering = {type = "rayleigh"} 
+
 [atmosphere_materials.light_clouds]
 extinction_coeff_per_km = 1  
-ssa = 0.999999               # Almost no absorption, pure scattering
-scattering = {type = "hg", asymmetry_factor = 0.85} # g > 0 means strong forward scattering
+ssa = 0.999999               # almost no absorption, scattering
+scattering = {type = "hg", asymmetry_factor = 0.85} # g > 0 means forward scattering
+
 [atmosphere_materials.dark_clouds]
-extinction_coeff_per_km = 5  # Very dense medium (short mean free path)
+extinction_coeff_per_km = 5
 ssa = 0.999999
 scattering = {type = "hg", asymmetry_factor = 0.85}
 
-# --- 1D Vertical Structure (Bottom to Top) ---
 
-[[layer]]
+# ___ atmospheric layers (bottom to top) ___
+
+[[layer]] ## double square brackets are used for a list item
 thickness_km = 2
 materials = [{type = "air", weight = 1.0}]
 
 [[layer]]
 thickness_km = 4
-# Mixtures are supported. Path is calculated for homogenized medium, 
-# while collision material is stochastically sampled based on weights.
+# when multiple materials are provided, collision material 
+# is randomly sampled when photon enters this atmospheric layer.
 materials = [
     {type = "air", weight = 0.1},
     {type = "dark_clouds", weight = 0.9}
@@ -157,14 +164,37 @@ materials = [
 thickness_km = 4
 materials = [{type = "air", weight = 1.0}]
 
-# --- 2D Surface Heterogeneity ---
+# [[layer]] ... more layers can be added
+
+# ___ surface map configuration ___
+# choose one surface map by commenting out the others
+
+# [surface]
+# name = "uniform"
+# material = "snow"
 
 [surface]
-name = "circle"              # Procedural map type registered in the engine
+name = "circle"
 radius_km = 20
-material_in = "snow"         # Inside the circle
-material_out = "ocean"       # Outside the circle
+material_in = "snow"
+material_out = "ocean"
+
+# [surface]
+# name = "split_half_x"
+# material_left = "snow"
+# material_right = "ocean"
+
+# [surface]
+# name = "checkerboard"
+# tile_size_km = 10
+# material_a = "snow"
+# material_b = "ocean"
+
+# to implement a custom surface map, scattering function, reflection function
+# see examples
 ```
+<!-- [[[end]]] -->
+
 </details>
 
 ## Customization (Registry Pattern)
@@ -173,13 +203,26 @@ material_out = "ocean"       # Outside the circle
 AtmoRad uses a registry pattern, allowing users to define custom surface maps, reflection algorithms, scattering phase functions, and detectors using decorators.</summary>
 
 ### Custom Materials and Geometries
+<!-- [[[cog
+import cog
+cog.out(f'\n```python\n{open("examples/custom_environment.py").read()}\n```')
+]]] -->
+
 ```python
 import numpy as np
+
 import atmorad
-from atmorad import SurfaceReflection, register_reflection, orientation
-from atmorad import Scattering, register_scattering
-from atmorad import BaseSurfaceMap, register_surface_map
-from atmorad.constants import X, Y
+from atmorad import (
+    BaseSurfaceMap,
+    Scattering,
+    SurfaceReflection,
+    register_reflection,
+    register_scattering,
+    register_surface_map,
+)
+from atmorad.constants import X
+from atmorad.physics import orientation
+
 
 # 1. Register a custom surface map
 @register_surface_map("custom-stripe-y", ["material_name_a", "material_name_b"])
@@ -190,6 +233,7 @@ class StripeYMap(BaseSurfaceMap):
     def get_material_ids(self, pos: np.ndarray) -> np.ndarray:
         grid_x = np.mod(pos[X], self.width)
         return np.where(grid_x < (self.width / 2.0), 0, 1)
+
 
 # 2. Register a custom surface reflection
 @register_reflection("custom-reflection")
@@ -202,30 +246,34 @@ class CustomReflection(SurfaceReflection):
         # Cosine-weighted hemispherical sampling (e.g., for diffuse reflection)
         cos_theta = np.sqrt(rand_1)
         sin_theta = np.sqrt(1.0 - rand_1)
-        
+
         # Uniform sampling for the azimuth angle
         phi = rand_2 * 2 * np.pi
         cos_phi, sin_phi = np.cos(phi), np.sin(phi)
-        
+
         return orientation(cos_theta, sin_theta, cos_phi, sin_phi)
-    
+
+
 # 3. Register a custom scattering phase function
 @register_scattering("custom-scattering")
 class CustomScattering(Scattering):
     def __init__(self, g, resolution=1000):
         self.asymmetry_factor = g
         cos_grid = np.linspace(-1, 1, resolution)
-        
-        # Calculate the Probability Density Function (PDF) 
+
+        # Calculate the Probability Density Function (PDF)
         # using the Henyey-Greenstein analytical formula
         pdf = (1 - g**2) / (2 * (1 + g**2 - 2 * g * cos_grid) ** 1.5)
-        
-        # The base class automatically builds the CDF and handles inversion
+
+        # The base class automatically builds the CDF inverse
         super().__init__(pdf_array=pdf, resolution=resolution)
+
 
 if __name__ == "__main__":
     results = atmorad.run("simulation.toml")
+
 ```
+<!-- [[[end]]] -->
 
 To use these in `simulation.toml`:
 ```toml
@@ -245,43 +293,48 @@ material_name_b = "ocean"
 ```
 
 ### Custom Detectors
-You can track specific photon behaviors by subclassing `BaseDetector` and implementing its lifecycle hooks.
+
+It is possible to define custom detectors that 
+<!-- [[[cog
+import cog
+cog.out(f'\n```python\n{open("examples/custom_detector.py").read()}\n```')
+]]] -->
 
 ```python
 from dataclasses import dataclass
+
 import numpy as np
-from atmorad import BaseDetector, register_detector, SimConfig, Scene, PhotonBatch
+
+import atmorad
+from atmorad import (
+    BaseDetector,
+    BaseResult,
+    Scene,
+    SimConfig,
+    nc_attr,
+    register_detector,
+)
+
+
+# 1. Define the result structure using AtmoRad's field wrappers
 @dataclass(slots=True)
-class FateResult:
-    energy_absorbed_surface: float = 0.0
-    energy_absorbed_atmosphere: float = 0.0
-    energy_escaped_toa: float = 0.0
-    cpu_time_s: float = 0.0
+class FateResult(BaseResult):
+    energy_absorbed_surface: float = nc_attr(normalize=True)
+    energy_absorbed_atmosphere: float = nc_attr(normalize=True)
+    energy_reflected_toa: float = nc_attr(normalize=True)
 
-    def merge(self, other: Self):
-        return FateResult(
-            energy_absorbed_surface=self.energy_absorbed_surface + other.energy_absorbed_surface,
-            energy_absorbed_atmosphere=self.energy_absorbed_atmosphere
-            + other.energy_absorbed_atmosphere,
-            energy_escaped_toa=self.energy_escaped_toa + other.energy_escaped_toa,
-            cpu_time_s=self.cpu_time_s + other.cpu_time_s,
-        )
 
+# 2. Implement the detector logic
 @register_detector("fate", FateResult)
 class FateDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
         self.absorbed_surface = 0.0
         self.absorbed_atmosphere = 0.0
-        self.escaped_toa = 0.0
+        self.reflected_toa = 0.0
         self.scene = scene
 
-    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
-        pass
-
-    def record_interaction(self, batch, old_direction old_weight, scatter_mask, surface_mask):
-        # Continuous Absorption: We calculate deposited energy by subtracting 
-        # the photon's new weight from its old weight, rather than counting particles.
-        
+    def record_interaction(self, batch, old_direction, old_weight, scatter_mask, surface_mask):
+        # Calculate deposited energy by subtracting the photon's new weight from its old weight.
         if np.any(scatter_mask):
             deposited = old_weight[scatter_mask] - batch.weight[scatter_mask]
             self.absorbed_atmosphere += np.sum(deposited)
@@ -289,7 +342,7 @@ class FateDetector(BaseDetector):
         if np.any(surface_mask):
             deposited = old_weight[surface_mask] - batch.weight[surface_mask]
             self.absorbed_surface += np.sum(deposited)
-    
+
     def record_termination(self, batch, terminated_mask):
         if not np.any(terminated_mask):
             return
@@ -297,31 +350,40 @@ class FateDetector(BaseDetector):
         term_pos = batch.pos[:, terminated_mask]
         term_weight = batch.weight[terminated_mask]
 
-        escaped_toa_mask = self.scene.above_toa(term_pos)
-        if np.any(escaped_toa_mask):
-            self.escaped_toa += np.sum(term_weight[escaped_toa_mask])
-
-    def finalize(self):
-        pass
+        reflected_toa_mask = self.scene.above_toa(term_pos)
+        if np.any(reflected_toa_mask):
+            self.reflected_toa += np.sum(term_weight[reflected_toa_mask])
 
     def get_results(self) -> FateResult:
         return FateResult(
             energy_absorbed_surface=self.absorbed_surface,
             energy_absorbed_atmosphere=self.absorbed_atmosphere,
-            energy_escaped_toa=self.escaped_toa,
+            energy_reflected_toa=self.reflected_toa,
         )
+
+
+if __name__ == "__main__":
+    results = atmorad.run("simulation.toml")
+
 ```
+<!-- [[[end]]] -->
 </details>
 
 ## Loading Results
 Simulation results and configurations can be loaded into a Python environment (e.g., Jupyter Notebook) for further analysis in two ways:
 
 ### 1. Using the built-in `atmorad.load()`
-This method loads both the exact configuration used (as a `SimConfig` instance) and the structured results containing native NumPy arrays.
+This method loads both the exact configuration used (a `SimConfig` instance) and results of the simulation (a `SimulationResults` instance).
+
+<!-- [[[cog
+import cog
+cog.out(f'\n```python\n{open("examples/load_results.py").read()}\n```')
+]]] -->
 
 ```python
-import atmorad
 import matplotlib.pyplot as plt
+
+import atmorad
 
 # Load the completed simulation
 config, results = atmorad.load("results/demo001")
@@ -333,10 +395,17 @@ map_2d = results.detector_results["surface_absorption"].surface_absorption_map_2
 plt.imshow(map_2d)
 plt.title(f"Flux Map for {config.metadata.experiment_name}")
 plt.show()
+
 ```
+<!-- [[[end]]] -->
 
 ### 2. Using standard NetCDF libraries
 Because AtmoRad saves data in the standard NetCDF4/HDF5 format, you can read the `data.nc` file directly using widely available scientific libraries such as `xarray` or `netCDF4`.
+
+<!-- [[[cog
+import cog
+cog.out(f'\n```python\n{open("examples/load_netcdf.py").read()}\n```')
+]]] -->
 
 ```python
 import xarray as xr
@@ -368,4 +437,4 @@ total_escaped_energy = ds.attrs["fate_energy_reflected_toa"]
 - Large Language Models were used for code debugging and architectural decisions (e.g., configuration parsing, public API design).
 
 ## Contributing
-Feel free to open an [Issue](https://github.com/dabrokarol/atmorad-py/issues) or submit a Pull Request to report bugs or suggest enhancements.
+Feel free to open an [Issue](https://github.com/dabrokarol/atmorad-py/issues) or submit a Pull Request to report bugs, suggest new features and ask questions :D
