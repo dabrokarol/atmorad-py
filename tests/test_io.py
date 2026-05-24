@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 
 from atmorad.engine import MCRadiationRunner
-from atmorad.output import DataIO
 from atmorad.models.results import SimulationResults
+from atmorad.output import DataIO
 
 CONFIG_DIR = Path(__file__).parent / "configs"
 CONFIG_FILES = list(str(filename) for filename in CONFIG_DIR.glob("*.toml"))
@@ -88,7 +88,7 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
     data_io.save_checkpoint(simulated_photons=42, results=results)
     photons, results_from_checkpoint, config_from_checkpoint = data_io.load_checkpoint()
     assert config_from_checkpoint is not None
-    
+
     config_from_checkpoint.output.path = config.output.path
     config_from_checkpoint.config_path = config.config_path
 
