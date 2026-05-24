@@ -85,15 +85,16 @@ class MCRadiationRunner:
                 pbar.update(chunk_size)
                 all_results = all_results.merge(chunk_res)
 
-                current_elapsed = time.perf_counter() - run_start_time
-                all_results.engine.simulation_time_s = accumulated_time + current_elapsed
-
                 if (i + 1) % CHECKPOINT_INTERVAL == 0:
+                    current_elapsed = time.perf_counter() - run_start_time
+                    all_results.engine.simulation_time_s = accumulated_time + current_elapsed
+                    
                     if self.on_checkpoint:
                         self.on_checkpoint(current_photons, all_results)
 
         final_elapsed = time.perf_counter() - run_start_time
         all_results.engine.simulation_time_s = accumulated_time + final_elapsed
+        all_results.config = self.context.config
 
         return all_results
 

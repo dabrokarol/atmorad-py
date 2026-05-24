@@ -8,6 +8,7 @@ from typing import Self
 import numpy as np
 import xarray as xr
 
+from atmorad.config import SimConfig
 from atmorad.registry import DETECTOR_RESULTS
 
 
@@ -258,6 +259,7 @@ class PathTrackingResult(BaseResult):
 
 @dataclass(slots=True)
 class SimulationResults:
+    config: SimConfig | None = None
     engine: EngineResult = field(default_factory=EngineResult)
     detector_results: dict[str, BaseResult] = field(default_factory=dict)
     num_photons: int = 0
@@ -278,6 +280,7 @@ class SimulationResults:
             engine=self.engine.merge(other.engine),
             detector_results=merged_detectors,
             num_photons=self.num_photons + other.num_photons,
+            config=self.config,
         )
 
     def to_dataset(self, normalize: bool = False) -> xr.Dataset:
@@ -285,33 +288,37 @@ class SimulationResults:
         n = self.num_photons if (normalize and self.num_photons > 0) else 1
         val_unit = "fraction" if normalize else "photons"
 
-        datasets = [
-            xr.Dataset(
-                attrs={
-                    "engine_cpu_time_s": self.engine.cpu_time_s,
-                    "engine_simulation_time_s": self.engine.simulation_time_s,
-                    "num_photons": self.num_photons,
+        global_attrs = {
+            "engine_cpu_time_s": self.engine.cpu_time_s,
+            "engine_simulation_time_s": self.engine.simulation_time_s,
+            "num_photons": self.num_photons,
+            "_detector_types": json.dumps(
+                {
+                    det_id: getattr(det_res, "_registry_id", type(det_res).__name__)
+                    for det_id, det_res in self.detector_results.items()
                 }
-            )
-        ] + [
+            ),
+        }
+        if self.config:
+            global_attrs.update(self.config.get_experiment_attributes())
+            global_attrs["_simulation_config"] = self.config.model_dump_json()
+
+        datasets = [
             det_res.to_dataset(prefix=det_id, n_photons=n, val_unit=val_unit)
             for det_id, det_res in self.detector_results.items()
         ]
 
-        with xr.set_options(keep_attrs=True):
-            final_ds = xr.merge(datasets, combine_attrs="no_conflicts")
+        if not self.detector_results:
+            return xr.Dataset(attrs=global_attrs)
 
-        det_types = {
-            det_id: getattr(det_res, "_registry_id", type(det_res).__name__)
-            for det_id, det_res in self.detector_results.items()
-        }
-        final_ds.attrs["_detector_types"] = json.dumps(det_types)
+        final_ds = xr.merge(datasets, combine_attrs="no_conflicts")
+        final_ds.attrs.update(global_attrs)
 
         return final_ds
 
     @classmethod
     def from_dataset(cls, ds: xr.Dataset) -> Self:
-        """Reconstructs the full SimulationResults object dynamically using the registry."""
+        """Loads SimulationResults object from xarray."""
         engine = EngineResult(
             cpu_time_s=float(ds.attrs.get("engine_cpu_time_s", 0.0)),
             simulation_time_s=float(ds.attrs.get("engine_simulation_time_s", 0.0)),
@@ -326,5 +333,8 @@ class SimulationResults:
         }
 
         num_photons = int(ds.attrs.get("num_photons", 0))
+        config = SimConfig.model_validate_json(ds.attrs.get("_simulation_config", "{}"))
 
-        return cls(engine=engine, detector_results=detector_results, num_photons=num_photons)
+        return cls(
+            engine=engine, detector_results=detector_results, num_photons=num_photons, config=config
+        )

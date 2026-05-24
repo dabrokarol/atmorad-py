@@ -27,8 +27,9 @@ def run(config_path: str | Path, quiet: bool = False) -> dict:
 
     runner.run()
     results = runner.get_results()
+    ds = results.to_dataset(normalize=True)
 
-    analyzer = ResultAnalyzer(results, context.config)
+    analyzer = ResultAnalyzer(results.to_dataset(normalize=True))
     if context.config.output.save_plots:
         save_all_figures(analyzer, data_io)
 

@@ -25,7 +25,7 @@ def test_energy_conservation(sim_context):
     fate_res = results.detector_results.get("fate")
 
     if fate_res:
-        reflected = fate_res.energy_escaped_toa
+        reflected = fate_res.energy_reflected_toa
         transmitted = fate_res.energy_absorbed_surface
         absorbed_atm = fate_res.energy_absorbed_atmosphere
     else:
