@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 
 from atmorad.constants import CHECKPOINT_INTERVAL
-from atmorad.models import SimContext, SimulationResults
+from atmorad.models import SimContext, SimResults
 
 from .core import Engine
 
@@ -18,10 +18,10 @@ class MCRadiationRunner:
         self,
         context: SimContext,
         quiet: bool = False,
-        on_checkpoint: Callable[[int, SimulationResults], None] = None,
-        on_finish: Callable[[SimulationResults], None] = None,
-        load_checkpoint_fn: Callable[[], tuple] = None,
-        on_cleanup: Callable[[], None] = None,
+        on_checkpoint: Callable[[SimResults], None] | None = None,
+        on_finish: Callable[[SimResults], None] | None = None,
+        load_checkpoint_fn: Callable[[], SimResults | None] | None = None,
+        on_cleanup: Callable[[], None] | None = None,
     ):
         self.context = context
         self.quiet = quiet
@@ -43,11 +43,13 @@ class MCRadiationRunner:
         return self.results
 
     def _run_simulation(self):
-        simulated_photons, all_results = self._load_initial_state()
+        all_results = self._load_initial_state()
+
+        simulated_photons = all_results.total_photons
         total_photons = self.context.config.engine.num_photons
         remaining_photons = total_photons - simulated_photons
 
-        accumulated_time = all_results.engine.simulation_time_s
+        accumulated_time = all_results.engine_result.simulation_time_s
 
         if remaining_photons <= 0:
             logging.info(
@@ -68,8 +70,6 @@ class MCRadiationRunner:
         else:
             results_generator = self._yield_results_serial(batches, simulated_photons, base_seed)
 
-        current_photons = simulated_photons
-
         run_start_time = time.perf_counter()
 
         with tqdm(
@@ -81,42 +81,24 @@ class MCRadiationRunner:
             smoothing=0.3,
         ) as pbar:
             for i, (chunk_res, chunk_size) in enumerate(results_generator):
-                current_photons += chunk_size
                 pbar.update(chunk_size)
+                chunk_res.total_photons = chunk_size
                 all_results = all_results.merge(chunk_res)
 
                 if (i + 1) % CHECKPOINT_INTERVAL == 0:
                     current_elapsed = time.perf_counter() - run_start_time
-                    all_results.engine.simulation_time_s = accumulated_time + current_elapsed
+                    all_results.engine_result.simulation_time_s = (
+                        accumulated_time + current_elapsed
+                    )
 
                     if self.on_checkpoint:
-                        self.on_checkpoint(current_photons, all_results)
+                        self.on_checkpoint(all_results)
 
         final_elapsed = time.perf_counter() - run_start_time
-        all_results.engine.simulation_time_s = accumulated_time + final_elapsed
+        all_results.engine_result.simulation_time_s = accumulated_time + final_elapsed
         all_results.config = self.context.config
 
         return all_results
-
-    def _load_initial_state(self):
-        if not self.context.config.engine.resume_from_checkpoint:
-            return 0, SimulationResults()
-
-        if not self.load_checkpoint_fn:
-            return 0, SimulationResults()
-
-        simulated_photons, all_results, saved_config = self.load_checkpoint_fn()
-
-        if saved_config is not None:
-            if not self.context.config.is_compatible_for_resume(saved_config):
-                logging.warning(
-                    "Configuration mismatch! The current setup differs from the saved simulation checkpoint. "
-                    "Starting a fresh simulation."
-                )
-                return 0, SimulationResults()
-            return simulated_photons, all_results
-
-        return 0, SimulationResults()
 
     def _calculate_batches(self, remaining_photons: int, batch_size: int):
         full_batches, remainder = divmod(remaining_photons, batch_size)
@@ -134,6 +116,21 @@ class MCRadiationRunner:
             yield chunk_result, size
             current_photons += size
 
+    def _load_initial_state(self) -> SimResults:
+        cfg = self.context.config
+
+        if cfg.engine.resume_from_checkpoint and self.load_checkpoint_fn:
+            if (results := self.load_checkpoint_fn()) and results.config:
+                if cfg.is_compatible_for_resume(results.config):
+                    return results
+
+                logging.warning(
+                    "Configuration mismatch! The current setup differs from the saved simulation checkpoint. "
+                    "Starting a fresh simulation."
+                )
+
+        return SimResults()
+
     def _yield_results_parallel(
         self, batches: list[int], start_photons: int, base_seed: int, cores: int
     ):
@@ -141,23 +138,26 @@ class MCRadiationRunner:
         start_method = "forkserver" if "forkserver" in start_methods else "spawn"
         ctx = multiprocessing.get_context(start_method)
 
+        seeds = []
+        photon_counts = []
+        current_photons = start_photons
+        for size in batches:
+            seeds.append(np.random.SeedSequence((base_seed, current_photons)))
+            photon_counts.append(current_photons)
+            current_photons += size
+
         with concurrent.futures.ProcessPoolExecutor(max_workers=cores, mp_context=ctx) as executor:
-            futures = []
-            current_photons = start_photons
+            results = executor.map(
+                run_chunk, batches, seeds, [self.context] * len(batches), photon_counts
+            )
 
-            for size in batches:
-                chunk_seed = np.random.SeedSequence((base_seed, current_photons))
-                future = executor.submit(run_chunk, size, chunk_seed, self.context, current_photons)
-                futures.append((future, size))
-                current_photons += size
-
-            for future, size in futures:
-                yield future.result(), size
+            for size, chunk_result in zip(batches, results):
+                yield chunk_result, size
 
 
 def run_chunk(
     chunk_size: int, seed: np.random.SeedSequence, context: SimContext, starting_photon_count: int
-) -> SimulationResults:
+) -> SimResults:
     new_engine_config = context.config.engine.model_copy(
         update={
             "num_photons": chunk_size,
@@ -174,7 +174,7 @@ def run_chunk(
     )
 
     new_config = context.config.model_copy(
-        update={"engine": new_engine_config, "detectors": new_detector_config}
+        update={"engine_result": new_engine_config, "detectors": new_detector_config}
     )
 
     sim = Engine(new_config, context.scene)

@@ -1,5 +1,4 @@
 import datetime
-import json
 import logging
 import shutil
 from pathlib import Path
@@ -8,17 +7,17 @@ import xarray as xr
 from matplotlib.figure import Figure
 
 from atmorad.config import SimConfig
-from atmorad.models.results import SimulationResults
+from atmorad.models.results import SimResults
 
 
 class DataIO:
     """Handles all file system operations: saving results, config, and checkpoints."""
 
     RESULTS_FILE = "data.nc"
-    METADATA_FILE = "metadata.json"
     CONFIG_FILE = "runtime_config.toml"
     CHECKPOINT_FILE = "checkpoint.nc"
     NETCDF_ENGINE = "h5netcdf"
+    FIG_DIR = "fig/"
 
     def __init__(self, config: SimConfig) -> None:
         self.config = config
@@ -50,8 +49,9 @@ class DataIO:
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def output_summary(self) -> str:
+        """Generates a clean string summary of the saved file tree structure."""
         lines = [f"Outputs saved to: {self.base_dir}/"]
-        files = [self.METADATA_FILE, self.RESULTS_FILE, self.CONFIG_FILE]
+        files = [self.RESULTS_FILE, self.CONFIG_FILE]
         for i, filename in enumerate(files):
             if i == len(files) - 1:
                 lines.append(f"  └─ {filename}")
@@ -66,9 +66,14 @@ class DataIO:
             for d in output_dir.glob(f"{exp_name}*")
             if d.is_dir() and (d / self.CHECKPOINT_FILE).exists()
         ]
-        return max(valid_dirs, key=lambda p: p.stat().st_mtime) if valid_dirs else None
+        # Sortujemy po st_mtime samego pliku checkpointu, co daje 100% pewności
+        return (
+            max(valid_dirs, key=lambda p: (p / self.CHECKPOINT_FILE).stat().st_mtime)
+            if valid_dirs
+            else None
+        )
 
-    def save_config_file(self, config_file_path: Path):
+    def save_config_file(self, config_file_path: Path) -> None:
         if not config_file_path.exists():
             logging.error(f"Cannot find original config at {config_file_path.resolve()}")
             return
@@ -76,11 +81,10 @@ class DataIO:
         destination_path = self.base_dir / self.CONFIG_FILE
         shutil.copy2(config_file_path, destination_path)
 
-    def save_simulation_run(self, results: SimulationResults):
-        self.save_metadata(results)
-
+    def save_simulation_run(self, results: SimResults) -> None:
         results_path = self.base_dir / self.RESULTS_FILE
 
+        results.config = self.config
         ds = results.to_dataset(normalize=True)
 
         ds.to_netcdf(results_path, engine=self.NETCDF_ENGINE)
@@ -88,79 +92,48 @@ class DataIO:
         if self.config.config_path:
             self.save_config_file(self.config.config_path)
 
-    def save_metadata(self, results: SimulationResults) -> None:
-        metadata = self.config.model_dump(mode="json")
-        metadata["cpu_time_s"] = results.engine.cpu_time_s
-        metadata["simulation_time_s"] = results.engine.simulation_time_s
-
-        metadata_path = self.base_dir / self.METADATA_FILE
-
-        with open(metadata_path, "w", encoding="utf-8") as f:
-            json.dump(metadata, f, indent=4)
-
     def save_figure(self, fig: Figure, relative_path: str, dpi: int = 300) -> None:
-        full_path = self.base_dir / relative_path.lstrip("/")
+        full_path = self.base_dir / relative_path.lstrip("/") / self.FIG_DIR
         full_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(full_path, dpi=dpi, bbox_inches="tight")
 
     @property
-    def checkpoint_path(self):
+    def checkpoint_path(self) -> Path:
         return self.base_dir / self.CHECKPOINT_FILE
 
-    def save_checkpoint(self, simulated_photons: int, results: SimulationResults):
+    def save_checkpoint(self, results: SimResults) -> None:
         tmp_path = self.checkpoint_path.with_suffix(".nc.tmp")
 
+        results.config = self.config
         ds = results.to_dataset(normalize=False)
-
-        ds.attrs["_simulated_photons"] = simulated_photons
-        ds.attrs["_config_json"] = self.config.model_dump_json()
-
         ds.to_netcdf(tmp_path, engine=self.NETCDF_ENGINE)
         shutil.move(tmp_path, self.checkpoint_path)
 
-    def load_checkpoint(self):
+    def load_checkpoint(self) -> SimResults | None:
+        """Loads checkpoint and returns a SimulationResults object, or None if not found."""
         if not self.checkpoint_path.exists():
-            return 0, SimulationResults(), None
+            return None
 
         try:
             with xr.open_dataset(self.checkpoint_path, engine=self.NETCDF_ENGINE) as ds:
                 ds.load()
-                simulated_photons = int(ds.attrs.get("_simulated_photons", 0))
-
-                from atmorad.config import SimConfig
-
-                config_json = str(ds.attrs.get("_config_json", "{}"))
-                config = SimConfig.model_validate_json(config_json)
-
-                results = SimulationResults.from_dataset(ds)
-
-                return simulated_photons, results, config
-
+                return SimResults.from_dataset(ds)
         except (OSError, ValueError):
-            logging.exception("Failed to load checkpoint file")
-            return 0, SimulationResults(), None
+            logging.exception("Failed to load checkpoint file.")
+            return None
 
-    def delete_checkpoint(self):
+    def delete_checkpoint(self) -> None:
         if self.checkpoint_path.exists():
             self.checkpoint_path.unlink()
 
     @classmethod
-    def load_simulation_data(cls, directory: str | Path):
+    def load_simulation_data(cls, directory: str | Path) -> SimResults:
         dir_path = Path(directory)
         results_path = dir_path / cls.RESULTS_FILE
-        config_path = dir_path / cls.CONFIG_FILE
 
         if not results_path.exists():
             raise FileNotFoundError(f"Could not find results at {results_path.resolve()}")
 
         with xr.open_dataset(results_path, engine=cls.NETCDF_ENGINE) as ds:
             ds.load()
-            results = SimulationResults.from_dataset(ds)
-
-        config = None
-        if config_path.exists():
-            from atmorad.config import load_config
-
-            config = load_config(config_path)
-
-        return config, results
+            return SimResults.from_dataset(ds)

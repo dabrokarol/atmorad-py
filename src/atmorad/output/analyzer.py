@@ -23,15 +23,15 @@ class ResultAnalyzer:
 
         fate_prefix = next((p for p, c in self.det_types.items() if c == "FateResult"), "fate")
 
-        escaped_toa = self.ds.attrs.get(f"{fate_prefix}_energy_escaped_toa", 0.0)
+        reflected_toa = self.ds.attrs.get(f"{fate_prefix}_energy_reflected_toa", 0.0)
         abs_surf = self.ds.attrs.get(f"{fate_prefix}_energy_absorbed_surface", 0.0)
         abs_atm = self.ds.attrs.get(f"{fate_prefix}_energy_absorbed_atmosphere", 0.0)
 
-        escaped_toa_pct = escaped_toa * 100.0
+        reflected_toa_pct = reflected_toa * 100.0
         absorbed_surf_pct = abs_surf * 100.0
         absorbed_atm_pct = abs_atm * 100.0
 
-        balance = escaped_toa_pct + absorbed_surf_pct + absorbed_atm_pct
+        balance = reflected_toa_pct + absorbed_surf_pct + absorbed_atm_pct
 
         return "\n".join(
             [
@@ -39,7 +39,7 @@ class ResultAnalyzer:
                 f"Time: {total_time:.2f}s (Total) | {cpu_time:.2f}s (CPU)",
                 f"Total Photons Simulated: {total_photons:_}\n",  # Używamy self.total_photons (int)
                 "Energy Distribution:",
-                f"  {'Escaped (TOA)':<21}: {escaped_toa_pct:>6.2f}%",
+                f"  {'Reflected (TOA)':<21}: {reflected_toa_pct:>6.2f}%",
                 f"  {'Surface Absorbed':<21}: {absorbed_surf_pct:>6.2f}%",
                 f"  {'Atmosphere Absorbed':<21}: {absorbed_atm_pct:>6.2f}%",
                 "  " + "-" * 30,
@@ -92,7 +92,7 @@ class ResultAnalyzer:
             num_paths = max_paths
 
         absorbed_surface = self.ds[f"{prefix}_sample_absorbed_surface"].values[:num_paths]
-        escaped_toa = self.ds[f"{prefix}_sample_escaped_toa"].values[:num_paths]
+        reflected_toa = self.ds[f"{prefix}_sample_reflected_toa"].values[:num_paths]
         toa_z = self.ds.attrs.get(f"{prefix}_toa_z", 10.0)
 
         Lx, Ly = self._infer_domain_size(paths)
@@ -124,7 +124,7 @@ class ResultAnalyzer:
                 color, alpha = "tab:green", 0.3
                 lbl = "Absorbed by surface" if not labeled_surface else None
                 labeled_surface = True
-            elif escaped_toa[i]:
+            elif reflected_toa[i]:
                 color, alpha = "tab:grey", 0.2
                 lbl = "Escaped atmosphere" if not labeled_above_toa else None
                 labeled_above_toa = True
@@ -206,3 +206,104 @@ class ResultAnalyzer:
         ax.set_ylabel("Altitude Z [km]", fontsize=12)
         ax.grid(True, linestyle=":", alpha=0.7)
         ax.legend(fontsize=11)
+
+    def plot_absorption_profile(self, prefix: str, title="Atmospheric Absorption Profile"):
+        var_name = f"{prefix}_absorption_profile_1d"
+        if var_name not in self.ds:
+            logging.warning(f"Warning: No absorption profile found for prefix '{prefix}'.")
+            return None
+
+        fig, ax = plt.subplots(figsize=(6, 8))
+
+        z_centers = self.ds.get(f"{prefix}_z", None)
+        if z_centers is None:
+            logging.warning(f"Warning: No Z coordinates found for {prefix}.")
+            return None
+
+        z_centers = z_centers.values
+        profile = self.ds[var_name].values
+
+        spacing = self.ds.attrs.get("vertical_resolution_km")
+        if spacing is None:
+            if len(z_centers) > 1:
+                spacing = float(z_centers[1] - z_centers[0])
+            else:
+                spacing = 1.0
+
+        ax.barh(
+            z_centers,
+            profile,
+            height=spacing,
+            align="center",
+            color="tab:red",
+            alpha=0.6,
+            edgecolor="black",
+        )
+
+        ax.set_title(title, fontsize=16)
+        ax.set_xlabel("Normalized Absorption", fontsize=12)
+        ax.set_ylabel("Altitude Z [km]", fontsize=12)
+        ax.grid(True, linestyle=":", alpha=0.5)
+
+        fig.tight_layout()
+        return fig
+
+    def generate_all_figures(self):
+        """
+        Iterates over all initialized detectors found in the dataset metadata,
+        generates their respective plots, and yields (Figure, filename) tuples.
+        """
+        for prefix, class_name in self.det_types.items():
+            if class_name == "surface_absorption":
+                fig = self.plot_surface_absorption_map(prefix)
+                if fig:
+                    yield (fig, f"{prefix}_map.png")
+                    plt.close(fig)
+
+            elif class_name == "vertical_flux":
+                fig = self.plot_flux_profile(prefix)
+                if fig:
+                    yield (fig, f"{prefix}_profile.png")
+                    plt.close(fig)
+
+            elif class_name == "path_tracking":
+                fig = self.plot_paths(prefix)
+                if fig:
+                    yield (fig, f"{prefix}_3d.png")
+                    plt.close(fig)
+
+            elif class_name == "plane_flux":
+                z_var = f"{prefix}_z"
+                if z_var in self.ds:
+                    measure_z = self.ds[z_var].values
+                    x_centers = self.ds[f"{prefix}_x"].values
+                    y_centers = self.ds[f"{prefix}_y"].values
+
+                    incident_down = self.ds[f"{prefix}_incident_flux_down_3d"].values
+                    incident_up = self.ds[f"{prefix}_incident_flux_up_3d"].values
+
+                    for i, z_val in enumerate(measure_z):
+                        # Downward Flux Plot
+                        title_down = f"Incident Downward Flux Map\nHeight: {z_val} km"
+                        fig_down = self.plot_2d_map(
+                            incident_down[i], x_centers, y_centers, title=title_down
+                        )
+                        if fig_down:
+                            yield (fig_down, f"{prefix}/downward_z_{z_val:g}km.png")
+                            plt.close(fig_down)
+
+                        # Upward Flux Plot
+                        title_up = f"Incident Upward Flux Map\nHeight: {z_val} km"
+                        fig_up = self.plot_2d_map(
+                            incident_up[i], x_centers, y_centers, title=title_up
+                        )
+                        if fig_up:
+                            yield (fig_up, f"{prefix}/upward_z_{z_val:g}km.png")
+                            plt.close(fig_up)
+
+            elif class_name == "absorption_vertical":
+                if hasattr(self, "plot_absorption_profile"):
+                    fig = self.plot_absorption_profile(prefix)
+                    if fig:
+                        yield (fig, f"{prefix}_profile.png")
+                        plt.close(fig)

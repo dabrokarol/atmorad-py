@@ -7,7 +7,7 @@ from .results import (
     FateResult,
     IncidentFluxMapResult,
     PathTrackingResult,
-    SimulationResults,
+    SimResults,
     SurfaceAbsorptionResult,
     VerticalFluxResult,
 )
@@ -15,7 +15,7 @@ from .results import (
 __all__ = [
     "PhotonBatch",
     "SimContext",
-    "SimulationResults",
+    "SimResults",
     "EngineResult",
     "PathTrackingResult",
     "IncidentFluxMapResult",

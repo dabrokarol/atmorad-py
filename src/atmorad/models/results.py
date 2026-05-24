@@ -95,6 +95,8 @@ class BaseResult(ABC):
             elif op == "concat":
                 if isinstance(v1, np.ndarray) and v1.size == 0:
                     kwargs[f.name] = v2
+                elif isinstance(v2, np.ndarray) and v2.size == 0:
+                    kwargs[f.name] = v1
                 else:
                     kwargs[f.name] = np.concatenate((v1, v2))
 
@@ -135,6 +137,11 @@ class BaseResult(ABC):
                 )
             elif role == "data":
                 dims = [f"{prefix}_{d}" for d in meta.get("dims", [])]
+
+                # changes empty numpy arrays to empty(shape matching dims)
+                if isinstance(val, np.ndarray) and val.size == 0 and val.ndim != len(dims):
+                    val = np.empty((0,) * len(dims), dtype=val.dtype)
+
                 data_vars[f"{prefix}_{nc_name}"] = (
                     dims,
                     val,
@@ -192,9 +199,9 @@ class VerticalFluxResult(BaseResult):
 
 @dataclass(slots=True)
 class AbsorptionProfileResult(BaseResult):
-    z_centers: np.ndarray = coord_field(nc_name="center_z", units="km", long_name="Altitude")
+    z_centers: np.ndarray = coord_field(nc_name="z", units="km", long_name="Altitude")
     absorption_profile_1d: np.ndarray = data_field(
-        dims=["center_z"], normalize=True, long_name="Absorption Profile"
+        dims=["z"], normalize=True, long_name="Absorption Profile"
     )
 
 
@@ -258,13 +265,13 @@ class PathTrackingResult(BaseResult):
 
 
 @dataclass(slots=True)
-class SimulationResults:
+class SimResults:
     config: SimConfig | None = None
-    engine: EngineResult = field(default_factory=EngineResult)
+    engine_result: EngineResult = field(default_factory=EngineResult)
     detector_results: dict[str, BaseResult] = field(default_factory=dict)
-    num_photons: int = 0
+    total_photons: int = 0
 
-    def merge(self, other: Self) -> "SimulationResults":
+    def merge(self, other: Self) -> "SimResults":
         merged_detectors = {}
 
         for key in self.detector_results.keys() | other.detector_results.keys():
@@ -276,22 +283,22 @@ class SimulationResults:
             else:
                 merged_detectors[key] = res_self or res_other
 
-        return SimulationResults(
-            engine=self.engine.merge(other.engine),
+        return SimResults(
+            engine_result=self.engine_result.merge(other.engine_result),
             detector_results=merged_detectors,
-            num_photons=self.num_photons + other.num_photons,
+            total_photons=self.total_photons + other.total_photons,
             config=self.config,
         )
 
     def to_dataset(self, normalize: bool = False) -> xr.Dataset:
         """Delegates dataset creation to all registered detector results and merges them."""
-        n = self.num_photons if (normalize and self.num_photons > 0) else 1
+        n = self.total_photons if (normalize and self.total_photons > 0) else 1
         val_unit = "fraction" if normalize else "photons"
 
         global_attrs = {
-            "engine_cpu_time_s": self.engine.cpu_time_s,
-            "engine_simulation_time_s": self.engine.simulation_time_s,
-            "num_photons": self.num_photons,
+            "engine_cpu_time_s": self.engine_result.cpu_time_s,
+            "engine_simulation_time_s": self.engine_result.simulation_time_s,
+            "num_photons": self.total_photons,
             "_detector_types": json.dumps(
                 {
                     det_id: getattr(det_res, "_registry_id", type(det_res).__name__)
@@ -333,8 +340,12 @@ class SimulationResults:
         }
 
         num_photons = int(ds.attrs.get("num_photons", 0))
-        config = SimConfig.model_validate_json(ds.attrs.get("_simulation_config", "{}"))
+        if "_simulation_config" in ds.attrs.keys():
+            config = SimConfig.model_validate_json(ds.attrs["_simulation_config"])
+        else:
+            config = None
+            
 
         return cls(
-            engine=engine, detector_results=detector_results, num_photons=num_photons, config=config
+            engine_result=engine, detector_results=detector_results, total_photons=num_photons, config=config
         )

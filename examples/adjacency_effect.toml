@@ -43,7 +43,7 @@ reflection = {type = "specular", roughness = 0.0}
 [atmosphere_materials.material_1]
 extinction_coeff_per_km = 10
 ssa = 0.999999
-scattering = {type = "hg", assymetry_factor = 0.85}
+scattering = {type = "hg", g = 0.85}
 
 
 [[layer]]

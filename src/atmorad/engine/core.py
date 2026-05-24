@@ -7,7 +7,7 @@ from atmorad.config import SimConfig
 from atmorad.constants import EPSILON, MAX_SCATTERINGS
 from atmorad.detectors import BaseDetector
 from atmorad.environment.scene import Scene
-from atmorad.models import EngineResult, PhotonBatch, SimulationResults
+from atmorad.models import EngineResult, PhotonBatch, SimResults
 from atmorad.registry import DETECTORS
 
 
@@ -151,19 +151,19 @@ class Engine:
         self.cpu_time_s = end_time - start_time
         self.results = self._build_results()
 
-    def _build_results(self) -> SimulationResults:
+    def _build_results(self) -> SimResults:
         detector_results = {}
 
         for det_id, det in self.detectors.items():
             det.finalize()
             detector_results[det_id] = det.get_results()
 
-        return SimulationResults(
-            engine=EngineResult(
+        return SimResults(
+            engine_result=EngineResult(
                 cpu_time_s=self.cpu_time_s,
             ),
             detector_results=detector_results,
-            num_photons=self.num_photons,
+            total_photons=self.num_photons,
         )
 
     def get_results(self):
