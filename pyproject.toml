@@ -43,6 +43,7 @@ include-package-data = true
 
 [dependency-groups]
 dev = [
+    "cogapp>=0.20.0",
     "pytest>=9.0.3",
     "ruff>=0.15.13",
 ]
