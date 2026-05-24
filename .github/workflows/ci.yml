@@ -10,10 +10,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
+    timeout-minutes: 1
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
@@ -30,6 +34,7 @@ jobs:
     name: Test (${{ matrix.os }}, ${{ matrix.resolution }})
     needs: lint
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
