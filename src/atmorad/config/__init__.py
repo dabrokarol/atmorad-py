@@ -19,4 +19,4 @@ __all__ = [
     "EnvironmentConfig",
     "load_config",
 ]
-import atmorad.detectors # to ensure default detectors are registered
+import atmorad.detectors  # to ensure default detectors are registered

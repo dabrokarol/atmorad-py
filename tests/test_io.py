@@ -54,6 +54,7 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
     config = sim_context.config
     config.output.path = str(tmp_path)
     config.output.overwrite = True
+    assert config is not None
 
     data_io = DataIO(config)
 
@@ -68,6 +69,8 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
 
     sim.run()
     results = sim.results
+    assert results.config == config and results.config is not None
+
     results_2 = DataIO.load_simulation_data(data_io.base_dir)
     config_2 = results_2.config
     assert config_2 is not None
@@ -87,7 +90,7 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
     )
 
     # test checkpointing
-    results.config.engine.num_photons = 42
+    results.total_photons = 42
     data_io.save_checkpoint(results=results)
     results_from_checkpoint = data_io.load_checkpoint()
     assert results_from_checkpoint is not None
