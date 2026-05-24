@@ -246,10 +246,8 @@ class PathTrackingResult(BaseResult):
         ds = super(PathTrackingResult, self).to_dataset(prefix, n_photons, val_unit)
         if len(self.sample_paths_3d) > 0:
             dim_c = f"{prefix}_coord"
-            ds.coords[dim_c] = (
-                dim_c,
-                np.array(["x", "y", "z"]),
-                {"long_name": "Spatial Dimension"},
+            ds = ds.assign_coords(
+                {dim_c: (dim_c, np.array(["x", "y", "z"]), {"long_name": "Spatial Dimension"})}
             )
 
         return ds
@@ -292,6 +290,7 @@ class SimulationResults:
                 attrs={
                     "engine_cpu_time_s": self.engine.cpu_time_s,
                     "engine_simulation_time_s": self.engine.simulation_time_s,
+                    "num_photons": self.num_photons,
                 }
             )
         ] + [
@@ -299,10 +298,8 @@ class SimulationResults:
             for det_id, det_res in self.detector_results.items()
         ]
 
-        final_ds = xr.merge(datasets)
-
-        for ds_part in datasets:
-            final_ds.attrs.update(ds_part.attrs)
+        with xr.set_options(keep_attrs=True):
+            final_ds = xr.merge(datasets, combine_attrs="no_conflicts")
 
         det_types = {
             det_id: getattr(det_res, "_registry_id", type(det_res).__name__)
@@ -328,4 +325,6 @@ class SimulationResults:
             if class_name in DETECTOR_RESULTS
         }
 
-        return cls(engine=engine, detector_results=detector_results)
+        num_photons = int(ds.attrs.get("num_photons", 0))
+
+        return cls(engine=engine, detector_results=detector_results, num_photons=num_photons)
