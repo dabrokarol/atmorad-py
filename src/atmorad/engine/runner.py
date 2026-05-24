@@ -88,7 +88,7 @@ class MCRadiationRunner:
                 if (i + 1) % CHECKPOINT_INTERVAL == 0:
                     current_elapsed = time.perf_counter() - run_start_time
                     all_results.engine.simulation_time_s = accumulated_time + current_elapsed
-                    
+
                     if self.on_checkpoint:
                         self.on_checkpoint(current_photons, all_results)
 

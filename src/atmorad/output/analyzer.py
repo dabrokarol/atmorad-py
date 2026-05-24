@@ -37,7 +37,7 @@ class ResultAnalyzer:
             [
                 f"\n---- Simulation Summary: {experiment_name} ----",
                 f"Time: {total_time:.2f}s (Total) | {cpu_time:.2f}s (CPU)",
-                f"Total Photons Simulated: {total_photons:_}\n", # Używamy self.total_photons (int)
+                f"Total Photons Simulated: {total_photons:_}\n",  # Używamy self.total_photons (int)
                 "Energy Distribution:",
                 f"  {'Escaped (TOA)':<21}: {escaped_toa_pct:>6.2f}%",
                 f"  {'Surface Absorbed':<21}: {absorbed_surf_pct:>6.2f}%",
@@ -80,12 +80,14 @@ class ResultAnalyzer:
 
         paths = self.ds[path_var].values
         num_paths = paths.shape[0]
-        
+
         if num_paths == 0:
             return None
 
         if num_paths > max_paths:
-            logging.warning(f"Limiting 3D plot to {max_paths} paths (out of {num_paths}) to prevent freezing.")
+            logging.warning(
+                f"Limiting 3D plot to {max_paths} paths (out of {num_paths}) to prevent freezing."
+            )
             paths = paths[:max_paths]
             num_paths = max_paths
 
