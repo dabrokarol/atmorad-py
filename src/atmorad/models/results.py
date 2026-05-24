@@ -128,7 +128,7 @@ class BaseResult(ABC):
             val = getattr(self, f.name)
 
             normalize = meta.get("normalize", False)
-            units = meta.get("units", val_unit if normalize else "1")
+            units = meta.get("units", val_unit)
             long_name = meta.get("long_name", nc_name)
 
             if normalize and n_photons > 1:
@@ -347,10 +347,11 @@ class SimResults:
         }
 
         num_photons = int(ds.attrs.get("num_photons", 0))
-        if "_simulation_config" in ds.attrs.keys():
-            config = SimConfig.model_validate_json(ds.attrs["_simulation_config"])
-        else:
-            config = None
+        config = (
+            SimConfig.model_validate_json(ds.attrs["_simulation_config"])
+            if "_simulation_config" in ds.attrs.keys()
+            else None
+        )
 
         return cls(
             engine_result=engine,
