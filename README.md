@@ -85,7 +85,7 @@ random_seed = 42
 cpu_cores = 1
 resume_from_checkpoint = false
 
-# Russian Roullette params
+# Russian Roulette params
 photon_weight_threshold = 1e-4 
 photon_survival_chance = 0.1    # 10% chance to survive with 10x multiplied weight
 

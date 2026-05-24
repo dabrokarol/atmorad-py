@@ -37,7 +37,7 @@ class ResultAnalyzer:
             [
                 f"\n---- Simulation Summary: {experiment_name} ----",
                 f"Time: {total_time:.2f}s (Total) | {cpu_time:.2f}s (CPU)",
-                f"Total Photons Simulated: {total_photons:_}\n",  # Używamy self.total_photons (int)
+                f"Total Photons / Energy: {total_photons:_}\n",
                 "Energy Distribution:",
                 f"  {'Reflected (TOA)':<21}: {reflected_toa_pct:>6.2f}%",
                 f"  {'Surface Absorbed':<21}: {absorbed_surf_pct:>6.2f}%",
