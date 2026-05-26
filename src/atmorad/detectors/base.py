@@ -15,7 +15,7 @@ class BaseDetector(ABC):
         """Initializes the detector before the simulation starts."""
         pass
 
-    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
+    def record_movement(self, batch: PhotonBatch):
         """Hook called after photon movement, before physical interactions."""
         pass
 

@@ -13,15 +13,13 @@ class AbsorptionProfileDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
         self.scene = scene
         top_of_atmosphere = scene.atmosphere.top_of_atmosphere
-        self.spacing = min(
-            config.detectors.vertical_profiles_resolution_km, top_of_atmosphere
-        )  # to ensure that at least one bin is created
+        self.spacing = config.detectors.vertical_profiles_resolution_km
 
-        self.measure_z = np.arange(
-            0, top_of_atmosphere + self.spacing * 0.1, self.spacing
-        )  # to mitigate possible floating point inaccuracies
+        self.measure_z = np.arange(0, top_of_atmosphere, self.spacing)
+        if not np.isclose(self.measure_z[-1], top_of_atmosphere):
+            self.measure_z = np.append(self.measure_z, top_of_atmosphere)
+
         num_bins = len(self.measure_z) - 1
-
         self.absorption_profile = np.zeros(num_bins, dtype=np.float64)
 
     def record_interaction(

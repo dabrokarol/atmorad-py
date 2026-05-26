@@ -92,7 +92,8 @@ class FlatSurface(BaseSurface):
             / batch.direction[Z, below_ground_mask]
             * batch.direction[:, below_ground_mask]
         )
-        batch.pos[Z, below_ground_mask] = -EPSILON
+        ds_a = EPSILON / (batch.direction[Z, below_ground_mask] + 1e100)
+        batch.pos[:, below_ground_mask] += batch.direction[:, below_ground_mask] * ds_a
         return batch
 
     @property

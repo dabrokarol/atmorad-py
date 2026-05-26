@@ -70,14 +70,14 @@ class Engine:
         while batch.active_count > 0:
             logging.debug(f"Active photons: {batch.active_count}")
 
+            batch.update_old_pos()
+
             batch, dist_moved, tau_consumed = scene.move_photons(batch)
 
             batch.tau_to_travel -= tau_consumed
 
-            old_pos = batch.pos - batch.direction * dist_moved
-
             for det in self.detectors.values():
-                det.record_movement(batch, old_pos)
+                det.record_movement(batch)
 
             scatter_mask = batch.tau_to_travel <= EPSILON
             surface_mask = self.scene.at_surface(batch.pos)

@@ -162,17 +162,17 @@ class Atmosphere:
                 / batch.direction[Z, reflected_toa]
                 * batch.direction[:, reflected_toa]
             )
-            batch.pos[Z, reflected_toa] = self.top_of_atmosphere + EPSILON
+            ds_toa = EPSILON / (np.abs(batch.direction[Z, reflected_toa]) + 1e-100)
+            batch.pos[:, reflected_toa] += batch.direction[:, reflected_toa] * ds_toa
 
         diff = np.abs(batch.pos[Z, np.newaxis, :] - self.boundaries[:, np.newaxis])
         on_boundary_mask = np.any(diff <= EPSILON, axis=0)
 
         if np.any(on_boundary_mask):
-            facing_up_mask = on_boundary_mask & (batch.direction[Z] > 0)
-            facing_down_mask = on_boundary_mask & (batch.direction[Z] < 0)
+            dir_z = batch.direction[Z, on_boundary_mask]
+            ds = EPSILON / (np.abs(dir_z) + 1e-100)
 
-            batch.pos[Z, facing_up_mask] += EPSILON
-            batch.pos[Z, facing_down_mask] -= EPSILON
+            batch.pos[:, on_boundary_mask] += batch.direction[:, on_boundary_mask] * ds
 
         return batch
 

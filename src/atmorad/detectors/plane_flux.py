@@ -36,7 +36,6 @@ class IncidentFluxMapDetector(BaseDetector):
     def _process_hits(
         self,
         batch: PhotonBatch,
-        old_pos: np.ndarray,
         crossed_mask: np.ndarray,
         accumulator_flat: np.ndarray,
     ):
@@ -45,14 +44,14 @@ class IncidentFluxMapDetector(BaseDetector):
 
         photon_idx, plane_idx = np.where(crossed_mask)
 
-        crossed_old_z = old_pos[Z, photon_idx]
+        crossed_old_z = batch.old_pos[Z, photon_idx]
         crossed_dir_z = batch.direction[Z, photon_idx]
         crossed_target_z = self.measure_z[plane_idx]
 
         t = (crossed_target_z - crossed_old_z) / crossed_dir_z
 
-        exact_x = old_pos[X, photon_idx] + batch.direction[X, photon_idx] * t
-        exact_y = old_pos[Y, photon_idx] + batch.direction[Y, photon_idx] * t
+        exact_x = batch.old_pos[X, photon_idx] + batch.direction[X, photon_idx] * t
+        exact_y = batch.old_pos[Y, photon_idx] + batch.direction[Y, photon_idx] * t
 
         wrapped_x = np.mod(exact_x + self.domain_x / 2, self.domain_x)
         wrapped_y = np.mod(exact_y + self.domain_y / 2, self.domain_y)
@@ -70,17 +69,17 @@ class IncidentFluxMapDetector(BaseDetector):
         counts = np.bincount(flat_idx, weights=weights, minlength=self.total_bins)
         accumulator_flat += counts
 
-    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
-        old_z = old_pos[Z]
+    def record_movement(self, batch: PhotonBatch):
+        old_z = batch.old_pos[Z]
         new_z = batch.pos[Z]
 
-        down_mask = (old_z[:, np.newaxis] > self.measure_z) & (
-            new_z[:, np.newaxis] <= self.measure_z
+        down_mask = (old_z[:, np.newaxis] >= self.measure_z) & (
+            new_z[:, np.newaxis] < self.measure_z
         )
-        up_mask = (old_z[:, np.newaxis] < self.measure_z) & (new_z[:, np.newaxis] >= self.measure_z)
+        up_mask = (old_z[:, np.newaxis] <= self.measure_z) & (new_z[:, np.newaxis] > self.measure_z)
 
-        self._process_hits(batch, old_pos, down_mask, self.flux_down_flat)
-        self._process_hits(batch, old_pos, up_mask, self.flux_up_flat)
+        self._process_hits(batch, down_mask, self.flux_down_flat)
+        self._process_hits(batch, up_mask, self.flux_up_flat)
 
     def get_results(self) -> IncidentFluxMapResult:
         x_centers = (self.x_edges[:-1] + self.x_edges[1:]) / 2.0

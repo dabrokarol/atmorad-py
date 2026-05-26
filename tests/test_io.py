@@ -100,7 +100,9 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
     config_from_checkpoint = config_from_checkpoint.model_copy(
         update={
             "config_path": config.config_path,
-            "output": config_from_checkpoint.output.model_copy(update={"base_dir": config.output.base_dir}),
+            "output": config_from_checkpoint.output.model_copy(
+                update={"base_dir": config.output.base_dir}
+            ),
         }
     )
     assert np.isclose(42, photons), f"Expected 42 simulated photons, got {photons}"
