@@ -47,7 +47,7 @@ class HenyeyGreensteinScattering(Scattering):
         pass
 
     def scatter(self, rand_1, rand_2):
-        if self.g < EPSILON:
+        if abs(self.g) < EPSILON:
             cos_theta = 2.0 * rand_1 - 1.0
         else:
             sq = (1.0 - self.g**2) / (1.0 - self.g + 2.0 * self.g * rand_1)
