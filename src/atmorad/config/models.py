@@ -74,7 +74,7 @@ def generate_timestamp() -> str:
 
 
 class MetadataConfig(BaseModel):
-    experiment_name: str = "default"
+    experiment_name: str = "experiment"
     scenario_name: str = ""
     description: str = ""
     config_version: str = "1.1"
