@@ -3,10 +3,10 @@ experiment_name = "demo001"
 description = "A demo simulation of 3D radiative transfer over a heterogeneous surface."
 
 [engine]
-num_photons = 100_000
+num_photons = 400_000
 batch_size = 100_000  # photons will be processed in arrays of batch_size in parallel       
 random_seed = 42
-cpu_cores = 1
+cpu_cores = 4
 resume_from_checkpoint = false
 
 # Russian Roulette params
@@ -33,9 +33,9 @@ active = [ # list of supported detectors
     "surface_absorption"
 ]
 # spatial resolution for bins in detectors
-vertical_profiles_resolution_km = 0.5
-horizontal_maps_resolution_km = 1.0
-num_full_paths = 100 # 100 photon paths will be saved to results
+vertical_profiles_resolution_km = 0.2
+horizontal_maps_resolution_km = 0.5
+num_full_paths = 200 # 100 photon paths will be saved to results
 flux_maps_z_levels_km = [0.0, 4.0, 10.0] # planes at which vertical flux will be counted
 
 [output]

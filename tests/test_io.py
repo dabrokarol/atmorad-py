@@ -52,7 +52,7 @@ def assert_dicts_close(d1: dict, d2: dict, rtol=1e-5, atol=1e-8, path=""):
 )
 def test_data_io_save_load_sim(sim_context, tmp_path):
     config = sim_context.config
-    config.output.path = str(tmp_path)
+    config.output.base_dir = str(tmp_path)
     config.output.overwrite = True
     assert config is not None
 
@@ -77,7 +77,7 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
     config_2 = config_2.model_copy(
         update={
             "config_path": config.config_path,
-            "output": config_2.output.model_copy(update={"path": config.output.path}),
+            "output": config_2.output.model_copy(update={"base_dir": config.output.base_dir}),
         }
     )
     assert config == config_2, "Loaded configuration does not match the original."
@@ -100,7 +100,7 @@ def test_data_io_save_load_sim(sim_context, tmp_path):
     config_from_checkpoint = config_from_checkpoint.model_copy(
         update={
             "config_path": config.config_path,
-            "output": config_from_checkpoint.output.model_copy(update={"path": config.output.path}),
+            "output": config_from_checkpoint.output.model_copy(update={"base_dir": config.output.base_dir}),
         }
     )
     assert np.isclose(42, photons), f"Expected 42 simulated photons, got {photons}"

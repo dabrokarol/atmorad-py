@@ -6,18 +6,11 @@ import tomllib
 from atmorad.constants import ACCEPTED_EXTENSIONS
 
 from .models import (
-    DetectorConfig,
-    EngineConfig,
-    EnvironmentConfig,
-    GeometryConfig,
-    MetadataConfig,
-    OutputConfig,
     SimConfig,
-    SourceConfig,
 )
 
 CURRENT_DIR = Path(__file__).parent
-DEFAULT_CONFIG_PATH = CURRENT_DIR / "defaults.toml"
+MATERIALS_CONFIG_PATH = CURRENT_DIR / "materials.toml"
 
 
 def _deep_merge_dicts(base: dict, override: dict) -> dict:
@@ -40,36 +33,18 @@ def load_config(custom_config_path: Path) -> SimConfig:
             f"Allowed extensions: {', '.join(ACCEPTED_EXTENSIONS)}"
         )
 
-    with open(DEFAULT_CONFIG_PATH, "rb") as f:
-        default_config_data = tomllib.load(f)
+    with open(MATERIALS_CONFIG_PATH, "rb") as f:
+        materials_config_data = tomllib.load(f)
 
     with open(custom_config_path, "rb") as f:
         custom_config_data = tomllib.load(f)
 
-    config_data = _deep_merge_dicts(default_config_data, custom_config_data)
+    config_data = _deep_merge_dicts(materials_config_data, custom_config_data)
 
-    if "surface" not in config_data:
-        raise ValueError("Configuration must include a [surface] definition.")
+    env_keys = ["atmosphere_materials", "surface_materials", "surface", "geometry"]
+    environment_data = {key: config_data.pop(key, {}) for key in env_keys}
+    environment_data["layers"] = config_data.pop("layer", [])
+    config_data["environment"] = environment_data
+    config_data["config_path"] = custom_config_path
 
-    if "layer" not in config_data or len(config_data["layer"]) == 0:
-        raise ValueError("Configuration must include at least one [[layer]].")
-
-    env_config = EnvironmentConfig(
-        atmosphere_materials=config_data.get("atmosphere_materials", {}),
-        layers=config_data.get("layer", []),
-        surface=config_data.get("surface", {}),
-        surface_materials=config_data.get("surface_materials", {}),
-        geometry=GeometryConfig(**config_data["geometry"]),
-    )
-
-    config = SimConfig(
-        metadata=MetadataConfig(**config_data["metadata"]),
-        engine=EngineConfig(**config_data["engine"]),
-        source=SourceConfig(**config_data["source"]),
-        output=OutputConfig(**config_data["output"]),
-        detectors=DetectorConfig(**config_data["detectors"]),
-        environment=env_config,
-        config_path=custom_config_path,
-    )
-
-    return config
+    return SimConfig(**config_data)

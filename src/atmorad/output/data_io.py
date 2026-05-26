@@ -23,7 +23,7 @@ class DataIO:
     def __init__(self, config: SimConfig) -> None:
         self.config = config
 
-        output_dir = Path(config.output.path)
+        output_dir = Path(config.output.base_dir)
         exp_name = config.metadata.experiment_name.replace(" ", "-")
         resume = config.engine.resume_from_checkpoint
         overwrite = config.output.overwrite

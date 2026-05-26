@@ -271,7 +271,7 @@ class ResultAnalyzer:
             elif class_name == "path_tracking":
                 fig = self.plot_paths(prefix)
                 if fig:
-                    yield (fig, f"{prefix}_3d.png")
+                    yield (fig, "photon_paths_3d.png")
                     plt.close(fig)
 
             elif class_name == "plane_flux":
