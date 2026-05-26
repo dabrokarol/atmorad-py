@@ -18,7 +18,7 @@ class Scene:
         batch: PhotonBatch,
         scatter_mask: np.ndarray,
         surface_mask: np.ndarray,
-        random_sample: np.ndarray,
+        rng: np.random.Generator,
     ) -> PhotonBatch:
         """
         Scatters and reflects photons.
@@ -31,15 +31,12 @@ class Scene:
         atmosphere_mask = self.in_atmosphere(batch.pos) & scatter_mask
 
         if np.any(atmosphere_mask):
-            batch = self.atmosphere.process_scattering(batch, atmosphere_mask, random_sample)
+            batch = self.atmosphere.process_scattering(batch, atmosphere_mask, rng)
 
         if np.any(surface_mask):
-            batch = self.surface.process_reflection(batch, surface_mask, random_sample)
+            batch = self.surface.process_reflection(batch, surface_mask, rng)
 
         return batch
-
-    def tau_to_boundary(self, batch: PhotonBatch):
-        return self.atmosphere.tau_to_boundary(batch)
 
     def above_toa(self, pos):
         return self.atmosphere.above_toa(pos)
@@ -55,7 +52,7 @@ class Scene:
         batch = self.surface.adjust_surface_boundary(batch)
         return batch
 
-    def start_pos(self, num_photons, rng):
+    def start_pos(self, num_photons, rng: np.random.Generator):
         nx, ny = self.surface.domain_size
         pos = np.empty(shape=(3, num_photons), dtype=float)
         pos[X, :] = rng.uniform(-nx / 2, nx / 2, num_photons)
@@ -71,15 +68,17 @@ class Scene:
         )
         return direction
 
-    def get_material_ids(self, pos, rng):
+    def get_material_ids(self, pos, rng: np.random.Generator):
         rand_component = rng.uniform(0, 1, pos.shape[1])
         return self.atmosphere.get_material_ids(pos, rand_component)
 
-    def move_photons(self, batch: PhotonBatch, tau_to_move: np.ndarray):
-        dist = self.atmosphere.tau_to_distance(batch, tau_to_move)
-        batch.pos += batch.direction * dist
+    def move_photons(self, batch: PhotonBatch):
+        dist_move, tau_consumed = self.atmosphere.step_to_boundary(batch)
+
+        batch.pos += batch.direction * dist_move
         batch = self.adjust_to_boundary_conditions(batch)
-        return batch
+
+        return batch, dist_move, tau_consumed
 
     def get_final_photon_position_data(self, pos):
         return self.above_toa(pos), self.at_surface(pos), self.atmosphere.get_spatial_indices(pos)

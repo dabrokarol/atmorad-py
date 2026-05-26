@@ -1,8 +1,11 @@
+import datetime
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from atmorad.constants import TIMESTAMP_FORMAT
 from atmorad.registry import (
     DETECTORS,
     REFLECTION_MODELS,
@@ -57,19 +60,36 @@ class LayerConfig(BaseModel):
 
 
 # -----------------------------------------------------------
+
+
+def get_engine_version() -> str:
+    try:
+        return version("atmorad-py")
+    except PackageNotFoundError:
+        return "unknown-dev"
+
+
+def generate_timestamp() -> str:
+    return datetime.datetime.now().strftime(TIMESTAMP_FORMAT)
+
+
 class MetadataConfig(BaseModel):
-    experiment_name: str
+    experiment_name: str = "experiment"
+    scenario_name: str = ""
     description: str = ""
+    config_version: str = "1.1"
+    software_version: str = Field(default_factory=get_engine_version)
+    run_timestamp: str = Field(default_factory=generate_timestamp)
 
 
 class DetectorConfig(BaseModel):
     active: list[str] = Field(
-        default=["fate"], description="List of active detectors to run during the simulation."
+        default=["fate"], description="List of active detectors to use during the simulation."
     )
 
-    vertical_profiles_resolution_km: float = Field(gt=0.0)
-    horizontal_maps_resolution_km: float = Field(gt=0.0)
-    num_full_paths: int = Field(ge=0)
+    vertical_profiles_resolution_km: float = Field(gt=0.0, default=1.0)
+    horizontal_maps_resolution_km: float = Field(gt=0.0, default=1.0)
+    num_full_paths: int = Field(ge=0, default=0)
     flux_maps_z_levels_km: list[float] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -84,39 +104,39 @@ class OutputConfig(BaseModel):
     overwrite: bool = False
     save_plots: bool = Field(
         default=True,
-        description="If true, generates and saves standard PNG plots for all active detectors.",
+        description="If true, generates and saves standard PNG plots for all active default detectors.",
     )
-    path: Path | str
+    base_dir: Path | str = "results"
 
 
 class EngineConfig(BaseModel):
-    num_photons: int = Field(gt=0)
-    batch_size: int = Field(gt=0)
-    random_seed: int
-    cpu_cores: int = Field(ge=1)
+    num_photons: int = Field(gt=0, default=100_000)
+    batch_size: int = Field(gt=0, default=100_000)
+    random_seed: int = 42
+    cpu_cores: int = Field(ge=1, default=4)
     resume_from_checkpoint: bool = False
-    photon_weight_threshold: float = 1e-4
+    photon_weight_threshold: float = Field(ge=0, default=1e-4)
     photon_survival_chance: float = Field(default=0.1, ge=0.0, le=1.0)
 
 
 class SourceConfig(BaseModel):
-    theta_sun_deg: float = Field(ge=0.0, le=180.0)
-    phi_sun_deg: float = Field(ge=0.0, le=360.0)
-    wavelength_nm: float = Field(gt=0.0)
+    theta_sun_deg: float = Field(ge=0.0, le=180.0, default=0)
+    phi_sun_deg: float = Field(ge=0.0, le=360.0, default=0)
+    wavelength_nm: float = Field(ge=0.0, default=0)
 
 
 class GeometryConfig(BaseModel):
-    domain_size_x_km: float = Field(gt=0.0)
-    domain_size_y_km: float = Field(gt=0.0)
-    boundary_condition: Literal["periodic", "open"]
+    domain_size_x_km: float = Field(gt=0.0, default=100)
+    domain_size_y_km: float = Field(gt=0.0, default=100)
+    boundary_condition: Literal["periodic", "open"] = "periodic"
 
 
 class EnvironmentConfig(BaseModel):
-    atmosphere_materials: dict[str, AtmosphereMaterialConfig]
     layers: list[LayerConfig] = Field(min_length=1)
     surface: dict[str, Any]
-    surface_materials: dict[str, SurfaceMaterialConfig]
     geometry: GeometryConfig
+    atmosphere_materials: dict[str, AtmosphereMaterialConfig] = Field(default_factory=dict)
+    surface_materials: dict[str, SurfaceMaterialConfig] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_environment(self) -> "EnvironmentConfig":
@@ -146,11 +166,11 @@ class EnvironmentConfig(BaseModel):
 
 
 class SimConfig(BaseModel):
-    engine: EngineConfig
-    source: SourceConfig
-    output: OutputConfig
-    metadata: MetadataConfig
-    detectors: DetectorConfig
+    engine: EngineConfig = Field(default_factory=EngineConfig)
+    source: SourceConfig = Field(default_factory=SourceConfig)
+    metadata: MetadataConfig = Field(default_factory=MetadataConfig)
+    detectors: DetectorConfig = Field(default_factory=DetectorConfig)
+    output: OutputConfig = Field(default_factory=OutputConfig)
     environment: EnvironmentConfig
     config_path: Path | None = Field(default=None, exclude=True)
 
@@ -168,6 +188,7 @@ class SimConfig(BaseModel):
         """Returns attributes that will be saved to at root in netCDF file."""
         return {
             "experiment_name": self.metadata.experiment_name,
+            "scenario_name": self.metadata.scenario_name,
             "domain_size_x_km": self.environment.geometry.domain_size_x_km,
             "domain_size_y_km": self.environment.geometry.domain_size_y_km,
             "boundary_condition": self.environment.geometry.boundary_condition,

@@ -1,20 +1,20 @@
 import numpy as np
 
-from atmorad.constants import EPSILON, PRECOMPUTED_RESOLUTION
+from atmorad.constants import EPSILON
 from atmorad.registry import register_scattering
 
 
 class Scattering:
-    def __init__(self, pdf_array, resolution):
+    def __init__(self, pdf_array):
         """
         Takes a raw probability density array, normalizes it,
         and computes the Cumulative Distribution Function (CDF) for fast sampling.
         """
-        self.cos_grid = np.linspace(-1, 1, resolution)
+        self.n_precomputed = len(pdf_array)
+        self.cos_grid = np.linspace(-1, 1, self.n_precomputed)
         dx = self.cos_grid[1] - self.cos_grid[0]
         pdf_array = pdf_array / (np.sum(pdf_array) * dx)
         self.distribuant = np.cumsum(pdf_array) * dx
-        self.n_precomputed = resolution
 
     def scatter(self, rand_1, rand_2):
         """Computes sin and cos of theta, phi used for scattering. Uses `np.interp` to obtain reversed cdf values for given rand_1. Samples phi from uniform distribution [0,2pi].
@@ -42,31 +42,54 @@ class Scattering:
 
 @register_scattering("hg")
 class HenyeyGreensteinScattering(Scattering):
-    def __init__(self, g: float, resolution=PRECOMPUTED_RESOLUTION):
+    def __init__(self, g: float):
         self.g = g
-        cos_grid = np.linspace(-1, 1, resolution)
+        pass
 
-        if np.isclose(g, 1.0, atol=EPSILON):
-            pdf = np.isclose(cos_grid, 1.0, atol=EPSILON).astype(float)
-        elif np.isclose(g, -1.0, atol=EPSILON):
-            pdf = np.isclose(cos_grid, -1.0, atol=EPSILON).astype(float)
+    def scatter(self, rand_1, rand_2):
+        if abs(self.g) < EPSILON:
+            cos_theta = 2.0 * rand_1 - 1.0
         else:
-            pdf = (1 - g**2) / (2 * (1 + g**2 - 2 * g * cos_grid) ** 1.5)
+            sq = (1.0 - self.g**2) / (1.0 - self.g + 2.0 * self.g * rand_1)
+            cos_theta = (1.0 + self.g**2 - sq**2) / (2.0 * self.g)
 
-        super().__init__(pdf_array=pdf, resolution=resolution)
+        sin_theta = np.sqrt(1.0 - np.clip(cos_theta**2, 0.0, 1.0))
+        phi = 2.0 * np.pi * rand_2
+        return np.array((cos_theta, sin_theta, np.cos(phi), np.sin(phi)))
+
+    def __call__(self, rand_1, rand_2):
+        return self.scatter(rand_1, rand_2)
 
 
 @register_scattering("isotropic")
 class IsotropicScattering(Scattering):
-    def __init__(self, resolution=PRECOMPUTED_RESOLUTION):
-        cos_grid = np.linspace(-1, 1, resolution)
-        pdf = np.ones_like(cos_grid)
-        super().__init__(pdf_array=pdf, resolution=resolution)
+    def __init__(self):
+        pass
+
+    def scatter(self, rand_1, rand_2):
+        cos_theta = 2.0 * rand_1 - 1.0
+        sin_theta = np.sqrt(1.0 - cos_theta**2)
+
+        phi = 2.0 * np.pi * rand_2
+        return np.array((cos_theta, sin_theta, np.cos(phi), np.sin(phi)))
+
+    def __call__(self, rand_1, rand_2):
+        return self.scatter(rand_1, rand_2)
 
 
 @register_scattering("rayleigh")
 class RayleighScattering(Scattering):
-    def __init__(self, resolution=PRECOMPUTED_RESOLUTION):
-        cos_grid = np.linspace(-1, 1, resolution)
-        pdf = 1.0 + cos_grid**2
-        super().__init__(pdf_array=pdf, resolution=resolution)
+    def __init__(self):
+        pass
+
+    def scatter(self, rand_1, rand_2):
+        u = 2.0 * rand_1 - 1.0
+        w = np.cbrt(2.0 * u + np.sqrt(4.0 * u**2 + 1.0))
+        cos_theta = w - 1.0 / w
+
+        sin_theta = np.sqrt(1.0 - np.clip(cos_theta**2, 0.0, 1.0))
+        phi = 2.0 * np.pi * rand_2
+        return np.array((cos_theta, sin_theta, np.cos(phi), np.sin(phi)))
+
+    def __call__(self, rand_1, rand_2):
+        return self.scatter(rand_1, rand_2)

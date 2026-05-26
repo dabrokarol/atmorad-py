@@ -17,12 +17,12 @@ class PathTrackingDetector(BaseDetector):
         self.scene = scene
         self.toa_z = self.scene.atmosphere.top_of_atmosphere
 
-    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
+    def record_movement(self, batch: PhotonBatch):
         tracked_mask = batch.ids < self.num_track
 
         if np.any(tracked_mask):
             tracked_ids = batch.ids[tracked_mask]
-            tracked_pos = old_pos[:, tracked_mask]
+            tracked_pos = batch.old_pos[:, tracked_mask]
             tracked_w = batch.weight[tracked_mask]
 
             for i, pos, w in zip(tracked_ids, tracked_pos.T, tracked_w):

@@ -8,11 +8,9 @@ X = 0
 Y = 1
 Z = 2
 
-# Scatterings
-PRECOMPUTED_RESOLUTION = 1000
-
 # Runtime
 CHECKPOINT_INTERVAL = 10
 
 # IO
 ACCEPTED_EXTENSIONS = {".toml"}
+TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"

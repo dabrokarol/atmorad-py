@@ -1,4 +1,3 @@
-import datetime
 import logging
 import re
 import shutil
@@ -23,13 +22,17 @@ class DataIO:
     def __init__(self, config: SimConfig) -> None:
         self.config = config
 
-        output_dir = Path(config.output.path)
+        output_dir = Path(config.output.base_dir)
         exp_name = config.metadata.experiment_name.replace(" ", "-")
+        scen_name = config.metadata.scenario_name
+        timestamp = config.metadata.run_timestamp
         resume = config.engine.resume_from_checkpoint
         overwrite = config.output.overwrite
 
         if resume:
-            latest_checkpoint_dir = self._find_latest_checkpoint_dir(output_dir, exp_name)
+            latest_checkpoint_dir = self._find_latest_checkpoint_dir(
+                output_dir, exp_name, scen_name
+            )
             if latest_checkpoint_dir:
                 self.base_dir = latest_checkpoint_dir
                 logging.info(f"Resuming from the most recent directory: {self.base_dir}")
@@ -40,12 +43,17 @@ class DataIO:
             )
 
         if overwrite:
-            self.base_dir = output_dir / f"{exp_name}"
+            self.base_dir = (
+                output_dir / exp_name / scen_name if scen_name else output_dir / exp_name
+            )
             if self.base_dir.exists():
                 shutil.rmtree(self.base_dir)
         else:
-            timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-            self.base_dir = output_dir / f"{exp_name}-{timestamp}"
+            self.base_dir = (
+                output_dir / f"{exp_name}-{timestamp}" / scen_name
+                if scen_name
+                else output_dir / f"{exp_name}-{timestamp}"
+            )
 
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
@@ -61,28 +69,33 @@ class DataIO:
 
         return "\n".join(lines)
 
-    def _find_latest_checkpoint_dir(self, output_dir: Path, exp_name: str) -> Path | None:
-        """Return latest checkpoint dir for exp_name or exp_name-YYYYMMDD-HHMMSS."""
+    def _find_latest_checkpoint_dir(
+        self, output_dir: Path, exp_name: str, scen_name: str
+    ) -> Path | None:
+        """Return latest checkpoint dir for exp_name/scen_name or exp_name-YYYYMMDD-HHMMSS/scen_name."""
         timestamp_pattern = re.compile(r"^\d{8}-\d{6}$")
         valid_dirs = []
+
         for candidate in output_dir.glob(f"{exp_name}-*"):
             if not candidate.is_dir():
                 continue
-            suffix = candidate.name[len(exp_name) + 1 :]
+
+            suffix = candidate.name.removeprefix(f"{exp_name}-")
             if not timestamp_pattern.fullmatch(suffix):
                 continue
-            if (candidate / self.CHECKPOINT_FILE).exists():
-                valid_dirs.append(candidate)
 
-        base_dir = output_dir / exp_name
-        if base_dir.is_dir() and (base_dir / self.CHECKPOINT_FILE).exists():
-            valid_dirs.append(base_dir)
+            scen_dir = candidate / scen_name
+            if (scen_dir / self.CHECKPOINT_FILE).is_file():
+                valid_dirs.append(scen_dir)
 
-        return (  # take the most recent from matching files
-            max(valid_dirs, key=lambda p: (p / self.CHECKPOINT_FILE).stat().st_mtime)
-            if valid_dirs
-            else None
-        )
+        base_scen_dir = output_dir / exp_name / scen_name
+        if base_scen_dir.is_dir() and (base_scen_dir / self.CHECKPOINT_FILE).is_file():
+            valid_dirs.append(base_scen_dir)
+
+        if not valid_dirs:
+            return None
+
+        return max(valid_dirs, key=lambda p: (p / self.CHECKPOINT_FILE).stat().st_mtime)
 
     def save_config_file(self, config_file_path: Path) -> None:
         if not config_file_path.exists():
@@ -138,7 +151,7 @@ class DataIO:
             self.checkpoint_path.unlink()
 
     @classmethod
-    def load_simulation_data(cls, directory: str | Path) -> SimResults:
+    def load_simulation_results(cls, directory: str | Path) -> SimResults:
         dir_path = Path(directory)
         results_path = dir_path / cls.RESULTS_FILE
 

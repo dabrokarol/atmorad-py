@@ -72,10 +72,15 @@ class MCRadiationRunner:
 
         run_start_time = time.perf_counter()
 
+        exp_str = f"{self.context.config.metadata.experiment_name}"
+        scen_str = f"{self.context.config.metadata.scenario_name}"
+        if scen_str:
+            exp_str = f"{exp_str}/{scen_str}"
+
         with tqdm(
             total=total_photons,
             initial=simulated_photons,
-            desc="Simulating Photons",
+            desc=exp_str,
             unit=" photons",
             disable=self.quiet,
             smoothing=0.3,

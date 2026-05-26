@@ -5,6 +5,7 @@ This module provides dictionaries and decorators to register classes so they
 can be dynamically loaded from string names in the configuration files.
 """
 
+import inspect
 from typing import Any
 
 SCATTERING_MODELS: dict[str, Any] = {}
@@ -26,9 +27,29 @@ def register_reflection(name: str):
         Callable: The decorator function that adds the class to REFLECTION_MODELS.
     """
 
-    def wrapper(cls):
-        REFLECTION_MODELS[name] = cls
-        return cls
+    def wrapper(target):
+        if inspect.isclass(target):
+            REFLECTION_MODELS[name] = target
+            return target
+
+        sig = inspect.signature(target)
+
+        expected_params = list(sig.parameters.keys())[
+            3:
+        ]  # Skipping first three (direction, rand_1, rand_2)
+
+        class DynamicReflection:
+            def __init__(self, **kwargs):
+                self.kwargs = {k: v for k, v in kwargs.items() if k in expected_params}
+
+            def reflect(self, direction, rand_1, rand_2):
+                return target(direction, rand_1, rand_2, **self.kwargs)
+
+            def __call__(self, direction, rand_1, rand_2):
+                return self.reflect(direction, rand_1, rand_2)
+
+        REFLECTION_MODELS[name] = DynamicReflection
+        return target
 
     return wrapper
 
@@ -45,9 +66,28 @@ def register_scattering(name: str):
         Callable: The decorator function that adds the class to SCATTERING_MODELS.
     """
 
-    def wrapper(cls):
-        SCATTERING_MODELS[name] = cls
-        return cls
+    def wrapper(target):
+        if inspect.isclass(target):
+            SCATTERING_MODELS[name] = target
+            return target
+
+        sig = inspect.signature(target)
+
+        expected_params = list(sig.parameters.keys())[2:]
+
+        class DynamicScattering:
+            def __init__(self, **kwargs):
+                self.kwargs = {k: v for k, v in kwargs.items() if k in expected_params}
+
+            def scatter(self, rand_1, rand_2):
+                return target(rand_1, rand_2, **self.kwargs)
+
+            def __call__(self, rand_1, rand_2):
+                return self.scatter(rand_1, rand_2)
+
+        SCATTERING_MODELS[name] = DynamicScattering
+
+        return target
 
     return wrapper
 
@@ -66,11 +106,28 @@ def register_surface_map(name: str, material_keys: list[str]):
         Callable: The decorator function that adds the map data to SURFACE_MAPS.
     """
 
-    def decorator(cls):
-        SURFACE_MAPS[name] = {"class": cls, "material_keys": material_keys}
-        return cls
+    def wrapper(target):
 
-    return decorator
+        if inspect.isclass(target):
+            SURFACE_MAPS[name] = {"class": target, "material_keys": material_keys}
+            return target
+
+        sig = inspect.signature(target)
+        expected_params = list(sig.parameters.keys())[1:]  # Skipping 'pos'
+
+        class DynamicSurfaceMap:
+            def __init__(self, **kwargs):
+                self.kwargs = {k: v for k, v in kwargs.items() if k in expected_params}
+
+            def get_material_ids(self, pos):
+                # Call user function
+                return target(pos, **self.kwargs)
+
+        SURFACE_MAPS[name] = {"class": DynamicSurfaceMap, "material_keys": material_keys}
+
+        return target
+
+    return wrapper
 
 
 def register_detector(name: str, result_class: Any):

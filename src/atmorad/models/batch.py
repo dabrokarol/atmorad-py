@@ -13,17 +13,31 @@ class PhotonBatch:
     ids: np.ndarray
     material_ids: np.ndarray
     scatter_counts: np.ndarray
+    active_count: int = 0
+    _old_pos: np.ndarray | None = None
+
+    def __post_init__(self):
+        self.active_count = self.ids.size
+        self._old_pos = np.empty_like(self.pos, dtype=np.float64)
 
     @property
-    def active_count(self):
-        return self.is_active.sum()
+    def size(self):
+        return self.ids.size
+
+    @property
+    def old_pos(self):
+        assert self._old_pos is not None
+        return self._old_pos
 
     def deactivate_photons(self, mask):
+        newly_deactivated = self.is_active & mask
         self.is_active[mask] = False
+        self.active_count -= np.count_nonzero(newly_deactivated)
 
     def shrink_to_active(self):
         self.ids = self.ids[self.is_active]
         self.pos = self.pos[:, self.is_active]
+        self._old_pos = self.old_pos[:, self.is_active]
         self.direction = self.direction[:, self.is_active]
         self.tau_to_travel = self.tau_to_travel[self.is_active]
         self.material_ids = self.material_ids[self.is_active]
@@ -31,3 +45,6 @@ class PhotonBatch:
         self.weight = self.weight[self.is_active]
 
         self.is_active = self.is_active[self.is_active]
+
+    def update_old_pos(self):
+        np.copyto(self.old_pos, self.pos)

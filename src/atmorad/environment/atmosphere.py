@@ -101,15 +101,17 @@ class Atmosphere:
         return new_directions
 
     def process_scattering(
-        self, batch: PhotonBatch, atmosphere_mask: np.ndarray, random_samples: np.ndarray
+        self, batch: PhotonBatch, atmosphere_mask: np.ndarray, rng: np.random.Generator
     ):
         ssas = self.get_ssas(batch.material_ids[atmosphere_mask])
         batch.weight[atmosphere_mask] *= ssas
 
+        n_scat = np.count_nonzero(atmosphere_mask)
+
         cos_theta, sin_theta, cos_phi, sin_phi = self.scatter(
             batch.material_ids[atmosphere_mask],
-            random_samples[1, atmosphere_mask],
-            random_samples[2, atmosphere_mask],
+            rng.random(n_scat),
+            rng.random(n_scat),
         )
 
         batch.direction[:, atmosphere_mask] = rotate(
@@ -121,52 +123,57 @@ class Atmosphere:
     def distance_to_boundary(self, batch: PhotonBatch):
         layer_idx = self._get_layer_idx(batch.pos)
 
-        delta_z = batch.pos[Z] - self.boundaries[layer_idx]
-        travel_up = batch.direction[Z] > 0
-        travel_down = batch.direction[Z] < 0
-        travel_horizontal = batch.direction[Z] == 0
+        pos_z = batch.pos[Z]
+        dir_z = batch.direction[Z]
 
-        lower_bound = self.boundaries[layer_idx]
-        upper_bound = self.boundaries[layer_idx + 1]
+        delta_z = np.empty(batch.pos.shape[1], dtype=float)
 
-        delta_z[travel_up] = upper_bound[travel_up] - batch.pos[Z, travel_up]
-        delta_z[travel_down] = lower_bound[travel_down] - batch.pos[Z, travel_down]
+        travel_up = dir_z > 0
+        travel_down = dir_z < 0
+        travel_horizontal = dir_z == 0
+
+        delta_z[travel_up] = self.boundaries[layer_idx[travel_up] + 1] - pos_z[travel_up]
+        delta_z[travel_down] = self.boundaries[layer_idx[travel_down]] - pos_z[travel_down]
         delta_z[travel_horizontal] = SAFE_INF
 
         return delta_z
 
-    def tau_to_boundary(self, batch: PhotonBatch):
+    def step_to_boundary(self, batch: PhotonBatch):
         delta_z = self.distance_to_boundary(batch)
-        extinction_coeff = self.extinction_coeffs[batch.material_ids]
-        with np.errstate(divide="ignore", invalid="ignore"):
-            tau_to_boundary = np.abs(delta_z / batch.direction[Z]) * extinction_coeff
-        return tau_to_boundary
 
-    def tau_to_distance(self, batch: PhotonBatch, tau):
-        extinction_coeff = self.extinction_coeffs[batch.material_ids]
-        with np.errstate(divide="ignore", invalid="ignore"):
-            distance = tau / extinction_coeff
-        distance[extinction_coeff == 0] = SAFE_INF
-        return distance
+        dist_bound = np.abs(delta_z / batch.direction[Z])
+        ext_coeff = self.extinction_coeffs[batch.material_ids]
+
+        dist_scat = batch.tau_to_travel / ext_coeff
+        dist_move = np.minimum(dist_bound, dist_scat)
+        tau_consumed = dist_move * ext_coeff
+
+        return dist_move, tau_consumed
 
     def above_toa(self, pos):
         return pos[Z] > self.top_of_atmosphere
 
     def adjust_internal_boundaries(self, batch: PhotonBatch):
-        reflected_toa = self.above_toa(batch.pos)
-        batch.pos[:, reflected_toa] += (
-            (self.top_of_atmosphere - batch.pos[Z, reflected_toa])
-            / batch.direction[Z, reflected_toa]
-            * batch.direction[:, reflected_toa]
-        )
-        batch.pos[Z, reflected_toa] = self.top_of_atmosphere + EPSILON
 
-        for boundary_z in self.boundaries:
-            on_boundary_mask = np.isclose(batch.pos[Z], boundary_z, atol=EPSILON)
-            facing_up_mask = on_boundary_mask & (batch.direction[Z] > 0)
-            facing_down_mask = on_boundary_mask & (batch.direction[Z] < 0)
-            batch.pos[Z, facing_up_mask] += EPSILON
-            batch.pos[Z, facing_down_mask] -= EPSILON
+        reflected_toa = self.above_toa(batch.pos)
+        if np.any(reflected_toa):
+            batch.pos[:, reflected_toa] += (
+                (self.top_of_atmosphere - batch.pos[Z, reflected_toa])
+                / batch.direction[Z, reflected_toa]
+                * batch.direction[:, reflected_toa]
+            )
+            ds_toa = EPSILON / (np.abs(batch.direction[Z, reflected_toa]) + 1e-100)
+            batch.pos[:, reflected_toa] += batch.direction[:, reflected_toa] * ds_toa
+
+        diff = np.abs(batch.pos[Z, np.newaxis, :] - self.boundaries[:, np.newaxis])
+        on_boundary_mask = np.any(diff <= EPSILON, axis=0)
+
+        if np.any(on_boundary_mask):
+            dir_z = batch.direction[Z, on_boundary_mask]
+            ds = EPSILON / (np.abs(dir_z) + 1e-100)
+
+            batch.pos[:, on_boundary_mask] += batch.direction[:, on_boundary_mask] * ds
+
         return batch
 
     def get_spatial_indices(self, batch: PhotonBatch):

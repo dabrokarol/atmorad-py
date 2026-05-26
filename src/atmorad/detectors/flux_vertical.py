@@ -23,8 +23,8 @@ class VerticalFluxDetector(BaseDetector):
         self.diff_down = np.zeros(self.measure_z.size + 1, dtype=float)
         self.diff_up = np.zeros(self.measure_z.size + 1, dtype=float)
 
-    def record_movement(self, batch: PhotonBatch, old_pos: np.ndarray):
-        old_z = old_pos[Z]
+    def record_movement(self, batch: PhotonBatch):
+        old_z = batch.old_pos[Z]
         new_z = batch.pos[Z]
         weight = batch.weight
         max_idx = len(self.measure_z) + 1

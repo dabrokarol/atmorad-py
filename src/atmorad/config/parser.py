@@ -6,23 +6,15 @@ import tomllib
 from atmorad.constants import ACCEPTED_EXTENSIONS
 
 from .models import (
-    DetectorConfig,
-    EngineConfig,
-    EnvironmentConfig,
-    GeometryConfig,
-    MetadataConfig,
-    OutputConfig,
     SimConfig,
-    SourceConfig,
 )
 
 CURRENT_DIR = Path(__file__).parent
-DEFAULT_CONFIG_PATH = CURRENT_DIR / "defaults.toml"
 
 
-def _deep_merge_dicts(base: dict, override: dict) -> dict:
+def _deep_merge_dicts(base: dict, scenario: dict) -> dict:
     base_copy = copy.deepcopy(base)
-    for key, value in override.items():
+    for key, value in scenario.items():
         if isinstance(value, dict) and key in base_copy and isinstance(base_copy[key], dict):
             base_copy[key] = _deep_merge_dicts(base_copy[key], value)
         else:
@@ -30,46 +22,59 @@ def _deep_merge_dicts(base: dict, override: dict) -> dict:
     return base_copy
 
 
-def load_config(custom_config_path: Path) -> SimConfig:
-    if not custom_config_path.exists():
-        raise FileNotFoundError(f"Config file not found at {custom_config_path}")
+def _build_single_config(raw_config_data: dict, config_path: Path) -> SimConfig:
+    data = copy.deepcopy(raw_config_data)
 
-    if custom_config_path.suffix.lower() not in ACCEPTED_EXTENSIONS:
+    env_keys = ["atmosphere_materials", "surface_materials", "surface", "geometry"]
+    environment_data = {key: data.pop(key, {}) for key in env_keys}
+    environment_data["layers"] = data.pop("layer", [])
+    data["environment"] = environment_data
+
+    data["config_path"] = config_path
+
+    return SimConfig(**data)
+
+
+def load_scenarios(config_path: Path) -> list[SimConfig]:
+    """Read TOML and returns SimConfig list (base or scenarios)."""
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found at {config_path}")
+
+    if config_path.suffix.lower() not in ACCEPTED_EXTENSIONS:
         raise ValueError(
-            f"Invalid configuration file extension: {custom_config_path.suffix}"
+            f"Invalid configuration file extension: {config_path.suffix}"
             f"Allowed extensions: {', '.join(ACCEPTED_EXTENSIONS)}"
         )
 
-    with open(DEFAULT_CONFIG_PATH, "rb") as f:
-        default_config_data = tomllib.load(f)
+    with open(config_path, "rb") as f:
+        raw_data = tomllib.load(f)
 
-    with open(custom_config_path, "rb") as f:
-        custom_config_data = tomllib.load(f)
+    scenarios = raw_data.pop("scenario", [])
 
-    config_data = _deep_merge_dicts(default_config_data, custom_config_data)
+    if "metadata" not in raw_data:
+        raw_data["metadata"] = {}
 
-    if "surface" not in config_data:
-        raise ValueError("Configuration must include a [surface] definition.")
+    if not scenarios:
+        return [_build_single_config(raw_data, config_path)]
 
-    if "layer" not in config_data or len(config_data["layer"]) == 0:
-        raise ValueError("Configuration must include at least one [[layer]].")
+    configs = []
+    for idx, scenario_dict in enumerate(scenarios):
+        scenario_name = scenario_dict.pop("name", None)
 
-    env_config = EnvironmentConfig(
-        atmosphere_materials=config_data.get("atmosphere_materials", {}),
-        layers=config_data.get("layer", []),
-        surface=config_data.get("surface", {}),
-        surface_materials=config_data.get("surface_materials", {}),
-        geometry=GeometryConfig(**config_data["geometry"]),
-    )
+        base_copy = copy.deepcopy(raw_data)
+        merged_raw = _deep_merge_dicts(base_copy, scenario_dict)
 
-    config = SimConfig(
-        metadata=MetadataConfig(**config_data["metadata"]),
-        engine=EngineConfig(**config_data["engine"]),
-        source=SourceConfig(**config_data["source"]),
-        output=OutputConfig(**config_data["output"]),
-        detectors=DetectorConfig(**config_data["detectors"]),
-        environment=env_config,
-        config_path=custom_config_path,
-    )
+        if not scenario_name:
+            raise ValueError(
+                f"Configuration Error: Found an unnamed [[scenario]] (index {idx}).\n"
+                f"Each scenario has to have an explicit name to ensure organized output files.\n"
+                f"Example:\n"
+                f"  [[scenario]]\n"
+                f'  name = "base_scenario"'
+            )
 
-    return config
+        merged_raw["metadata"]["scenario_name"] = scenario_name
+
+        configs.append(_build_single_config(merged_raw, config_path))
+
+    return configs

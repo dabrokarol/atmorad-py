@@ -81,3 +81,11 @@ name = "circle"
 radius_km = 20
 material_in = "snow"
 material_out = "ocean"
+
+[[scenario]]
+name="test-scenario-1"
+source.theta_sun_deg = 35
+
+[[scenario]]
+name="test-scenario-2"
+source.theta_sun_deg = 55

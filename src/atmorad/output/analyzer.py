@@ -17,6 +17,11 @@ class ResultAnalyzer:
 
     def experiment_summary(self) -> str:
         experiment_name = self.ds.attrs.get("experiment_name", "")
+        scenario_name = self.ds.attrs.get("scenario_name", "")
+
+        if scenario_name:
+            experiment_name = f"{experiment_name}/{scenario_name}"
+
         total_time = self.ds.attrs.get("engine_simulation_time_s", 0.0)
         cpu_time = self.ds.attrs.get("engine_cpu_time_s", 0.0)
         total_photons = int(self.ds.attrs.get("num_photons", 0))
@@ -259,19 +264,19 @@ class ResultAnalyzer:
             if class_name == "surface_absorption":
                 fig = self.plot_surface_absorption_map(prefix)
                 if fig:
-                    yield (fig, f"{prefix}_map.png")
+                    yield (fig, "surface_absorption_map.png")
                     plt.close(fig)
 
             elif class_name == "vertical_flux":
                 fig = self.plot_flux_profile(prefix)
                 if fig:
-                    yield (fig, f"{prefix}_profile.png")
+                    yield (fig, "vertical_flux_profile.png")
                     plt.close(fig)
 
             elif class_name == "path_tracking":
                 fig = self.plot_paths(prefix)
                 if fig:
-                    yield (fig, f"{prefix}_3d.png")
+                    yield (fig, "photon_paths_3d.png")
                     plt.close(fig)
 
             elif class_name == "plane_flux":
@@ -307,5 +312,5 @@ class ResultAnalyzer:
                 if hasattr(self, "plot_absorption_profile"):
                     fig = self.plot_absorption_profile(prefix)
                     if fig:
-                        yield (fig, f"{prefix}_profile.png")
+                        yield (fig, "absorption_profile.png")
                         plt.close(fig)

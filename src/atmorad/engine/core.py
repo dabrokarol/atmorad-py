@@ -57,6 +57,8 @@ class Engine:
             self.detectors[det_name] = detector_class(self.scene, self.config)
 
     def run(self):
+        np.seterr(divide="ignore", invalid="ignore")
+
         self._initialize_detectors()
         batch = self._init_arrays()
 
@@ -68,22 +70,17 @@ class Engine:
         while batch.active_count > 0:
             logging.debug(f"Active photons: {batch.active_count}")
 
-            tau_to_boundary = scene.tau_to_boundary(batch)
+            batch.update_old_pos()
 
-            new_tau_to_travel = np.where(
-                tau_to_boundary < batch.tau_to_travel, tau_to_boundary, batch.tau_to_travel
-            )
+            batch, dist_moved, tau_consumed = scene.move_photons(batch)
 
-            old_pos = batch.pos.copy()
-            batch = scene.move_photons(batch, new_tau_to_travel)
+            batch.tau_to_travel -= tau_consumed
 
             for det in self.detectors.values():
-                det.record_movement(batch, old_pos)
+                det.record_movement(batch)
 
-            batch.tau_to_travel -= new_tau_to_travel
-            scatter_mask = np.isclose(batch.tau_to_travel, 0, atol=EPSILON)
+            scatter_mask = batch.tau_to_travel <= EPSILON
             surface_mask = self.scene.at_surface(batch.pos)
-
             in_atmosphere_mask = self.scene.in_atmosphere(batch.pos)
 
             new_layer_mask = ~scatter_mask & in_atmosphere_mask
@@ -91,11 +88,10 @@ class Engine:
                 batch.pos[:, new_layer_mask], rng
             )
 
-            random_sample = rng.uniform(0, 1, size=(3, batch.active_count))
             old_direction = batch.direction.copy()
             old_weight = batch.weight.copy()
 
-            batch = scene.process_interactions(batch, scatter_mask, surface_mask, random_sample)
+            batch = scene.process_interactions(batch, scatter_mask, surface_mask, rng)
 
             for det in self.detectors.values():
                 det.record_interaction(
@@ -110,8 +106,9 @@ class Engine:
             exceeded_scatterings_mask = batch.scatter_counts > MAX_SCATTERINGS
             if exceeded_scatterings_mask.any():
                 logging.warning(
-                    f"Killing {np.count_nonzero(exceeded_scatterings_mask)} photons. "
-                    f"Scattered more than {MAX_SCATTERINGS} times."
+                    "Killing %d photons. Scattered more than %d times.",
+                    np.count_nonzero(exceeded_scatterings_mask),
+                    MAX_SCATTERINGS,
                 )
 
             new_tau_rand = self.random_tau(np.count_nonzero(scatter_mask))
