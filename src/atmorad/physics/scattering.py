@@ -1,20 +1,20 @@
 import numpy as np
 
-from atmorad.constants import EPSILON, PRECOMPUTED_RESOLUTION
+from atmorad.constants import EPSILON
 from atmorad.registry import register_scattering
 
 
 class Scattering:
-    def __init__(self, pdf_array, resolution):
+    def __init__(self, pdf_array):
         """
         Takes a raw probability density array, normalizes it,
         and computes the Cumulative Distribution Function (CDF) for fast sampling.
         """
-        self.cos_grid = np.linspace(-1, 1, resolution)
+        self.n_precomputed = len(pdf_array)
+        self.cos_grid = np.linspace(-1, 1, self.n_precomputed)
         dx = self.cos_grid[1] - self.cos_grid[0]
         pdf_array = pdf_array / (np.sum(pdf_array) * dx)
         self.distribuant = np.cumsum(pdf_array) * dx
-        self.n_precomputed = resolution
 
     def scatter(self, rand_1, rand_2):
         """Computes sin and cos of theta, phi used for scattering. Uses `np.interp` to obtain reversed cdf values for given rand_1. Samples phi from uniform distribution [0,2pi].
@@ -42,12 +42,12 @@ class Scattering:
 
 @register_scattering("hg")
 class HenyeyGreensteinScattering(Scattering):
-    def __init__(self, g: float, resolution=PRECOMPUTED_RESOLUTION):
+    def __init__(self, g: float):
         self.g = g
         pass
 
     def scatter(self, rand_1, rand_2):
-        if np.isclose(self.g, 0.0, atol=EPSILON):
+        if self.g < EPSILON:
             cos_theta = 2.0 * rand_1 - 1.0
         else:
             sq = (1.0 - self.g**2) / (1.0 - self.g + 2.0 * self.g * rand_1)
@@ -63,7 +63,7 @@ class HenyeyGreensteinScattering(Scattering):
 
 @register_scattering("isotropic")
 class IsotropicScattering(Scattering):
-    def __init__(self, resolution=PRECOMPUTED_RESOLUTION):
+    def __init__(self):
         pass
 
     def scatter(self, rand_1, rand_2):
@@ -79,7 +79,7 @@ class IsotropicScattering(Scattering):
 
 @register_scattering("rayleigh")
 class RayleighScattering(Scattering):
-    def __init__(self, resolution=PRECOMPUTED_RESOLUTION):
+    def __init__(self):
         pass
 
     def scatter(self, rand_1, rand_2):
