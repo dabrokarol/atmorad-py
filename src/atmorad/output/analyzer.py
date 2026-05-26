@@ -259,13 +259,13 @@ class ResultAnalyzer:
             if class_name == "surface_absorption":
                 fig = self.plot_surface_absorption_map(prefix)
                 if fig:
-                    yield (fig, f"surface_absorption_map.png")
+                    yield (fig, "surface_absorption_map.png")
                     plt.close(fig)
 
             elif class_name == "vertical_flux":
                 fig = self.plot_flux_profile(prefix)
                 if fig:
-                    yield (fig, f"vertical_flux_profile.png")
+                    yield (fig, "vertical_flux_profile.png")
                     plt.close(fig)
 
             elif class_name == "path_tracking":
@@ -307,5 +307,5 @@ class ResultAnalyzer:
                 if hasattr(self, "plot_absorption_profile"):
                     fig = self.plot_absorption_profile(prefix)
                     if fig:
-                        yield (fig, f"absorption_profile.png")
+                        yield (fig, "absorption_profile.png")
                         plt.close(fig)
