@@ -11,7 +11,7 @@ from atmorad.constants import X
 from atmorad.physics import orientation
 
 
-# 1. Register a custom surface map 
+# 1. Register a custom surface map
 @register_surface_map("custom-stripe-y", ["material_name_a", "material_name_b"])
 def stripe_y_map(pos: np.ndarray, stripe_width_km: float) -> np.ndarray:
     """Returns 0 for material A, 1 for material B."""
@@ -21,8 +21,9 @@ def stripe_y_map(pos: np.ndarray, stripe_width_km: float) -> np.ndarray:
 
 # 2. Register a custom surface reflection
 @register_reflection("custom-reflection")
-def custom_reflection(direction: np.ndarray, rand_1: np.ndarray, rand_2: np.ndarray, 
-                      param_1: float, param_2: float) -> np.ndarray:
+def custom_reflection(
+    direction: np.ndarray, rand_1: np.ndarray, rand_2: np.ndarray, param_1: float, param_2: float
+) -> np.ndarray:
     """
     Cosine-weighted hemispherical sampling.
     Note: param_1 and param_2 are injected directly from TOML.
@@ -31,7 +32,7 @@ def custom_reflection(direction: np.ndarray, rand_1: np.ndarray, rand_2: np.ndar
     sin_theta = np.sqrt(1.0 - rand_1)
 
     phi = rand_2 * 2 * np.pi
-    
+
     return orientation(cos_theta, sin_theta, np.cos(phi), np.sin(phi))
 
 

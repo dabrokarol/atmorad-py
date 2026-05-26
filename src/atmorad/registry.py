@@ -33,8 +33,10 @@ def register_reflection(name: str):
             return target
 
         sig = inspect.signature(target)
-        
-        expected_params = list(sig.parameters.keys())[3:] # Skipping first three (direction, rand_1, rand_2)
+
+        expected_params = list(sig.parameters.keys())[
+            3:
+        ]  # Skipping first three (direction, rand_1, rand_2)
 
         class DynamicReflection:
             def __init__(self, **kwargs):
