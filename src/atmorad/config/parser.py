@@ -51,18 +51,20 @@ def load_scenarios(config_path: Path) -> list[SimConfig]:
 
     scenarios = raw_data.pop("scenario", [])
 
+    if "metadata" not in raw_data:
+        raw_data["metadata"] = {}
+
     if not scenarios:
         return [_build_single_config(raw_data, config_path)]
 
     configs = []
     for idx, scenario_dict in enumerate(scenarios):
+        scenario_name = scenario_dict.pop("name", None)
+
         base_copy = copy.deepcopy(raw_data)
-
-        custom_name = scenario_dict.pop("name", None)
-
         merged_raw = _deep_merge_dicts(base_copy, scenario_dict)
 
-        if not custom_name:
+        if not scenario_name:
             raise ValueError(
                 f"Configuration Error: Found an unnamed [[scenario]] (index {idx}).\n"
                 f"Each scenario has to have an explicit name to ensure organized output files.\n"
@@ -71,10 +73,7 @@ def load_scenarios(config_path: Path) -> list[SimConfig]:
                 f'  name = "base_scenario"'
             )
 
-        if "metadata" not in merged_raw:
-            merged_raw["metadata"] = {}
-
-        merged_raw["metadata"]["experiment_name"] = custom_name
+        merged_raw["metadata"]["scenario_name"] = scenario_name
 
         configs.append(_build_single_config(merged_raw, config_path))
 

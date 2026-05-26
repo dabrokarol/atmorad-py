@@ -1,9 +1,11 @@
+import datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from atmorad.constants import TIMESTAMP_FORMAT
 from atmorad.registry import (
     DETECTORS,
     REFLECTION_MODELS,
@@ -61,18 +63,23 @@ class LayerConfig(BaseModel):
 
 
 def get_engine_version() -> str:
-    """Retrieves package version."""
     try:
         return version("atmorad-py")
     except PackageNotFoundError:
         return "unknown-dev"
 
 
+def generate_timestamp() -> str:
+    return datetime.datetime.now().strftime(TIMESTAMP_FORMAT)
+
+
 class MetadataConfig(BaseModel):
     experiment_name: str = "default"
+    scenario_name: str = ""
     description: str = ""
-    config_version: str = "1.0"
+    config_version: str = "1.1"
     software_version: str = Field(default_factory=get_engine_version)
+    run_timestamp: str = Field(default_factory=generate_timestamp)
 
 
 class DetectorConfig(BaseModel):
@@ -181,6 +188,7 @@ class SimConfig(BaseModel):
         """Returns attributes that will be saved to at root in netCDF file."""
         return {
             "experiment_name": self.metadata.experiment_name,
+            "scenario_name": self.metadata.scenario_name,
             "domain_size_x_km": self.environment.geometry.domain_size_x_km,
             "domain_size_y_km": self.environment.geometry.domain_size_y_km,
             "boundary_condition": self.environment.geometry.boundary_condition,

@@ -114,5 +114,22 @@ material_out = "ocean"
 # material_a = "snow"
 # material_b = "ocean"
 
-# to implement a custom surface map, scattering function, reflection function
-# see examples
+
+# batch experiments
+# append multiple [[scenario]] blocks (one per simulation) to run a series of experiments
+
+# overrides the solar angle to 30 degrees
+# [[scenario]]
+# name = "sun_30"
+# source.theta_sun_deg = 30
+
+# overrides both the solar angle and the photon count
+# [[scenario]]
+# name = "sun_60"
+# engine.num_photons = 500_000
+# source.theta_sun_deg = 60
+
+# overrides russian roulette treshold
+# [[scenario]]
+# name = "no_roulette"
+# engine.photon_weight_threshold = 0

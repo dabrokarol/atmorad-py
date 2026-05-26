@@ -391,7 +391,7 @@ if __name__ == "__main__":
 Simulation results and configurations can be loaded into a Python environment (e.g., Jupyter Notebook) for further analysis in two ways:
 
 ### 1. Using the built-in `atmorad.load()`
-This method loads both the exact configuration used (a `SimConfig` instance) and results of the simulation (a `SimulationResults` instance).
+This method loads both the exact configuration used (a `SimConfig` instance) and results of the simulation (a `SimResults` instance).
 
 <!-- [[[cog
 import cog
@@ -455,4 +455,4 @@ total_reflected_energy = ds.attrs["fate_energy_reflected_toa"]
 - Large Language Models were used for code debugging and architectural decisions (e.g., configuration parsing, public API design).
 
 ## Contributing
-Feel free to open an [Issue](https://github.com/dabrokarol/atmorad-py/issues) or submit a Pull Request to report bugs, suggest new features and ask questions :D
+Feel free to open an [Issue](https://github.com/dabrokarol/atmorad-py/issues) or submit a Pull Request to report bugs, suggest new features and ask questions :))
