@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from atmorad.config import EnvironmentConfig, GeometryConfig, load_config
+from atmorad.config import EnvironmentConfig, GeometryConfig, load_scenarios
 from atmorad.environment import (
     Atmosphere,
     AtmosphericLayer,
@@ -89,11 +89,14 @@ def _build_scene(env_config: EnvironmentConfig):
     return Scene(surface, Atmosphere(layers))
 
 
-def build_context(config_path: Path | str) -> SimContext:
+def build_context_list(config_path: Path | str) -> list[SimContext]:
     path = Path(config_path).resolve()
 
-    config = load_config(path)
+    config_list = load_scenarios(path)
 
-    scene = _build_scene(config.environment)
+    context_list = []
+    for config in config_list:
+        scene = _build_scene(config.environment)
+        context_list.append(SimContext(config=config, scene=scene))
 
-    return SimContext(config=config, scene=scene)
+    return context_list

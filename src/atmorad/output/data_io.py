@@ -40,7 +40,7 @@ class DataIO:
             )
 
         if overwrite:
-            self.base_dir = output_dir / f"{exp_name}"
+            self.base_dir = output_dir / exp_name
             if self.base_dir.exists():
                 shutil.rmtree(self.base_dir)
         else:
@@ -138,7 +138,7 @@ class DataIO:
             self.checkpoint_path.unlink()
 
     @classmethod
-    def load_simulation_data(cls, directory: str | Path) -> SimResults:
+    def load_simulation_results(cls, directory: str | Path) -> SimResults:
         dir_path = Path(directory)
         results_path = dir_path / cls.RESULTS_FILE
 

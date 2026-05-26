@@ -7,7 +7,7 @@ from atmorad.config.models import (
     SimConfig,
     SourceConfig,
 )
-from atmorad.config.parser import load_config
+from atmorad.config.parser import load_scenarios
 
 __all__ = [
     "SimConfig",
@@ -17,6 +17,6 @@ __all__ = [
     "EngineConfig",
     "OutputConfig",
     "EnvironmentConfig",
-    "load_config",
+    "load_scenarios",
 ]
 import atmorad.detectors  # to ensure default detectors are registered

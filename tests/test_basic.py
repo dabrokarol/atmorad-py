@@ -2,9 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from pydantic import ValidationError
 
-from atmorad.config.models import AtmosphereMaterialConfig, SurfaceMaterialConfig
 from atmorad.engine import MCRadiationRunner
 from atmorad.models.results import FateResult, IncidentFluxMapResult, SurfaceAbsorptionResult
 

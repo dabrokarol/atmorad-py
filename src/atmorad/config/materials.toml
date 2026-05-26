@@ -1,8 +1,0 @@
-[surface_materials.default_surface]
-albedo = 0.5
-reflection = {type = "lambertian"}
-
-[atmosphere_materials.default_air]
-extinction_coeff_per_km = 0.01
-ssa = 0.9
-scattering = {type = "isotropic"}

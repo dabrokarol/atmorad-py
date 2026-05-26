@@ -10,12 +10,11 @@ from .models import (
 )
 
 CURRENT_DIR = Path(__file__).parent
-MATERIALS_CONFIG_PATH = CURRENT_DIR / "materials.toml"
 
 
-def _deep_merge_dicts(base: dict, override: dict) -> dict:
+def _deep_merge_dicts(base: dict, scenario: dict) -> dict:
     base_copy = copy.deepcopy(base)
-    for key, value in override.items():
+    for key, value in scenario.items():
         if isinstance(value, dict) and key in base_copy and isinstance(base_copy[key], dict):
             base_copy[key] = _deep_merge_dicts(base_copy[key], value)
         else:
@@ -23,28 +22,60 @@ def _deep_merge_dicts(base: dict, override: dict) -> dict:
     return base_copy
 
 
-def load_config(custom_config_path: Path) -> SimConfig:
-    if not custom_config_path.exists():
-        raise FileNotFoundError(f"Config file not found at {custom_config_path}")
+def _build_single_config(raw_config_data: dict, config_path: Path) -> SimConfig:
+    data = copy.deepcopy(raw_config_data)
 
-    if custom_config_path.suffix.lower() not in ACCEPTED_EXTENSIONS:
+    env_keys = ["atmosphere_materials", "surface_materials", "surface", "geometry"]
+    environment_data = {key: data.pop(key, {}) for key in env_keys}
+    environment_data["layers"] = data.pop("layer", [])
+    data["environment"] = environment_data
+
+    data["config_path"] = config_path
+
+    return SimConfig(**data)
+
+
+def load_scenarios(config_path: Path) -> list[SimConfig]:
+    """Read TOML and returns SimConfig list (base or scenarios)."""
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found at {config_path}")
+
+    if config_path.suffix.lower() not in ACCEPTED_EXTENSIONS:
         raise ValueError(
-            f"Invalid configuration file extension: {custom_config_path.suffix}"
+            f"Invalid configuration file extension: {config_path.suffix}"
             f"Allowed extensions: {', '.join(ACCEPTED_EXTENSIONS)}"
         )
 
-    with open(MATERIALS_CONFIG_PATH, "rb") as f:
-        materials_config_data = tomllib.load(f)
+    with open(config_path, "rb") as f:
+        raw_data = tomllib.load(f)
 
-    with open(custom_config_path, "rb") as f:
-        custom_config_data = tomllib.load(f)
+    scenarios = raw_data.pop("scenario", [])
 
-    config_data = _deep_merge_dicts(materials_config_data, custom_config_data)
+    if not scenarios:
+        return [_build_single_config(raw_data, config_path)]
 
-    env_keys = ["atmosphere_materials", "surface_materials", "surface", "geometry"]
-    environment_data = {key: config_data.pop(key, {}) for key in env_keys}
-    environment_data["layers"] = config_data.pop("layer", [])
-    config_data["environment"] = environment_data
-    config_data["config_path"] = custom_config_path
+    configs = []
+    for idx, scenario_dict in enumerate(scenarios):
+        base_copy = copy.deepcopy(raw_data)
 
-    return SimConfig(**config_data)
+        custom_name = scenario_dict.pop("name", None)
+
+        merged_raw = _deep_merge_dicts(base_copy, scenario_dict)
+
+        if not custom_name:
+            raise ValueError(
+                f"Configuration Error: Found an unnamed [[scenario]] (index {idx}).\n"
+                f"Each scenario has to have an explicit name to ensure organized output files.\n"
+                f"Example:\n"
+                f"  [[scenario]]\n"
+                f'  name = "base_scenario"'
+            )
+
+        if "metadata" not in merged_raw:
+            merged_raw["metadata"] = {}
+
+        merged_raw["metadata"]["experiment_name"] = custom_name
+
+        configs.append(_build_single_config(merged_raw, config_path))
+
+    return configs

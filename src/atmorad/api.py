@@ -1,42 +1,44 @@
 from pathlib import Path
 
-from .builder import build_context
+from .builder import build_context_list
 from .engine import MCRadiationRunner
+from .models import SimResults
 from .output import DataIO, ResultAnalyzer
 
 
-def save_all_figures(analyzer, data_io):
-    for fig, relative_path in analyzer.generate_all_figures():
-        data_io.save_figure(fig, relative_path)
-
-
-def run(config_path: str | Path, quiet: bool = False):
-    """High-level API to run the simulation."""
+def run(config_path: str | Path, quiet: bool = False) -> list[SimResults] | SimResults:
     path = Path(config_path).resolve()
-    context = build_context(path)
+    context_list = build_context_list(path)
 
-    data_io = DataIO(context.config)
-    runner = MCRadiationRunner(
-        context,
-        quiet=quiet,
-        on_checkpoint=data_io.save_checkpoint,
-        on_finish=data_io.save_simulation_run,
-        load_checkpoint_fn=data_io.load_checkpoint,
-        on_cleanup=data_io.delete_checkpoint,
-    )
+    results_list = []
 
-    runner.run()
-    results = runner.get_results()
+    for context in context_list:
+        data_io = DataIO(context.config)
 
-    analyzer = ResultAnalyzer(results.to_dataset(normalize=True))
-    if context.config.output.save_plots:
-        save_all_figures(analyzer, data_io)
+        runner = MCRadiationRunner(
+            context,
+            quiet=quiet,
+            on_checkpoint=data_io.save_checkpoint,
+            on_finish=data_io.save_simulation_run,
+            load_checkpoint_fn=data_io.load_checkpoint,
+            on_cleanup=data_io.delete_checkpoint,
+        )
 
-    if not quiet:
-        print("\n".join((analyzer.experiment_summary(), data_io.output_summary())))
+        runner.run()
+        results = runner.get_results()
+        results_list.append(results)
 
-    return results
+        analyzer = ResultAnalyzer(results.to_dataset(normalize=True))
+
+        if context.config.output.save_plots:
+            for fig, relative_path in analyzer.generate_all_figures():
+                data_io.save_figure(fig, relative_path)
+
+        if not quiet:
+            print("\n".join((analyzer.experiment_summary(), data_io.output_summary())))
+
+    return results_list[0] if len(results_list) == 1 else results_list
 
 
-def load(directory: Path | str):
-    return DataIO.load_simulation_data(directory)
+def load(directory: Path | str) -> SimResults:
+    return DataIO.load_simulation_results(Path(directory).resolve())

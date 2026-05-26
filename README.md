@@ -197,10 +197,25 @@ material_out = "ocean"
 
 </details>
 
+### Running Multiple Scenarios:
+You can run batch experiments by appending [[scenario]] blocks to the end of your TOML file. You can override any base variable using dot-notation.
+```toml
+# Overrides the solar angle to 30 degrees
+[[scenario]]
+name = "sun_30"
+source.theta_sun_deg = 30
+
+# Overrides both the solar angle and the photon count
+[[scenario]]
+name = "sun_60"
+engine.num_photons = 500_000
+source.theta_sun_deg = 60
+```
+
 ## Customization (Registry Pattern)
 <details>
 <summary>
-AtmoRad uses a registry pattern, allowing users to define custom surface maps, reflection algorithms, scattering phase functions, and detectors using decorators.</summary>
+AtmoRad uses a registry pattern, allowing users to define custom surface maps, reflection algorithms, scattering phase functions, and detectors using decorators (click to expand).</summary>
 
 ### Custom Materials and Geometries
 <!-- [[[cog
