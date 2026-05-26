@@ -34,7 +34,7 @@ active = [ # list of supported detectors
 ]
 # spatial resolution for bins in detectors
 vertical_profiles_resolution_km = 0.2
-horizontal_maps_resolution_km = 0.5
+horizontal_maps_resolution_km = 1.0
 num_full_paths = 200 # 100 photon paths will be saved to results
 flux_maps_z_levels_km = [0.0, 4.0, 10.0] # planes at which vertical flux will be counted
 
