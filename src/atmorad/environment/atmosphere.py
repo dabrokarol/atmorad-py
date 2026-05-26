@@ -3,7 +3,7 @@ from typing import Sequence
 
 import numpy as np
 
-from atmorad.constants import EPSILON, SAFE_INF, Z
+from atmorad.constants import EPSILON, SAFE_INF, Z, SAFE_DIVISION
 from atmorad.models import PhotonBatch
 from atmorad.physics import Scattering, rotate
 

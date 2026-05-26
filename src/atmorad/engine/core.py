@@ -57,7 +57,7 @@ class Engine:
             self.detectors[det_name] = detector_class(self.scene, self.config)
 
     def run(self):
-        np.seterr(divide="ignore", invalid="ignore")
+        old_err = np.seterr(divide="ignore", invalid="ignore")
 
         self._initialize_detectors()
         batch = self._init_arrays()
@@ -72,7 +72,7 @@ class Engine:
 
             batch.update_old_pos()
 
-            batch, dist_moved, tau_consumed = scene.move_photons(batch)
+            batch, tau_consumed = scene.move_photons(batch)
 
             batch.tau_to_travel -= tau_consumed
 
@@ -142,6 +142,8 @@ class Engine:
 
             batch.deactivate_photons(terminated_mask)
             batch.shrink_to_active()
+
+        np.seterr(**old_err)
 
         end_time = time.process_time()
 

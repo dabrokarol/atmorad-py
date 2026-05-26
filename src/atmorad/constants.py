@@ -1,7 +1,8 @@
 # Engine
 EPSILON = 1e-10
 MAX_SCATTERINGS = 100_000
-SAFE_INF = 1e10
+SAFE_INF = 1e40
+SAFE_DIVISION = 1e-12
 
 # Nametags
 X = 0
