@@ -132,4 +132,4 @@ material_out = "ocean"
 # overrides russian roulette treshold
 # [[scenario]]
 # name = "no_roulette"
-# engine.photon_weight_threshold = 0
+# engine.photon_weight_threshold = 0.0
