@@ -1,6 +1,7 @@
 # AtmoRad
 ## A vectorized Monte Carlo simulation of atmospheric radiative transfer.
 
+[![PyPI version](https://img.shields.io/pypi/v/atmorad-py.svg?color=blue)](https://pypi.org/project/atmorad-py/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Physics: Radiative Transfer](https://img.shields.io/badge/Physics-Radiative_Transfer-ff8c00)](#)
