@@ -3,6 +3,14 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Physics: Radiative Transfer](https://img.shields.io/badge/Physics-Radiative_Transfer-ff8c00)](#)
+[![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white)](https://numpy.org/)
+[![xarray](https://img.shields.io/badge/xarray-000000?logo=xarray&logoColor=white)](https://xarray.dev/)
+[![h5netcdf](https://img.shields.io/badge/h5netcdf-4B8BBE)](https://github.com/h5netcdf/h5netcdf)
+[![uv](https://img.shields.io/badge/uv-Fast_Python_Packaging-DE5FE9)](https://docs.astral.sh/uv/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![pytest](https://img.shields.io/badge/pytest-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/)
+[![CI](https://github.com/dabrokarol/atmorad-py/actions/workflows/ci.yml/badge.svg)](https://github.com/dabrokarol/atmorad-py/actions)
 
 | **2D Surface absorption map** | **Sample photon paths** |
 | :--- | :--- |
@@ -11,7 +19,7 @@
 | ![profile](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/vertical_flux_profile.png)| ![hist](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/absorption_profile.png) |
 
 ## Overview
-AtmoRad is a simple tool written in Python for simulating radiative transfer of monochromatic light over a mixed 2D surface and a plane-parallel atmosphere using the Monte Carlo method. It Currently it is developed as a hobby project to learn computational physics and software development practices. 
+AtmoRad is a Python tool for simulating the radiative transfer of monochromatic light over a mixed 2D surface and a plane-parallel atmosphere. I started it as a hobby project during lectures of Radiative Processes in the Atmosphere at the Faculty of Physics, University of Warsaw to learn computational physics and software development. 
 
 ## Installation
 
@@ -35,34 +43,41 @@ Initialize a default configuration file in your current directory:
 Run the simulation:
 ```bash
 > atmorad simulation.toml
-Simulating Photons: 100%|█████████████████████████████| 100000/100000 [00:04<00:00, 20454.69 photons/s]
+demo001/baseline: 100%|███████████████████████████████| 400000/400000 [00:10<00:00, 37632.74 photons/s]
 
----- Simulation Summary: demo001 ----
-Time: 4.89s (Total) | 4.86s (CPU)
-Total Photons / Energy: 100_000
+---- Simulation Summary: demo001/baseline ----
+Time: 10.63s (Total) | 35.49s (CPU)
+Simulated Photons: 400_000
 
 Energy Distribution:
-  Reflected (TOA)      :  63.40%
-  Surface Absorbed     :  35.33%
-  Atmosphere Absorbed  :   1.26%
+  Outgoing (TOA)         :  64.35%
+  Surface Absorption     :  33.57%
+  Atmospheric Absorption :   2.08%
   ------------------------------
-  Energy Balance       : 100.00%
+  Energy Conservation    : 100.00%
 
 Outputs saved to: results/demo001/
-  ├─ metadata.json
-  ├─ data.nc
-  └─ runtime_config.toml
+  └─ atmorad_demo001_baseline.nc
 
 ```
 *Check the `results/` directory for generated simulation artifacts and plots.*
 
 ## Features & Physical Model
-- **Vectorized Monte Carlo Approach**: As Python is not the fastest programming language, **NumPy** is used to process photons in large batches in parallel.
+- **Vectorized Monte Carlo Approach**: To fight Python's weak performance, uses **NumPy** and **multiprocessing** for fast and parallel processing of photons in large batches.
 - **3D Radiative Transfer in Plane-Parallel Approximation**: The atmosphere consists of horizontally uniform layers, but photon paths are tracked in fully 3D space over a 2D surface.
 - **Multi-Material Atmospheric Layers**: Layers can consist of multiple atmospheric materials simultaneously. Each material defines its own extinction coefficient, SSA, and phase function (built-in Rayleigh and Henyey-Greenstein, or custom).
+- **Two Scattering Mechanisms**: Supports photon scattering using analytical inverse phase functions as well as numerical inverse CDFs for custom distributions.
 - **Surface Reflections**: The surface consists of materials with specific albedos, predefined BRDF reflection models (`lambertian`, `specular`), and a `ProceduralMap` mapping material IDs to spatial coordinates.
-- **Photon Properties**: Light is treated as monochromatic, non-polarized particles that can be scattered, reflected, or absorbed.
-- **Checkpointing & Data Formats**: Supports resuming from checkpoints in case of interruption. Results are stored in the **NetCDF/HDF5** standard. Results are self-contained in a single.nc file.
+- **Photon Properties**: Light is treated as monochromatic, non-polarized, weighted particles that can be scattered, reflected, and partially absorbed.
+- **Checkpointing & Data Formats**: Supports resuming from checkpoints in case of interruption. Results are stored in the **NetCDF/HDF5** standard. Results are self-contained in a single `.nc` file.
+
+## Roadmap
+I'm planning to include more features in the future, such as:
+- Delta tracking for arbitrary 3D cloud geometries.
+- Wavelength-dependent optical properties of materials.
+- Roughness parameter in specular reflection and other BRDF models.
+- 3D surface topography.
+- Spherical geometry for high zenith angles and whole-Earth simulations.
 
 ## Configuration
 
@@ -230,7 +245,7 @@ source.theta_sun_deg = 60
 ## Custom Physics & Geometries
 <details>
 <summary>
-AtmoRad uses a registry pattern, to let users define custom surface maps, reflection algorithms, scattering phase functions, and detectors using decorators (click to expand).</summary>
+AtmoRad allows you to easily inject custom surface maps, reflection models, scattering phase functions, and detectors using decorators (click to expand).</summary>
 
 ### Custom Materials and Geometries
 <!-- [[[cog
@@ -452,6 +467,13 @@ total_reflected_energy = ds.attrs["fate_energy_outgoing_toa"]
 
 ```
 <!-- [[[end]]] -->
+
+### 3. Extracting configuration file from results
+Each data `.nc`  file contains configuration data used to run the simulation. You can extract it by running:
+```bash
+atmorad --extract-config <path-to-data.nc>
+```
+This method created an <exp_name>_<scen_name>_config.toml file in your working directory.
 
 ## Project Structure
 - `engine/`: Handles photon batching and runs the main simulation loop.
