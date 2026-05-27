@@ -3,17 +3,17 @@ experiment_name = "adjacency001"
 description = "Demo showcasing adjacency effect"
 
 [engine]
-num_photons = 1_000_000
-batch_size = 100_000
+num_photons = 10_000_000
+batch_size = 200_000
 cpu_cores = 4
-resume_from_checkpoint = true
+resume_from_checkpoint = false
 
 [source]
-theta_sun_deg = 30
+theta_sun_deg = 0
 
 [geometry]
-domain_size_x_km = 100
-domain_size_y_km = 100
+domain_size_x_km = 10
+domain_size_y_km = 10
 
 [detectors]
 active = [
@@ -24,13 +24,11 @@ active = [
     "plane_flux", 
     "surface_absorption"
 ]
-
-num_full_paths = 0
-flux_maps_z_levels_km = [0, 4.0]
+horizontal_maps_resolution_km = 0.1
+flux_maps_z_levels_km = [0, 1.0, 2.0, 3.0]
 
 [output]
-save_incident_flux_maps = true
-overwrite = true
+overwrite = false
 save_plots = true
 
 [surface_materials.snow]
@@ -47,12 +45,37 @@ scattering = {type = "hg", g = 0.85}
 
 
 [[layer]]
-thickness_km = 4
-materials = [
-    {type = "material_1", weight = 1.0}
+thickness_km = 10
+components = [
+    {material = "material_1", concentration = 1.0}
 ]
 
 [surface]
 name = "split_half_x"
 material_left = "snow"
 material_right = "ocean"
+
+
+[[scenario]]
+name="tau-1"
+atmosphere_materials.material_1.extinction_coeff_per_km = 0.1
+
+[[scenario]]
+name="tau-2.5"
+atmosphere_materials.material_1.extinction_coeff_per_km = 0.25
+
+[[scenario]]
+name="tau-5"
+atmosphere_materials.material_1.extinction_coeff_per_km = 0.5
+
+[[scenario]]
+name="tau-10"
+atmosphere_materials.material_1.extinction_coeff_per_km = 1
+
+[[scenario]]
+name="tau-25"
+atmosphere_materials.material_1.extinction_coeff_per_km = 2.5
+
+[[scenario]]
+name="tau-50"
+atmosphere_materials.material_1.extinction_coeff_per_km = 5
