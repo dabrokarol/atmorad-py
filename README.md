@@ -11,7 +11,7 @@
 | ![profile](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/vertical_flux_profile.png)| ![hist](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/absorption_profile.png) |
 
 ## Overview
-AtmoRad is a Python framework for 3D atmospheric radiative transfer simulations over a 2D heterogeneous surface and plane-parallel atmosphere using the Monte Carlo method. It leverages `numpy` for efficient batch-photon processing and implements a modular plugin architecture. The project was developed to learn computational physics and software engineering practices.
+AtmoRad is a simple tool written in Python for simulating radiative transfer of monochromatic light over a mixed 2D surface and a plane-parallel atmosphere using the Monte Carlo method. It Currently it is developed as a hobby project to learn computational physics and software development practices. 
 
 ## Installation
 
@@ -57,12 +57,12 @@ Outputs saved to: results/demo001/
 *Check the `results/` directory for generated simulation artifacts and plots.*
 
 ## Features & Physical Model
-- **Weight-Based Monte Carlo Approach**: Each photon packet carries a weight representing energy. Upon interaction with the atmosphere or surface, the weight is incrementally reduced according to the Single Scattering Albedo (SSA) or surface albedo.
+- **Vectorized Monte Carlo Approach**: As Python is not the fastest programming language, **NumPy** is used to process photons in large batches in parallel.
 - **3D Radiative Transfer in Plane-Parallel Approximation**: The atmosphere consists of horizontally uniform layers, but photon paths are tracked in fully 3D space over a 2D surface.
 - **Multi-Material Atmospheric Layers**: Layers can consist of multiple atmospheric materials simultaneously. Each material defines its own extinction coefficient, SSA, and phase function (built-in Rayleigh and Henyey-Greenstein, or custom).
 - **Surface Reflections**: The surface consists of materials with specific albedos, predefined BRDF reflection models (`lambertian`, `specular`), and a `ProceduralMap` mapping material IDs to spatial coordinates.
 - **Photon Properties**: Light is treated as monochromatic, non-polarized particles that can be scattered, reflected, or absorbed.
-- **Resilience & I/O**: Supports resuming from checkpoints in case of interruption. Results are stored in the NetCDF/HDF5 standard for multidimensional array data.
+- **Checkpointing & Data Formats**: Supports resuming from checkpoints in case of interruption. Results are stored in the **NetCDF/HDF5** standard. Results are self-contained in a single.nc file.
 
 ## Configuration
 
@@ -213,7 +213,7 @@ material_out = "ocean"
 </details>
 
 ### Running Multiple Scenarios:
-You can run batch experiments by appending [[scenario]] blocks to the end of your TOML file. You can override any base variable using dot-notation.
+You can run multiple scenarios by appending [[scenario]] blocks to the end of your TOML file. You can override any base variable using dot-notation.
 ```toml
 # Overrides the solar angle to 30 degrees
 [[scenario]]
@@ -227,10 +227,10 @@ engine.num_photons = 500_000
 source.theta_sun_deg = 60
 ```
 
-## Customization (Registry Pattern)
+## Custom Physics & Geometries
 <details>
 <summary>
-AtmoRad uses a registry pattern, allowing users to define custom surface maps, reflection algorithms, scattering phase functions, and detectors using decorators (click to expand).</summary>
+AtmoRad uses a registry pattern, to let users define custom surface maps, reflection algorithms, scattering phase functions, and detectors using decorators (click to expand).</summary>
 
 ### Custom Materials and Geometries
 <!-- [[[cog
@@ -326,7 +326,7 @@ material_name_b = "ocean"
 
 ### Custom Detectors
 
-It is possible to define custom detectors that 
+You can define custom detectors that record photon movement, interaction (scattering, reflection) and termination. It is also possible to create a class inheriting from 'BaseResult' which will allow for easy auto-saving to netcdf.   
 <!-- [[[cog
 import cog
 cog.out(f'\n```python\n{open("examples/custom_detector.py").read()}\n```')
@@ -403,7 +403,7 @@ if __name__ == "__main__":
 </details>
 
 ## Loading Results
-Simulation results and configurations can be loaded into a Python environment (e.g., Jupyter Notebook) for further analysis in two ways:
+Simulation results and configurations can be loaded in Python (e.g., Jupyter Notebook) for further analysis in two ways:
 
 ### 1. Using the built-in `atmorad.load()`
 This method loads both the exact configuration used (a `SimConfig` instance) and results of the simulation (a `SimResults` instance).
@@ -433,7 +433,7 @@ plt.show()
 <!-- [[[end]]] -->
 
 ### 2. Using standard NetCDF libraries
-Because AtmoRad saves data in the standard NetCDF4/HDF5 format, you can read the `data.nc` file directly using widely available scientific libraries such as `xarray` or `netCDF4`.
+Because AtmoRad saves data in the standard NetCDF4/HDF5 format, you can read the `data.nc` file directly using libraries like `xarray` or `netCDF4`.
 
 <!-- [[[cog
 import cog
@@ -454,11 +454,12 @@ total_reflected_energy = ds.attrs["fate_energy_outgoing_toa"]
 <!-- [[[end]]] -->
 
 ## Project Structure
-- `engine/`: Handles photon batching and executes the main simulation loop.
+- `engine/`: Handles photon batching and runs the main simulation loop.
 - `physics/`: Contains rotation functions, scattering phase functions, and reflection models.
-- `environment/`: Manages the environment state (`Scene`, `Atmosphere`, `Surface`).
+- `environment/`: Manages the environment (`Scene`, `Atmosphere`, `Surface`).
 - `detectors/`: Implements photon tracking and result generation.
-- `output/`: Handles NetCDF exports and figure generation.
+- `models/`: Defines base classes used throughout the program (and extensive 'results.py' for parsing netcdf).
+- `output/`: Handles data IO and figure generation.
 - `config/`: Parses `.toml` configuration files and constructs the simulation context.
 - `cli.py`: Command-line interface entry point.
 
@@ -466,8 +467,8 @@ total_reflected_energy = ds.attrs["fate_energy_outgoing_toa"]
 - (in Polish) Script for Lecture about [Radiative Processes in the Atmosphere](https://www.igf.fuw.edu.pl/~kmark/stacja/wyklady/ProcesyRadiacyjne/2013/WykladRadiacjaKlimat.pdf), Prof. K. Markowicz, Faculty of Physics, University of Warsaw, 2013.
 
 ## Acknowledgments
-- This project was inspired by the lectures on *Radiative Processes in the Atmosphere* by Prof. K. Markowicz, Faculty of Physics, University of Warsaw.
-- Large Language Models were used for code debugging and architectural decisions (e.g., configuration parsing, public API design).
+- I created this project inspired by the lectures on *Radiative Processes in the Atmosphere* by Prof. K. Markowicz, Faculty of Physics, University of Warsaw.
+- I used Large Language Models for code debugging (quite a lot) and architectural decisions (e.g., how to structure the repository, which packages to use, how to save and read data).
 
 ## Contributing
 Feel free to open an [Issue](https://github.com/dabrokarol/atmorad-py/issues) or submit a Pull Request to report bugs, suggest new features and ask questions :))
