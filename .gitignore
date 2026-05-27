@@ -8,5 +8,7 @@ fig/*
 build/
 dist/
 results*/
+plots*/
+fig*/
 *.png
 *.npz   
