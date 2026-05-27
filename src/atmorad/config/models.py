@@ -176,9 +176,7 @@ class SimConfig(BaseModel):
     config_path: Path | None = Field(default=None, exclude=True)
 
     def is_compatible_for_resume(self, checkpoint_config: "SimConfig") -> bool:
-        excluded_fields = {
-            "engine": {"num_photons", "batch_size", "cpu_cores", "resume_from_checkpoint"}
-        }
+        excluded_fields = {"metadata", "output"}
 
         current_dict = self.model_dump(exclude=excluded_fields)
         checkpoint_dict = checkpoint_config.model_dump(exclude=excluded_fields)

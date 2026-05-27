@@ -13,7 +13,6 @@ from atmorad.models.results import SimResults
 class DataIO:
     """Handles all file system operations: saving results, config, and checkpoints."""
 
-    CHECKPOINT_FILE = "checkpoint.nc"
     NETCDF_ENGINE = "h5netcdf"
 
     def __init__(self, config: SimConfig) -> None:
@@ -23,6 +22,7 @@ class DataIO:
         self.exp_name = meta.experiment_name.replace(" ", "-")
         self.scen_name = meta.scenario_name
         self.results_filename = f"atmorad_{self.exp_name}_{self.scen_name}.nc"
+        self.checkpoint_filename = f"{self.scen_name}-checkpoint.nc"
 
         output_dir = config.output.base_dir
         fig_dir = config.output.fig_dir
@@ -35,9 +35,11 @@ class DataIO:
         self.results_filename = f"atmorad_{self.exp_name}_{self.scen_name}.nc"
 
         if resume:
-            latest_checkpoint_dir = self._find_latest_checkpoint_dir(output_dir)
+            latest_checkpoint_dir = self._find_compatible_checkpoint_dir(output_dir)
             if latest_checkpoint_dir:
                 self.base_dir = latest_checkpoint_dir
+                self.fig_dir = fig_dir / latest_checkpoint_dir.name
+                self.fig_dir.mkdir(parents=True, exist_ok=True)
                 logging.info(f"Resuming from the most recent directory: {self.base_dir}")
                 return
 
@@ -50,8 +52,8 @@ class DataIO:
         else:
             run_folder_name = f"{self.exp_name}-{timestamp}"
 
-        self.base_dir = output_dir / run_folder_name
         self.fig_dir = fig_dir / run_folder_name
+        self.base_dir = output_dir / run_folder_name
 
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.fig_dir.mkdir(parents=True, exist_ok=True)
@@ -63,7 +65,8 @@ class DataIO:
             lines.append(f"  {'└─' if i == len(files) - 1 else '├─'} {filename}")
         return "\n".join(lines)
 
-    def _find_latest_checkpoint_dir(self, output_dir: Path) -> Path | None:
+    def _generate_candidate_dirs(self, output_dir: Path):
+        """Yields valid directories sorted from newest to oldest."""
         timestamp_pattern = re.compile(r"^\d{8}-\d{6}$")
         valid_dirs = []
 
@@ -75,18 +78,43 @@ class DataIO:
             if not timestamp_pattern.fullmatch(suffix):
                 continue
 
-            scen_dir = candidate / self.scen_name
-            if (scen_dir / self.CHECKPOINT_FILE).is_file():
-                valid_dirs.append(scen_dir)
+            if (candidate / self.checkpoint_filename).is_file() or (
+                candidate / self.results_filename
+            ).is_file():
+                valid_dirs.append(candidate)
 
-        base_scen_dir = output_dir / self.exp_name / self.scen_name
-        if base_scen_dir.is_dir() and (base_scen_dir / self.CHECKPOINT_FILE).is_file():
-            valid_dirs.append(base_scen_dir)
+        base_dir = output_dir / self.exp_name
+        if base_dir.is_dir():
+            if (base_dir / self.checkpoint_filename).is_file() or (
+                base_dir / self.results_filename
+            ).is_file():
+                valid_dirs.append(base_dir)
 
-        if not valid_dirs:
-            return None
+        valid_dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
 
-        return max(valid_dirs, key=lambda p: (p / self.CHECKPOINT_FILE).stat().st_mtime)
+        for d in valid_dirs:
+            yield d
+
+    def _find_compatible_checkpoint_dir(self, output_dir: Path) -> Path | None:
+        """Iterates through candidate directories until a compatible one is found."""
+        for candidate in self._generate_candidate_dirs(output_dir):
+            file_to_check = candidate / self.results_filename
+            if not file_to_check.exists():
+                file_to_check = candidate / self.checkpoint_filename
+
+            logging.debug(f"Checking compatibility for candidate: {candidate.name}")
+
+            loaded_results = self._load_nc_file(file_to_check)
+
+            if loaded_results is not None:
+                if loaded_results.config is not None:
+                    if self.config.is_compatible_for_resume(loaded_results.config):
+                        logging.debug(f"Compatible checkpoint found in: {candidate.name}")
+                        return candidate
+                    else:
+                        logging.debug(f"Skipped {candidate.name}: configuration mismatch.")
+
+        return None
 
     def save_simulation_run(self, results: SimResults) -> None:
         results_path = self.base_dir / self.results_filename
@@ -108,7 +136,7 @@ class DataIO:
 
     @property
     def checkpoint_path(self) -> Path:
-        return self.base_dir / self.CHECKPOINT_FILE
+        return self.base_dir / self.checkpoint_filename
 
     def save_checkpoint(self, results: SimResults) -> None:
         tmp_path = self.checkpoint_path.with_suffix(".nc.tmp")
@@ -118,11 +146,22 @@ class DataIO:
         shutil.move(tmp_path, self.checkpoint_path)
 
     def load_checkpoint(self) -> SimResults | None:
-        if not self.checkpoint_path.exists():
+        """Loads simulation state from a completed results file or a checkpoint."""
+        finished_path = self.base_dir / self.results_filename
+        if finished_path.exists():
+            return self._load_nc_file(finished_path)
+
+        if self.checkpoint_path.exists():
+            return self._load_nc_file(self.checkpoint_path)
+
+        return None
+
+    def _load_nc_file(self, path: Path) -> SimResults | None:
+        if not path.exists():
             return None
 
         try:
-            with xr.open_dataset(self.checkpoint_path, engine=self.NETCDF_ENGINE) as ds:
+            with xr.open_dataset(path, engine=self.NETCDF_ENGINE) as ds:
                 ds.load()
                 return SimResults.from_dataset(ds)
         except (OSError, ValueError):

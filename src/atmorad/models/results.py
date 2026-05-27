@@ -159,21 +159,32 @@ class BaseResult(ABC):
 
     @classmethod
     def from_dataset(cls, ds: xr.Dataset, prefix: str) -> Self:
-        """Reconstructs the result object from a loaded xarray.Dataset."""
+        """Reconstructs the result object from a loaded xarray.Dataset, automatically denormalizing if needed."""
+        is_normalized = bool(ds.attrs.get("is_normalized", 0))
+        n_photons = int(ds.attrs.get("num_photons", 1))
+
         kwargs = {}
         for f in fields(cls):
-            if not f.metadata:
+            meta = f.metadata
+            if not meta:
                 continue
 
-            nc_name = f.metadata.get("nc_name", f.name)
+            nc_name = meta.get("nc_name", f.name)
             full_name = f"{prefix}_{nc_name}"
 
             if full_name in ds.data_vars:
-                kwargs[f.name] = ds[full_name].values
+                val = ds[full_name].values
             elif full_name in ds.coords:
-                kwargs[f.name] = ds.coords[full_name].values
+                val = ds.coords[full_name].values
             elif full_name in ds.attrs:
-                kwargs[f.name] = ds.attrs[full_name]
+                val = ds.attrs[full_name]
+            else:
+                continue
+
+            if is_normalized and meta.get("normalize", False) and n_photons > 1:
+                val = val * n_photons
+
+            kwargs[f.name] = val
 
         return cls(**kwargs)
 
@@ -294,7 +305,7 @@ class SimResults:
             engine_result=self.engine_result.merge(other.engine_result),
             detector_results=merged_detectors,
             total_photons=self.total_photons + other.total_photons,
-            config=self.config,
+            config=self.config or other.config,
         )
 
     def to_dataset(self, normalize: bool = False) -> xr.Dataset:
@@ -306,6 +317,7 @@ class SimResults:
             "engine_cpu_time_s": self.engine_result.cpu_time_s,
             "engine_simulation_time_s": self.engine_result.simulation_time_s,
             "num_photons": self.total_photons,
+            "is_normalized": int(normalize),
             "_detector_types": json.dumps(
                 {
                     det_id: getattr(det_res, "_registry_id", type(det_res).__name__)

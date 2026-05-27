@@ -6,7 +6,7 @@ description = "Demo showcasing adjacency effect"
 num_photons = 10_000_000
 batch_size = 200_000
 cpu_cores = 4
-resume_from_checkpoint = false
+resume_from_checkpoint = true
 
 [source]
 theta_sun_deg = 0
