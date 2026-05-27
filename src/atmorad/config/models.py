@@ -106,7 +106,8 @@ class OutputConfig(BaseModel):
         default=True,
         description="If true, generates and saves standard PNG plots for all active default detectors.",
     )
-    base_dir: Path | str = "results"
+    base_dir: Path = Path("results")
+    fig_dir: Path = Path("plots")
 
 
 class EngineConfig(BaseModel):

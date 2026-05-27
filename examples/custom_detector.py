@@ -18,7 +18,7 @@ from atmorad import (
 class FateResult(BaseResult):
     energy_absorbed_surface: float = nc_attr(normalize=True)
     energy_absorbed_atmosphere: float = nc_attr(normalize=True)
-    energy_reflected_toa: float = nc_attr(normalize=True)
+    energy_outgoing_toa: float = nc_attr(normalize=True)
 
 
 # 2. Implement the detector logic
@@ -30,14 +30,14 @@ class FateDetector(BaseDetector):
         self.escaped_toa = 0.0
         self.scene = scene
 
-    def record_interaction(self, batch, old_direction, old_weight, scatter_mask, surface_mask):
+    def record_interaction(self, batch, scatter_mask, surface_mask):
         # Calculate deposited energy by subtracting the photon's new weight from its old weight.
         if np.any(scatter_mask):
-            deposited = old_weight[scatter_mask] - batch.weight[scatter_mask]
+            deposited = batch.old_weight[scatter_mask] - batch.weight[scatter_mask]
             self.absorbed_atmosphere += np.sum(deposited)
 
         if np.any(surface_mask):
-            deposited = old_weight[surface_mask] - batch.weight[surface_mask]
+            deposited = batch.old_weight[surface_mask] - batch.weight[surface_mask]
             self.absorbed_surface += np.sum(deposited)
 
     def record_termination(self, batch, terminated_mask):
@@ -55,7 +55,7 @@ class FateDetector(BaseDetector):
         return FateResult(
             energy_absorbed_surface=self.absorbed_surface,
             energy_absorbed_atmosphere=self.absorbed_atmosphere,
-            energy_escaped_toa=self.escaped_toa,
+            energy_outgoing_toa=self.escaped_toa,
         )
 
 

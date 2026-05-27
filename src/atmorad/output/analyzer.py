@@ -264,19 +264,19 @@ class ResultAnalyzer:
             if class_name == "surface_absorption":
                 fig = self.plot_surface_absorption_map(prefix)
                 if fig:
-                    yield (fig, "surface_absorption_map.png")
+                    yield (fig, "surface_absorption_map")
                     plt.close(fig)
 
             elif class_name == "vertical_flux":
                 fig = self.plot_flux_profile(prefix)
                 if fig:
-                    yield (fig, "vertical_flux_profile.png")
+                    yield (fig, "vertical_flux_profile")
                     plt.close(fig)
 
             elif class_name == "path_tracking":
                 fig = self.plot_paths(prefix)
                 if fig:
-                    yield (fig, "photon_paths_3d.png")
+                    yield (fig, "photon_paths_3d")
                     plt.close(fig)
 
             elif class_name == "plane_flux":
@@ -296,7 +296,7 @@ class ResultAnalyzer:
                             incident_down[i], x_centers, y_centers, title=title_down
                         )
                         if fig_down:
-                            yield (fig_down, f"{prefix}/downward_z_{z_val:g}km.png")
+                            yield (fig_down, f"{prefix}-downward_z_{z_val:g}km")
                             plt.close(fig_down)
 
                         # Upward Flux Plot
@@ -305,12 +305,12 @@ class ResultAnalyzer:
                             incident_up[i], x_centers, y_centers, title=title_up
                         )
                         if fig_up:
-                            yield (fig_up, f"{prefix}/upward_z_{z_val:g}km.png")
+                            yield (fig_up, f"{prefix}-upward_z_{z_val:g}km")
                             plt.close(fig_up)
 
             elif class_name == "absorption_vertical":
                 if hasattr(self, "plot_absorption_profile"):
                     fig = self.plot_absorption_profile(prefix)
                     if fig:
-                        yield (fig, "absorption_profile.png")
+                        yield (fig, "absorption_profile")
                         plt.close(fig)
