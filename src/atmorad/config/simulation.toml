@@ -73,20 +73,18 @@ scattering = {type = "hg", g = 0.85}
 
 [[layer]] ## double square brackets are used for a list item
 thickness_km = 2
-materials = [{type = "air", weight = 1.0}]
+components = [{material = "air", concentration = 1.0}]
 
 [[layer]]
 thickness_km = 4
-# when multiple materials are provided, collision material 
-# is randomly sampled when photon enters this atmospheric layer.
-materials = [
-    {type = "air", weight = 0.1},
-    {type = "dark_clouds", weight = 0.9}
+components = [
+    {material = "air", concentration = 1.0},
+    {material = "dark_clouds", concentration = 0.9}
 ]
 
 [[layer]]
 thickness_km = 4
-materials = [{type = "air", weight = 1.0}]
+components = [{material = "air", concentration = 1.0}]
 
 # [[layer]] ... more layers can be added
 
