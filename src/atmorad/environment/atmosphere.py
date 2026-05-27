@@ -90,16 +90,22 @@ class Atmosphere:
             layer_idx, component_idx
         ]  # array of column numbers, array of row numbers
 
-    def scatter(self, medium_ids, rand_theta, rand_phi):
-        cos_theta = np.zeros_like(rand_theta)
-        sin_theta = np.zeros_like(rand_theta)
-        cos_phi = np.zeros_like(rand_phi)
-        sin_phi = np.zeros_like(rand_phi)
+    def scatter(self, medium_ids, rng: np.random.Generator):
+        cos_theta = np.zeros_like(medium_ids, dtype=float)
+        sin_theta = np.zeros_like(medium_ids, dtype=float)
+        cos_phi = np.zeros_like(medium_ids, dtype=float)
+        sin_phi = np.zeros_like(medium_ids, dtype=float)
 
         for i, scat in enumerate(self.phase_functions):
             mask_i = medium_ids == i
-            if np.any(mask_i):
-                ct, st, cp, sp = scat(rand_theta[mask_i], rand_phi[mask_i])
+            count = np.count_nonzero(mask_i)
+
+            if count > 0:
+                rand_theta = rng.random(count)
+                rand_phi = rng.random(count)
+
+                ct, st, cp, sp = scat(rand_theta, rand_phi)
+
                 cos_theta[mask_i] = ct
                 sin_theta[mask_i] = st
                 cos_phi[mask_i] = cp
@@ -115,11 +121,11 @@ class Atmosphere:
 
         n_scat = np.count_nonzero(scatter_mask)
 
-        cos_theta, sin_theta, cos_phi, sin_phi = self.scatter(
-            batch.material_ids[scatter_mask],
-            rng.random(n_scat),
-            rng.random(n_scat),
-        )
+        active_pos = batch.pos[:, scatter_mask]
+        rand_component = rng.uniform(0, 1, n_scat)
+        collision_materials = self.get_material_ids(active_pos, rand_component)
+
+        cos_theta, sin_theta, cos_phi, sin_phi = self.scatter(collision_materials, rng)
 
         batch.direction[:, scatter_mask] = rotate(
             batch.direction[:, scatter_mask], cos_theta, sin_theta, cos_phi, sin_phi
