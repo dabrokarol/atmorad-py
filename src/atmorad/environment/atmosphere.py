@@ -3,7 +3,7 @@ from typing import Sequence
 
 import numpy as np
 
-from atmorad.constants import GEOM_EPSILON, NUM_EPSILON, Z
+from atmorad.constants import BOUNDARY_EPSILON, ZERO_TOLERANCE, Z
 from atmorad.models import PhotonBatch
 from atmorad.physics import Scattering, rotate
 
@@ -27,13 +27,16 @@ class AtmosphericLayer:
         self.extinction_coeff = sum(
             medium.extinction_coeff * concentration for medium, concentration in components
         )
-        self.ssa = (
-            sum(
-                medium.ssa * medium.extinction_coeff * concentration
-                for medium, concentration in components
+        if self.extinction_coeff < ZERO_TOLERANCE:
+            self.ssa = 0
+        else:
+            self.ssa = (
+                sum(
+                    medium.ssa * medium.extinction_coeff * concentration
+                    for medium, concentration in components
+                )
+                / self.extinction_coeff
             )
-            / self.extinction_coeff
-        )
         self.components = components
 
 
@@ -141,9 +144,9 @@ class Atmosphere:
 
         delta_z = np.empty(batch.pos.shape[1], dtype=float)
 
-        travel_up = dir_z > 0
-        travel_down = dir_z < 0
-        travel_horizontal = dir_z == 0
+        travel_up = dir_z > ZERO_TOLERANCE
+        travel_down = dir_z < -ZERO_TOLERANCE
+        travel_horizontal = np.abs(dir_z) <= ZERO_TOLERANCE
 
         delta_z[travel_up] = self.boundaries[layer_idx[travel_up] + 1] - pos_z[travel_up]
         delta_z[travel_down] = self.boundaries[layer_idx[travel_down]] - pos_z[travel_down]
@@ -159,24 +162,24 @@ class Atmosphere:
 
         if np.any(escaped_toa):
             dir_z = batch.direction[Z, escaped_toa]
-            safe_mask = dir_z > NUM_EPSILON
+            safe_mask = dir_z > ZERO_TOLERANCE
 
             d = np.zeros_like(dir_z)
             d[safe_mask] = (
-                (self.top_of_atmosphere + GEOM_EPSILON) - batch.pos[Z, escaped_toa][safe_mask]
+                (self.top_of_atmosphere + BOUNDARY_EPSILON) - batch.pos[Z, escaped_toa][safe_mask]
             ) / dir_z[safe_mask]
             batch.pos[:, escaped_toa] += d * batch.direction[:, escaped_toa]
 
         # calculate distance to all boundaries
         diff = np.abs(batch.pos[Z, np.newaxis, :] - self.boundaries[:, np.newaxis])
-        on_boundary_mask = np.any(diff <= GEOM_EPSILON, axis=0)
+        on_boundary_mask = np.any(diff <= BOUNDARY_EPSILON, axis=0)
 
         if np.any(on_boundary_mask):
             dir_z = batch.direction[Z, on_boundary_mask]
-            safe_mask = np.abs(dir_z) > NUM_EPSILON
+            safe_mask = np.abs(dir_z) > ZERO_TOLERANCE
 
             d = np.zeros_like(dir_z)
-            d[safe_mask] = GEOM_EPSILON / np.abs(dir_z[safe_mask])
+            d[safe_mask] = BOUNDARY_EPSILON / np.abs(dir_z[safe_mask])
             batch.pos[:, on_boundary_mask] += batch.direction[:, on_boundary_mask] * d
 
         return batch

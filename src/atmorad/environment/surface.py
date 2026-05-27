@@ -4,7 +4,7 @@ from typing import Sequence
 
 import numpy as np
 
-from atmorad.constants import GEOM_EPSILON, NUM_EPSILON, X, Y, Z
+from atmorad.constants import BOUNDARY_EPSILON, ZERO_TOLERANCE, X, Y, Z
 from atmorad.models import PhotonBatch
 from atmorad.physics import SurfaceReflection
 
@@ -93,13 +93,13 @@ class FlatSurface(BaseSurface):
             -batch.pos[Z],
             batch.direction[Z],
             out=np.full(batch.active_count, np.inf),
-            where=(batch.direction[Z] < -NUM_EPSILON),
+            where=(batch.direction[Z] < -ZERO_TOLERANCE),
         )
 
     def adjust_surface_boundary(self, batch: PhotonBatch):
         below_ground_mask = self.crossed_ground(batch.pos)
         batch.pos[:, below_ground_mask] += (
-            (0 - batch.pos[Z, below_ground_mask] + GEOM_EPSILON)
+            (0 - batch.pos[Z, below_ground_mask] + BOUNDARY_EPSILON)
             / batch.direction[Z, below_ground_mask]
             * batch.direction[:, below_ground_mask]
         )

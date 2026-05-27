@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 from atmorad.config import SimConfig
-from atmorad.constants import MAX_SCATTERINGS, NUM_EPSILON, PBAR_THRESHOLD
+from atmorad.constants import MAX_SCATTERINGS, PBAR_THRESHOLD, ZERO_TOLERANCE
 from atmorad.detectors import BaseDetector
 from atmorad.environment.scene import Scene
 from atmorad.models import EngineResult, PhotonBatch, SimResults
@@ -82,7 +82,7 @@ class Engine:
             for det in self.detectors.values():
                 det.record_movement(batch)
 
-            scatter_mask = (batch.tau_to_travel <= NUM_EPSILON) & scene.in_atmosphere(batch.pos)
+            scatter_mask = (batch.tau_to_travel <= ZERO_TOLERANCE) & scene.in_atmosphere(batch.pos)
             surface_mask = self.scene.at_surface(batch.pos)
 
             batch = scene.process_interactions(batch, scatter_mask, surface_mask, rng)

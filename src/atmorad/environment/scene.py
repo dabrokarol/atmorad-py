@@ -1,6 +1,6 @@
 import numpy as np
 
-from atmorad.constants import NUM_EPSILON, X, Y, Z
+from atmorad.constants import ZERO_TOLERANCE, X, Y, Z
 from atmorad.models import PhotonBatch
 from atmorad.physics import sun_zenith_to_direction
 
@@ -73,7 +73,7 @@ class Scene:
     def move_photons(self, batch: PhotonBatch):
         ext_coeff = self.atmosphere.get_extinction_coeffs(batch.pos)
         dist_scatter = np.full(batch.active_count, np.inf)
-        valid_ext = ext_coeff > NUM_EPSILON
+        valid_ext = ext_coeff > ZERO_TOLERANCE
 
         dist_scatter[valid_ext] = batch.tau_to_travel[valid_ext] / ext_coeff[valid_ext]
         dist_boundary = self.atmosphere.distance_to_boundary(batch)
