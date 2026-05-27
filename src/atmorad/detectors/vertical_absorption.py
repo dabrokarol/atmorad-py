@@ -25,15 +25,13 @@ class AbsorptionProfileDetector(BaseDetector):
     def record_interaction(
         self,
         batch: PhotonBatch,
-        old_direction: np.ndarray,
-        old_weight: np.ndarray,
         scatter_mask: np.ndarray,
         surface_mask: np.ndarray,
     ):
         if not np.any(scatter_mask):
             return
 
-        deposited_energy = old_weight[scatter_mask] - batch.weight[scatter_mask]
+        deposited_energy = batch.old_weight[scatter_mask] - batch.weight[scatter_mask]
         hit_z = batch.pos[2, scatter_mask]
 
         layer_indices = (hit_z / self.spacing).astype(np.int64)

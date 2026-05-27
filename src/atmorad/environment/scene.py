@@ -1,6 +1,6 @@
 import numpy as np
 
-from atmorad.constants import X, Y, Z
+from atmorad.constants import NUM_EPSILON, X, Y, Z
 from atmorad.models import PhotonBatch
 from atmorad.physics import sun_zenith_to_direction
 
@@ -28,10 +28,8 @@ class Scene:
             random_samples: Array of shape (3, N) containing uniform random numbers
                             for interaction type, theta, and phi respectively.
         """
-        atmosphere_mask = self.in_atmosphere(batch.pos) & scatter_mask
-
-        if np.any(atmosphere_mask):
-            batch = self.atmosphere.process_scattering(batch, atmosphere_mask, rng)
+        if np.any(scatter_mask):
+            batch = self.atmosphere.process_scattering(batch, scatter_mask, rng)
 
         if np.any(surface_mask):
             batch = self.surface.process_reflection(batch, surface_mask, rng)
@@ -73,12 +71,21 @@ class Scene:
         return self.atmosphere.get_material_ids(pos, rand_component)
 
     def move_photons(self, batch: PhotonBatch):
-        dist_move, tau_consumed = self.atmosphere.step_to_boundary(batch)
+        ext_coeff = self.atmosphere.get_extinction_coeffs(batch.pos)
+        dist_scatter = np.full(batch.active_count, np.inf)
+        valid_ext = ext_coeff > NUM_EPSILON
+
+        dist_scatter[valid_ext] = batch.tau_to_travel[valid_ext] / ext_coeff[valid_ext]
+        dist_boundary = self.atmosphere.distance_to_boundary(batch)
+        dist_surface = self.surface.distance_to_surface(batch)
+        dist_move = np.minimum.reduce([dist_scatter, dist_boundary, dist_surface])
 
         batch.pos += batch.direction * dist_move
-        batch = self.adjust_to_boundary_conditions(batch)
 
-        return batch, dist_move, tau_consumed
+        tau_consumed = dist_move * ext_coeff
+
+        batch = self.adjust_to_boundary_conditions(batch)
+        return batch, tau_consumed
 
     def get_final_photon_position_data(self, pos):
         return self.above_toa(pos), self.at_surface(pos), self.atmosphere.get_spatial_indices(pos)

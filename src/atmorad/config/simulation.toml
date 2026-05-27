@@ -14,7 +14,7 @@ photon_weight_threshold = 1e-4
 photon_survival_chance = 0.1    # 10% chance to survive with 10x multiplied weight
 
 [source]
-theta_sun_deg = 30           # solar zenith angle (0 = directly upwards)
+theta_sun_deg = 30           # solar zenith angle (0 = directly downwards)
 phi_sun_deg = 0              # solar azimuth angle
 wavelength_nm = 530          # only for reference, wavelength-dependent parameters are not implemented yet
 

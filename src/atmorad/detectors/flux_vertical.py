@@ -27,7 +27,7 @@ class VerticalFluxDetector(BaseDetector):
         old_z = batch.old_pos[Z]
         new_z = batch.pos[Z]
         weight = batch.weight
-        max_idx = len(self.measure_z) + 1
+        max_idx = self.measure_z.size + 1
 
         down_mask = new_z < old_z
         if np.any(down_mask):
@@ -41,8 +41,8 @@ class VerticalFluxDetector(BaseDetector):
             idx_start = np.clip(idx_start, 0, max_idx)
             idx_end = np.clip(idx_end, 0, max_idx)
 
-            start_bins = np.bincount(idx_start, weights=w_down, minlength=max_idx)
-            end_bins = np.bincount(idx_end, weights=w_down, minlength=max_idx)
+            start_bins = np.bincount(idx_start, weights=w_down, minlength=max_idx)[:max_idx]
+            end_bins = np.bincount(idx_end, weights=w_down, minlength=max_idx)[:max_idx]
 
             self.diff_down += start_bins
             self.diff_down -= end_bins
@@ -59,8 +59,8 @@ class VerticalFluxDetector(BaseDetector):
             idx_start = np.clip(idx_start, 0, max_idx)
             idx_end = np.clip(idx_end, 0, max_idx)
 
-            start_bins = np.bincount(idx_start, weights=w_up, minlength=max_idx)
-            end_bins = np.bincount(idx_end, weights=w_up, minlength=max_idx)
+            start_bins = np.bincount(idx_start, weights=w_up, minlength=max_idx)[:max_idx]
+            end_bins = np.bincount(idx_end, weights=w_up, minlength=max_idx)[:max_idx]
 
             self.diff_up += start_bins
             self.diff_up -= end_bins

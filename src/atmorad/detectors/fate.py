@@ -16,13 +16,14 @@ class FateDetector(BaseDetector):
         self.escaped_toa = 0.0
         self.scene = scene
 
-    def record_interaction(self, batch, old_direction, old_weight, scatter_mask, surface_mask):
+    def record_interaction(self, batch, scatter_mask, surface_mask):
+
         if np.any(scatter_mask):
-            deposited = old_weight[scatter_mask] - batch.weight[scatter_mask]
+            deposited = batch.old_weight[scatter_mask] - batch.weight[scatter_mask]
             self.absorbed_atmosphere += np.sum(deposited)
 
         if np.any(surface_mask):
-            deposited = old_weight[surface_mask] - batch.weight[surface_mask]
+            deposited = batch.old_weight[surface_mask] - batch.weight[surface_mask]
             self.absorbed_surface += np.sum(deposited)
 
     def record_termination(self, batch, terminated_mask):

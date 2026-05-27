@@ -73,10 +73,16 @@ class IncidentFluxMapDetector(BaseDetector):
         old_z = batch.old_pos[Z]
         new_z = batch.pos[Z]
 
-        down_mask = (old_z[:, np.newaxis] >= self.measure_z) & (
-            new_z[:, np.newaxis] < self.measure_z
+        down_mask = (
+            (old_z[:, np.newaxis] >= self.measure_z)
+            & (new_z[:, np.newaxis] <= self.measure_z)
+            & (new_z < old_z)[:, np.newaxis]
         )
-        up_mask = (old_z[:, np.newaxis] <= self.measure_z) & (new_z[:, np.newaxis] > self.measure_z)
+        up_mask = (
+            (old_z[:, np.newaxis] <= self.measure_z)
+            & (new_z[:, np.newaxis] >= self.measure_z)
+            & (new_z > old_z)[:, np.newaxis]
+        )
 
         self._process_hits(batch, down_mask, self.flux_down_flat)
         self._process_hits(batch, up_mask, self.flux_up_flat)
