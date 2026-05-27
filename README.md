@@ -419,7 +419,7 @@ import matplotlib.pyplot as plt
 import atmorad
 
 # Load the completed simulation
-results = atmorad.load("results/demo001")
+results = atmorad.load("results/demo001/")
 
 # Access physical data as NumPy arrays
 map_2d = results.detector_results["surface_absorption"].surface_absorption_map_2d
@@ -444,7 +444,7 @@ cog.out(f'\n```python\n{open("examples/load_netcdf.py").read()}\n```')
 import xarray as xr
 
 # Open the NetCDF file directly
-ds = xr.open_dataset("results/demo001/data.nc", engine="h5netcdf")
+ds = xr.open_dataset("results/demo001/atmorad_demo001_baseline.nc", engine="h5netcdf")
 
 # Access variables and attributes ({detector_name}_{attribute_name})
 map_2d = ds["surface_absorption_surface_absorption_map_2d"].values
