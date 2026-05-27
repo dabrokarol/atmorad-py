@@ -23,8 +23,9 @@ class DataIO:
 
         self.exp_name = meta.experiment_name.replace(" ", "-")
         self.scen_name = meta.scenario_name
-        self.results_filename = f"atmorad_{self.exp_name}_{self.scen_name}.nc"
-        self.checkpoint_filename = f"{self.scen_name}-checkpoint.nc"
+        base_name = f"atmorad_{self.exp_name}_{self.scen_name}"
+        self.results_filename = f"{base_name}.nc"
+        self.checkpoint_filename = f"{base_name}_checkpoint.nc"
 
         output_dir = config.output.base_dir
         fig_dir = config.output.fig_dir
@@ -110,18 +111,17 @@ class DataIO:
 
         return None
 
-    def _save_nc_atomic(self, results: SimResults, target_path: Path, normalize: bool) -> None:
+    def _save_nc_file(self, results: SimResults, target_path: Path, normalize: bool) -> None:
         tmp_path = target_path.with_name(target_path.name + ".tmp")
-        results.config = self.config
         ds = results.to_dataset(normalize=normalize)
         ds.to_netcdf(tmp_path, engine=self.NETCDF_ENGINE)
         shutil.move(tmp_path, target_path)
 
     def save_simulation_run(self, results: SimResults) -> None:
-        self._save_nc_atomic(results, self.base_dir / self.results_filename, normalize=True)
+        self._save_nc_file(results, self.base_dir / self.results_filename, normalize=True)
 
     def save_checkpoint(self, results: SimResults) -> None:
-        self._save_nc_atomic(results, self.checkpoint_path, normalize=False)
+        self._save_nc_file(results, self.checkpoint_path, normalize=False)
 
     def save_figure(self, fig: Figure, plot_name: str, dpi: int = 300) -> None:
         filename = f"{plot_name}_{self.exp_name}_{self.scen_name}.png"
@@ -156,9 +156,8 @@ class DataIO:
             with xr.open_dataset(path, engine=cls.NETCDF_ENGINE) as ds:
                 ds.load()
                 return SimResults.from_dataset(ds)
-        except (OSError, ValueError):
-            logging.exception(f"Failed to load data file: {path}")
-            return None
+        except (OSError, ValueError, TypeError) as e:
+            logging.exception(f"Failed to load data file: {path}. Error: {e}")
 
     @classmethod
     def load_simulation_results(cls, directory: str | Path) -> SimResults:

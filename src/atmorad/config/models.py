@@ -3,7 +3,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from atmorad.constants import TIMESTAMP_FORMAT
 from atmorad.registry import (
@@ -101,6 +101,8 @@ class DetectorConfig(BaseModel):
 
 
 class OutputConfig(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
     overwrite: bool = False
     save_plots: bool = Field(
         default=True,

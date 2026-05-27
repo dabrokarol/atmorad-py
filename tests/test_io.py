@@ -90,7 +90,7 @@ def test_data_io_save_load_sim(sim_context_list, tmp_path):
             dataclasses.asdict(expected_results_normalized), dataclasses.asdict(results_2)
         )
 
-        # test checkpointing
+        (data_io.base_dir / data_io.results_filename).unlink(missing_ok=True)
         results.total_photons = 42
         data_io.save_checkpoint(results=results)
         results_from_checkpoint = data_io.load_checkpoint()
