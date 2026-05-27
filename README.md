@@ -90,7 +90,7 @@ photon_weight_threshold = 1e-4
 photon_survival_chance = 0.1    # 10% chance to survive with 10x multiplied weight
 
 [source]
-theta_sun_deg = 30           # solar zenith angle (0 = directly upwards)
+theta_sun_deg = 30           # solar zenith angle (0 = directly downwards)
 phi_sun_deg = 0              # solar azimuth angle
 wavelength_nm = 530          # only for reference, wavelength-dependent parameters are not implemented yet
 
@@ -149,20 +149,18 @@ scattering = {type = "hg", g = 0.85}
 
 [[layer]] ## double square brackets are used for a list item
 thickness_km = 2
-materials = [{type = "air", weight = 1.0}]
+components = [{material = "air", concentration = 1.0}]
 
 [[layer]]
 thickness_km = 4
-# when multiple materials are provided, collision material 
-# is randomly sampled when photon enters this atmospheric layer.
-materials = [
-    {type = "air", weight = 0.1},
-    {type = "dark_clouds", weight = 0.9}
+components = [
+    {material = "air", concentration = 1.0},
+    {material = "dark_clouds", concentration = 0.9}
 ]
 
 [[layer]]
 thickness_km = 4
-materials = [{type = "air", weight = 1.0}]
+components = [{material = "air", concentration = 1.0}]
 
 # [[layer]] ... more layers can be added
 
@@ -208,7 +206,7 @@ material_out = "ocean"
 # overrides russian roulette treshold
 # [[scenario]]
 # name = "no_roulette"
-# engine.photon_weight_threshold = 0
+# engine.photon_weight_threshold = 0.0
 ```
 <!-- [[[end]]] -->
 
@@ -355,7 +353,7 @@ from atmorad import (
 class FateResult(BaseResult):
     energy_absorbed_surface: float = nc_attr(normalize=True)
     energy_absorbed_atmosphere: float = nc_attr(normalize=True)
-    energy_reflected_toa: float = nc_attr(normalize=True)
+    energy_outgoing_toa: float = nc_attr(normalize=True)
 
 
 # 2. Implement the detector logic
@@ -364,17 +362,17 @@ class FateDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
         self.absorbed_surface = 0.0
         self.absorbed_atmosphere = 0.0
-        self.reflected_toa = 0.0
+        self.escaped_toa = 0.0
         self.scene = scene
 
-    def record_interaction(self, batch, old_direction, old_weight, scatter_mask, surface_mask):
+    def record_interaction(self, batch, scatter_mask, surface_mask):
         # Calculate deposited energy by subtracting the photon's new weight from its old weight.
         if np.any(scatter_mask):
-            deposited = old_weight[scatter_mask] - batch.weight[scatter_mask]
+            deposited = batch.old_weight[scatter_mask] - batch.weight[scatter_mask]
             self.absorbed_atmosphere += np.sum(deposited)
 
         if np.any(surface_mask):
-            deposited = old_weight[surface_mask] - batch.weight[surface_mask]
+            deposited = batch.old_weight[surface_mask] - batch.weight[surface_mask]
             self.absorbed_surface += np.sum(deposited)
 
     def record_termination(self, batch, terminated_mask):
@@ -384,15 +382,15 @@ class FateDetector(BaseDetector):
         term_pos = batch.pos[:, terminated_mask]
         term_weight = batch.weight[terminated_mask]
 
-        reflected_toa_mask = self.scene.above_toa(term_pos)
-        if np.any(reflected_toa_mask):
-            self.reflected_toa += np.sum(term_weight[reflected_toa_mask])
+        escaped_toa_mask = self.scene.above_toa(term_pos)
+        if np.any(escaped_toa_mask):
+            self.escaped_toa += np.sum(term_weight[escaped_toa_mask])
 
     def get_results(self) -> FateResult:
         return FateResult(
             energy_absorbed_surface=self.absorbed_surface,
             energy_absorbed_atmosphere=self.absorbed_atmosphere,
-            energy_reflected_toa=self.reflected_toa,
+            energy_outgoing_toa=self.escaped_toa,
         )
 
 
@@ -450,7 +448,7 @@ ds = xr.open_dataset("results/demo001/data.nc", engine="h5netcdf")
 
 # Access variables and attributes ({detector_name}_{attribute_name})
 map_2d = ds["surface_absorption_surface_absorption_map_2d"].values
-total_reflected_energy = ds.attrs["fate_energy_reflected_toa"]
+total_reflected_energy = ds.attrs["fate_energy_outgoing_toa"]
 
 ```
 <!-- [[[end]]] -->
