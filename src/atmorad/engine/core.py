@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 from atmorad.config import SimConfig
-from atmorad.constants import MAX_SCATTERINGS, NUM_EPSILON
+from atmorad.constants import MAX_SCATTERINGS, NUM_EPSILON, PBAR_THRESHOLD
 from atmorad.detectors import BaseDetector
 from atmorad.environment.scene import Scene
 from atmorad.models import EngineResult, PhotonBatch, SimResults
@@ -65,11 +65,13 @@ class Engine:
         rng = self.rng
 
         on_progress = self.on_progress
+        counter = 0
 
         start_time = time.process_time()
 
         while batch.active_count > 0:
             logging.debug(f"Active photons: {batch.active_count}")
+            active_old = batch.active_count
 
             batch.update_old_state()
 
@@ -128,8 +130,10 @@ class Engine:
 
             batch.deactivate_photons(terminated_mask)
             batch.shrink_to_active()
-            if on_progress:
-                on_progress(np.count_nonzero(terminated_mask))
+            counter += active_old - batch.active_count
+            if on_progress and counter > PBAR_THRESHOLD:
+                on_progress(counter)
+                counter = 0
 
         np.seterr(**old_err)
 
