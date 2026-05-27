@@ -50,6 +50,7 @@ class MCRadiationRunner:
 
     def _run_simulation(self):
         all_results = self._load_initial_state()
+        all_results.config = self.context.config
 
         cfg_engine = self.context.config.engine
         total_photons = cfg_engine.num_photons
@@ -105,7 +106,6 @@ class MCRadiationRunner:
 
         final_elapsed = time.perf_counter() - run_start_time
         all_results.engine_result.simulation_time_s = accumulated_time + final_elapsed
-        all_results.config = self.context.config
 
         return all_results
 
@@ -168,9 +168,8 @@ class MCRadiationRunner:
             for size, chunk_result in zip(batches, results):
                 yield chunk_result, size
         except KeyboardInterrupt:
-            workers = list(executor._processes.values())
             executor.shutdown(wait=False, cancel_futures=True)
-            for process in workers:
+            for process in multiprocessing.active_children():
                 try:
                     process.terminate()
                 except Exception:
