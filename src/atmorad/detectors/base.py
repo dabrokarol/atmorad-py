@@ -22,8 +22,6 @@ class BaseDetector(ABC):
     def record_interaction(
         self,
         batch: PhotonBatch,
-        old_direction: np.ndarray,
-        old_weight: np.ndarray,
         scatter_mask: np.ndarray,
         surface_mask: np.ndarray,
     ):

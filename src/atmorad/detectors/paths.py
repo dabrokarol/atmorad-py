@@ -46,7 +46,7 @@ class PathTrackingDetector(BaseDetector):
             return PathTrackingResult(
                 sample_paths_3d=np.array([]),
                 sample_weights_2d=np.array([]),
-                sample_reflected_toa=np.array([]),
+                sample_escaped_toa=np.array([]),
                 sample_absorbed_atmosphere=np.array([]),
                 sample_absorbed_surface=np.array([]),
                 toa_z=self.toa_z,
@@ -77,7 +77,7 @@ class PathTrackingDetector(BaseDetector):
         return PathTrackingResult(
             sample_paths_3d=paths_3d,
             sample_weights_2d=weights_2d,
-            sample_reflected_toa=reflected,
+            sample_escaped_toa=reflected,
             sample_absorbed_atmosphere=abs_atm,
             sample_absorbed_surface=abs_surf,
             toa_z=self.toa_z,

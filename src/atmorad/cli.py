@@ -6,8 +6,6 @@ import sys
 import traceback
 from pathlib import Path
 
-import atmorad
-
 
 def init_config():
     out_path = Path("simulation.toml")
@@ -38,6 +36,7 @@ def setup_parser():
         help="generate a default configuration file in the current directory",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument("--extract-config", help="path to a data.nc file", type=Path)
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-v", "--verbose", action="store_true", help="increase output verbosity")
@@ -70,7 +69,17 @@ def main():
         if args.init:
             init_config()
             return 0
+
+        if args.extract_config:
+            from atmorad.output import DataIO
+
+            DataIO.extract_config(data_path=args.extract_config)
+            return 0
+
     except FileExistsError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
@@ -80,6 +89,8 @@ def main():
     configure_logging(args.verbose, args.quiet)
 
     try:
+        import atmorad
+
         atmorad.run(args.config, args.quiet)
         return 0
 

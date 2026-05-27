@@ -3,8 +3,8 @@ experiment_name = "test001"
 description = "Test config."
 
 [engine]
-num_photons = 5000
-batch_size = 1000
+num_photons = 5_000
+batch_size = 1_000
 random_seed = 42
 cpu_cores = 1
 
@@ -22,29 +22,25 @@ active = [
     "plane_flux", 
     "surface_absorption"
 ]
-
 vertical_profiles_resolution_km = 10.0
 horizontal_maps_resolution_km = 0.9
 flux_maps_measure_z_km = [0, 2, 3, 6, 7]
 
 [output]
 overwrite = true
-path = 'results'
 
-[surface_materials]
-    [surface_materials.snow]
-    albedo = 0.85
-    reflection = {type = "lambertian"}
+[surface_materials.snow]
+albedo = 0.85
+reflection = { type = "lambertian" }
 
-[atmosphere_materials]
-    [atmosphere_materials.air]
-    extinction_coeff_per_km = 0.01
-    ssa = 0.9
-    scattering = {type = "rayleigh"}
+[atmosphere_materials.air]
+extinction_coeff_per_km = 0.01
+ssa = 0.9
+scattering = { type = "rayleigh" }
 
 [[layer]]
-thickness_km = 10
-materials = [{type = "air", weight = 1.0}]
+thickness_km = 10.0
+components = [{ material = "air", concentration = 1.0 }]
 
 [surface]
 name = "uniform"

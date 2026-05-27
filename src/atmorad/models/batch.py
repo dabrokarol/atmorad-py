@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -11,40 +11,46 @@ class PhotonBatch:
     tau_to_travel: np.ndarray
     is_active: np.ndarray
     ids: np.ndarray
-    material_ids: np.ndarray
     scatter_counts: np.ndarray
     active_count: int = 0
-    _old_pos: np.ndarray | None = None
+
+    old_pos: np.ndarray = field(init=False)
+    old_direction: np.ndarray = field(init=False)
+    old_weight: np.ndarray = field(init=False)
 
     def __post_init__(self):
-        self.active_count = self.ids.size
-        self._old_pos = np.empty_like(self.pos, dtype=np.float64)
+        self.active_count = int(self.ids.size)
+        self.old_pos = np.empty_like(self.pos)
+        self.old_direction = np.empty_like(self.direction)
+        self.old_weight = np.empty_like(self.weight)
 
     @property
     def size(self):
         return self.ids.size
 
-    @property
-    def old_pos(self):
-        assert self._old_pos is not None
-        return self._old_pos
-
-    def deactivate_photons(self, mask):
-        newly_deactivated = self.is_active & mask
-        self.is_active[mask] = False
-        self.active_count -= np.count_nonzero(newly_deactivated)
+    def deactivate_photons(self, dead_mask: np.ndarray):
+        newly_deactivated = self.is_active & dead_mask
+        self.is_active[dead_mask] = False
+        self.active_count -= int(np.count_nonzero(newly_deactivated))
 
     def shrink_to_active(self):
-        self.ids = self.ids[self.is_active]
-        self.pos = self.pos[:, self.is_active]
-        self._old_pos = self.old_pos[:, self.is_active]
-        self.direction = self.direction[:, self.is_active]
-        self.tau_to_travel = self.tau_to_travel[self.is_active]
-        self.material_ids = self.material_ids[self.is_active]
-        self.scatter_counts = self.scatter_counts[self.is_active]
-        self.weight = self.weight[self.is_active]
+        mask = self.is_active
 
-        self.is_active = self.is_active[self.is_active]
+        self.ids = self.ids[mask]
+        self.pos = self.pos[:, mask]
+        self.old_pos = self.old_pos[:, mask]
+        self.direction = self.direction[:, mask]
+        self.old_direction = self.old_direction[:, mask]
+        self.tau_to_travel = self.tau_to_travel[mask]
+        self.scatter_counts = self.scatter_counts[mask]
+        self.weight = self.weight[mask]
+        self.old_weight = self.old_weight[mask]
 
-    def update_old_pos(self):
+        self.is_active = np.ones(self.active_count, dtype=bool)
+
+        return mask.size - np.count_nonzero(mask)
+
+    def update_old_state(self):
         np.copyto(self.old_pos, self.pos)
+        np.copyto(self.old_direction, self.direction)
+        np.copyto(self.old_weight, self.weight)

@@ -1,6 +1,6 @@
 import numpy as np
 
-from atmorad.constants import EPSILON
+from atmorad.constants import BOUNDARY_EPSILON
 from atmorad.registry import register_scattering
 
 
@@ -47,7 +47,7 @@ class HenyeyGreensteinScattering(Scattering):
         pass
 
     def scatter(self, rand_1, rand_2):
-        if abs(self.g) < EPSILON:
+        if abs(self.g) < BOUNDARY_EPSILON:
             cos_theta = 2.0 * rand_1 - 1.0
         else:
             sq = (1.0 - self.g**2) / (1.0 - self.g + 2.0 * self.g * rand_1)

@@ -57,12 +57,11 @@ def load_scenarios(config_path: Path) -> list[SimConfig]:
     if not scenarios:
         return [_build_single_config(raw_data, config_path)]
 
+    names = set()
+
     configs = []
     for idx, scenario_dict in enumerate(scenarios):
         scenario_name = scenario_dict.pop("name", None)
-
-        base_copy = copy.deepcopy(raw_data)
-        merged_raw = _deep_merge_dicts(base_copy, scenario_dict)
 
         if not scenario_name:
             raise ValueError(
@@ -70,8 +69,15 @@ def load_scenarios(config_path: Path) -> list[SimConfig]:
                 f"Each scenario has to have an explicit name to ensure organized output files.\n"
                 f"Example:\n"
                 f"  [[scenario]]\n"
-                f'  name = "base_scenario"'
+                f'  name = "tau_20"'
             )
+        if scenario_name in names:
+            raise ValueError(
+                f"Overlapping scenario names in an experiment. Each scenario name should be unique. Overlapping: {scenario_name}"
+            )
+        names.add(scenario_name)
+
+        merged_raw = _deep_merge_dicts(raw_data, scenario_dict)
 
         merged_raw["metadata"]["scenario_name"] = scenario_name
 

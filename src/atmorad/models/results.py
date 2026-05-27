@@ -3,7 +3,7 @@
 import json
 from abc import ABC
 from dataclasses import dataclass, field, fields
-from typing import Self
+from typing import Any, Callable, Self
 
 import numpy as np
 import xarray as xr
@@ -12,7 +12,13 @@ from atmorad.config import SimConfig
 from atmorad.registry import DETECTOR_RESULTS
 
 
-def coord_field(nc_name: str, units: str, long_name: str, on_merge: str | None = None):
+def coord_field(
+    nc_name: str,
+    units: str,
+    long_name: str,
+    on_merge: str | None = None,
+    default_factory: Callable[[], Any] = lambda: np.array([]),
+):
     """Creates a coordinate field for simulation results.
 
     Args:
@@ -20,6 +26,7 @@ def coord_field(nc_name: str, units: str, long_name: str, on_merge: str | None =
         units: Physical units of the coordinate (e.g., 'km').
         long_name: Descriptive name for the NetCDF attribute.
         on_merge: Merge strategy ('keep', 'sum', 'concat'). Defaults to 'keep' for coordinates.
+        default_factory: Callable returning the default value. Defaults to empty numpy array.
     """
     metadata = {
         "role": "coord",
@@ -29,7 +36,7 @@ def coord_field(nc_name: str, units: str, long_name: str, on_merge: str | None =
         "on_merge": on_merge,
     }
 
-    return field(metadata=metadata)
+    return field(default_factory=default_factory, metadata=metadata)
 
 
 def data_field(
@@ -38,6 +45,7 @@ def data_field(
     long_name: str = "",
     units: str | None = None,
     on_merge: str = "sum",
+    default_factory: Callable[[], Any] = lambda: np.array([]),
 ):
     """Creates a data field (e.g., a results array) for simulation results.
 
@@ -47,6 +55,7 @@ def data_field(
         long_name: Descriptive name for the NetCDF attribute.
         units: Physical units. Overrides default normalization units if provided.
         on_merge: Merge strategy ('keep', 'sum', 'concat'). Defaults to 'sum' for data.
+        default_factory: Callable returning the default value. Defaults to empty numpy array.
     """
     metadata = {
         "role": "data",
@@ -58,10 +67,15 @@ def data_field(
     if units is not None:
         metadata["units"] = units
 
-    return field(metadata=metadata)
+    return field(default_factory=default_factory, metadata=metadata)
 
 
-def attr_field(normalize: bool = False, units: str | None = None, on_merge: str = "first"):
+def attr_field(
+    normalize: bool = False,
+    units: str | None = None,
+    on_merge: str = "first",
+    default: float | int | bool = 0.0,
+):
     """Creates an attribute field (e.g., scalar values, summaries).
 
     Args:
@@ -73,7 +87,7 @@ def attr_field(normalize: bool = False, units: str | None = None, on_merge: str 
     if units is not None:
         metadata["units"] = units
 
-    return field(metadata=metadata)
+    return field(default=default, metadata=metadata)
 
 
 @dataclass
@@ -147,7 +161,9 @@ class BaseResult(ABC):
 
                 # changes empty numpy arrays to empty(shape matching dims)
                 if isinstance(val, np.ndarray) and val.size == 0 and val.ndim != len(dims):
-                    val = np.empty((0,) * len(dims), dtype=val.dtype)
+                    missing_dims = len(dims) - val.ndim
+                    new_shape = (0,) * missing_dims + val.shape
+                    val = np.empty(new_shape, dtype=val.dtype)
 
                 data_vars[f"{prefix}_{nc_name}"] = (
                     dims,
@@ -159,21 +175,32 @@ class BaseResult(ABC):
 
     @classmethod
     def from_dataset(cls, ds: xr.Dataset, prefix: str) -> Self:
-        """Reconstructs the result object from a loaded xarray.Dataset."""
+        """Reconstructs the result object from a loaded xarray.Dataset, automatically denormalizing if needed."""
+        is_normalized = bool(ds.attrs.get("is_normalized", 0))
+        n_photons = int(ds.attrs.get("num_photons", 1))
+
         kwargs = {}
         for f in fields(cls):
-            if not f.metadata:
+            meta = f.metadata
+            if not meta:
                 continue
 
-            nc_name = f.metadata.get("nc_name", f.name)
+            nc_name = meta.get("nc_name", f.name)
             full_name = f"{prefix}_{nc_name}"
 
             if full_name in ds.data_vars:
-                kwargs[f.name] = ds[full_name].values
+                val = ds[full_name].values
             elif full_name in ds.coords:
-                kwargs[f.name] = ds.coords[full_name].values
+                val = ds.coords[full_name].values
             elif full_name in ds.attrs:
-                kwargs[f.name] = ds.attrs[full_name]
+                val = ds.attrs[full_name]
+            else:
+                continue
+
+            if is_normalized and meta.get("normalize", False) and n_photons > 1:
+                val = val * n_photons
+
+            kwargs[f.name] = val
 
         return cls(**kwargs)
 
@@ -194,7 +221,7 @@ class EngineResult:
 class FateResult(BaseResult):
     energy_absorbed_surface: float = attr_field(normalize=True, on_merge="sum")
     energy_absorbed_atmosphere: float = attr_field(normalize=True, on_merge="sum")
-    energy_reflected_toa: float = attr_field(normalize=True, on_merge="sum")
+    energy_outgoing_toa: float = attr_field(normalize=True, on_merge="sum")
 
 
 @dataclass(slots=True)
@@ -246,7 +273,7 @@ class PathTrackingResult(BaseResult):
     sample_weights_2d: np.ndarray = data_field(
         dims=["photon", "step"], units="1", on_merge="concat", long_name="Photon Weight"
     )
-    sample_reflected_toa: np.ndarray = data_field(
+    sample_escaped_toa: np.ndarray = data_field(
         dims=["photon"], units="boolean", on_merge="concat", long_name="Reflected TOA Flag"
     )
     sample_absorbed_atmosphere: np.ndarray = data_field(
@@ -294,7 +321,7 @@ class SimResults:
             engine_result=self.engine_result.merge(other.engine_result),
             detector_results=merged_detectors,
             total_photons=self.total_photons + other.total_photons,
-            config=self.config,
+            config=self.config or other.config,
         )
 
     def to_dataset(self, normalize: bool = False) -> xr.Dataset:
@@ -306,6 +333,7 @@ class SimResults:
             "engine_cpu_time_s": self.engine_result.cpu_time_s,
             "engine_simulation_time_s": self.engine_result.simulation_time_s,
             "num_photons": self.total_photons,
+            "is_normalized": int(normalize),
             "_detector_types": json.dumps(
                 {
                     det_id: getattr(det_res, "_registry_id", type(det_res).__name__)

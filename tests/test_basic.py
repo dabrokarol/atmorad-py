@@ -26,7 +26,7 @@ def test_energy_conservation(sim_context_list):
 
         if fate_res:
             assert isinstance(fate_res, FateResult)
-            reflected = fate_res.energy_reflected_toa
+            reflected = fate_res.energy_outgoing_toa
             transmitted = fate_res.energy_absorbed_surface
             absorbed_atm = fate_res.energy_absorbed_atmosphere
         else:

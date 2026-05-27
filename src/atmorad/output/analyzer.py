@@ -28,27 +28,27 @@ class ResultAnalyzer:
 
         fate_prefix = next((p for p, c in self.det_types.items() if c == "FateResult"), "fate")
 
-        reflected_toa = self.ds.attrs.get(f"{fate_prefix}_energy_reflected_toa", 0.0)
+        outgoing_toa = self.ds.attrs.get(f"{fate_prefix}_energy_outgoing_toa", 0.0)
         abs_surf = self.ds.attrs.get(f"{fate_prefix}_energy_absorbed_surface", 0.0)
         abs_atm = self.ds.attrs.get(f"{fate_prefix}_energy_absorbed_atmosphere", 0.0)
 
-        reflected_toa_pct = reflected_toa * 100.0
+        outgoing_toa_pct = outgoing_toa * 100.0
         absorbed_surf_pct = abs_surf * 100.0
         absorbed_atm_pct = abs_atm * 100.0
 
-        balance = reflected_toa_pct + absorbed_surf_pct + absorbed_atm_pct
+        conservation = outgoing_toa_pct + absorbed_surf_pct + absorbed_atm_pct
 
         return "\n".join(
             [
                 f"\n---- Simulation Summary: {experiment_name} ----",
                 f"Time: {total_time:.2f}s (Total) | {cpu_time:.2f}s (CPU)",
-                f"Total Photons / Energy: {total_photons:_}\n",
+                f"Simulated Photons: {total_photons:_}\n",
                 "Energy Distribution:",
-                f"  {'Reflected (TOA)':<21}: {reflected_toa_pct:>6.2f}%",
-                f"  {'Surface Absorbed':<21}: {absorbed_surf_pct:>6.2f}%",
-                f"  {'Atmosphere Absorbed':<21}: {absorbed_atm_pct:>6.2f}%",
+                f"  {'Outgoing (TOA)':<23}: {outgoing_toa_pct:>6.2f}%",
+                f"  {'Surface Absorption':<23}: {absorbed_surf_pct:>6.2f}%",
+                f"  {'Atmospheric Absorption':<23}: {absorbed_atm_pct:>6.2f}%",
                 "  " + "-" * 30,
-                f"  {'Energy Balance':<21}: {balance:>6.2f}%\n",
+                f"  {'Energy Conservation':<23}: {conservation:>6.2f}%\n",
             ]
         )
 
@@ -97,7 +97,7 @@ class ResultAnalyzer:
             num_paths = max_paths
 
         absorbed_surface = self.ds[f"{prefix}_sample_absorbed_surface"].values[:num_paths]
-        reflected_toa = self.ds[f"{prefix}_sample_reflected_toa"].values[:num_paths]
+        outgoing_toa = self.ds[f"{prefix}_sample_escaped_toa"].values[:num_paths]
         toa_z = self.ds.attrs.get(f"{prefix}_toa_z", 10.0)
 
         Lx, Ly = self._infer_domain_size(paths)
@@ -129,9 +129,9 @@ class ResultAnalyzer:
                 color, alpha = "tab:green", 0.3
                 lbl = "Absorbed by surface" if not labeled_surface else None
                 labeled_surface = True
-            elif reflected_toa[i]:
+            elif outgoing_toa[i]:
                 color, alpha = "tab:grey", 0.2
-                lbl = "Escaped TOA" if not labeled_above_toa else None
+                lbl = "outgoing TOA" if not labeled_above_toa else None
                 labeled_above_toa = True
             else:
                 color, alpha = "tab:red", 0.3
@@ -264,19 +264,19 @@ class ResultAnalyzer:
             if class_name == "surface_absorption":
                 fig = self.plot_surface_absorption_map(prefix)
                 if fig:
-                    yield (fig, "surface_absorption_map.png")
+                    yield (fig, "surface_absorption_map")
                     plt.close(fig)
 
             elif class_name == "vertical_flux":
                 fig = self.plot_flux_profile(prefix)
                 if fig:
-                    yield (fig, "vertical_flux_profile.png")
+                    yield (fig, "vertical_flux_profile")
                     plt.close(fig)
 
             elif class_name == "path_tracking":
                 fig = self.plot_paths(prefix)
                 if fig:
-                    yield (fig, "photon_paths_3d.png")
+                    yield (fig, "photon_paths_3d")
                     plt.close(fig)
 
             elif class_name == "plane_flux":
@@ -296,7 +296,7 @@ class ResultAnalyzer:
                             incident_down[i], x_centers, y_centers, title=title_down
                         )
                         if fig_down:
-                            yield (fig_down, f"{prefix}/downward_z_{z_val:g}km.png")
+                            yield (fig_down, f"{prefix}-downward_z_{z_val:g}km")
                             plt.close(fig_down)
 
                         # Upward Flux Plot
@@ -305,12 +305,12 @@ class ResultAnalyzer:
                             incident_up[i], x_centers, y_centers, title=title_up
                         )
                         if fig_up:
-                            yield (fig_up, f"{prefix}/upward_z_{z_val:g}km.png")
+                            yield (fig_up, f"{prefix}-upward_z_{z_val:g}km")
                             plt.close(fig_up)
 
             elif class_name == "absorption_vertical":
                 if hasattr(self, "plot_absorption_profile"):
                     fig = self.plot_absorption_profile(prefix)
                     if fig:
-                        yield (fig, "absorption_profile.png")
+                        yield (fig, "absorption_profile")
                         plt.close(fig)

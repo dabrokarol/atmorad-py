@@ -28,15 +28,13 @@ class SurfaceAbsorptionDetector(BaseDetector):
     def record_interaction(
         self,
         batch: PhotonBatch,
-        old_direction: np.ndarray,
-        old_weight: np.ndarray,
         scatter_mask: np.ndarray,
         surface_mask: np.ndarray,
     ):
         if not np.any(surface_mask):
             return
 
-        deposited_energy = old_weight[surface_mask] - batch.weight[surface_mask]
+        deposited_energy = batch.old_weight[surface_mask] - batch.weight[surface_mask]
 
         hit_x = batch.pos[X, surface_mask]
         hit_y = batch.pos[Y, surface_mask]

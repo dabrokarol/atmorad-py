@@ -3,7 +3,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from atmorad.constants import TIMESTAMP_FORMAT
 from atmorad.registry import (
@@ -50,13 +50,13 @@ class AtmosphereMaterialConfig(BaseModel):
 
 
 class LayerMaterialConfig(BaseModel):
-    type: str
-    weight: float = Field(ge=0.0, le=1.0)
+    material: str
+    concentration: float = Field(ge=0.0, le=1.0)
 
 
 class LayerConfig(BaseModel):
     thickness_km: float = Field(gt=0.0)
-    materials: list[LayerMaterialConfig] = Field(min_length=1)
+    components: list[LayerMaterialConfig] = Field(min_length=1)
 
 
 # -----------------------------------------------------------
@@ -75,9 +75,9 @@ def generate_timestamp() -> str:
 
 class MetadataConfig(BaseModel):
     experiment_name: str = "experiment"
-    scenario_name: str = ""
+    scenario_name: str = "baseline"
     description: str = ""
-    config_version: str = "1.1"
+    config_version: str = "1.2"
     software_version: str = Field(default_factory=get_engine_version)
     run_timestamp: str = Field(default_factory=generate_timestamp)
 
@@ -101,12 +101,15 @@ class DetectorConfig(BaseModel):
 
 
 class OutputConfig(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
     overwrite: bool = False
     save_plots: bool = Field(
         default=True,
         description="If true, generates and saves standard PNG plots for all active default detectors.",
     )
-    base_dir: Path | str = "results"
+    base_dir: Path = Path("results")
+    fig_dir: Path = Path("plots")
 
 
 class EngineConfig(BaseModel):
@@ -155,10 +158,10 @@ class EnvironmentConfig(BaseModel):
                 )
 
         for i, layer in enumerate(self.layers):
-            for mat in layer.materials:
-                if mat.type not in self.atmosphere_materials:
+            for comp in layer.components:
+                if comp.material not in self.atmosphere_materials:
                     raise ValueError(
-                        f"Layer {i + 1} references undefined atmosphere material: '{mat.type}'. "
+                        f"Layer {i + 1} references undefined atmosphere material: '{comp.material}'. "
                         f"Available materials: {list(self.atmosphere_materials.keys())}"
                     )
 
@@ -175,9 +178,7 @@ class SimConfig(BaseModel):
     config_path: Path | None = Field(default=None, exclude=True)
 
     def is_compatible_for_resume(self, checkpoint_config: "SimConfig") -> bool:
-        excluded_fields = {
-            "engine": {"num_photons", "batch_size", "cpu_cores", "resume_from_checkpoint"}
-        }
+        excluded_fields = {"metadata", "output"}
 
         current_dict = self.model_dump(exclude=excluded_fields)
         checkpoint_dict = checkpoint_config.model_dump(exclude=excluded_fields)

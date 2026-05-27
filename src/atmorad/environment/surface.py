@@ -4,7 +4,7 @@ from typing import Sequence
 
 import numpy as np
 
-from atmorad.constants import EPSILON, X, Y, Z
+from atmorad.constants import BOUNDARY_EPSILON, ZERO_TOLERANCE, X, Y, Z
 from atmorad.models import PhotonBatch
 from atmorad.physics import SurfaceReflection
 
@@ -27,6 +27,9 @@ class BaseSurface(ABC):
 
     @abstractmethod
     def crossed_ground(self, pos: np.ndarray) -> np.ndarray: ...
+
+    @abstractmethod
+    def distance_to_surface(self, batch: PhotonBatch) -> np.ndarray: ...
 
     @abstractmethod
     def adjust_surface_boundary(self, batch: PhotonBatch) -> PhotonBatch: ...
@@ -85,15 +88,22 @@ class FlatSurface(BaseSurface):
     def crossed_ground(self, pos):
         return pos[Z] <= 0
 
+    def distance_to_surface(self, batch: PhotonBatch):
+        return np.divide(
+            -batch.pos[Z],
+            batch.direction[Z],
+            out=np.full(batch.active_count, np.inf),
+            where=(batch.direction[Z] < -ZERO_TOLERANCE),
+        )
+
     def adjust_surface_boundary(self, batch: PhotonBatch):
         below_ground_mask = self.crossed_ground(batch.pos)
         batch.pos[:, below_ground_mask] += (
-            (0 - batch.pos[Z, below_ground_mask])
+            (0 - batch.pos[Z, below_ground_mask] + BOUNDARY_EPSILON)
             / batch.direction[Z, below_ground_mask]
             * batch.direction[:, below_ground_mask]
         )
-        ds_a = EPSILON / (batch.direction[Z, below_ground_mask] + 1e-100)
-        batch.pos[:, below_ground_mask] += batch.direction[:, below_ground_mask] * ds_a
+        batch.pos[Z, below_ground_mask] = 0
         return batch
 
     @property

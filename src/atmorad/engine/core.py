@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 from atmorad.config import SimConfig
-from atmorad.constants import EPSILON, MAX_SCATTERINGS
+from atmorad.constants import MAX_SCATTERINGS, PBAR_THRESHOLD, ZERO_TOLERANCE
 from atmorad.detectors import BaseDetector
 from atmorad.environment.scene import Scene
 from atmorad.models import EngineResult, PhotonBatch, SimResults
@@ -12,7 +12,7 @@ from atmorad.registry import DETECTORS
 
 
 class Engine:
-    def __init__(self, config: SimConfig, scene: Scene):
+    def __init__(self, config: SimConfig, scene: Scene, progress_callback=None):
         self.config = config
         self.scene = scene
 
@@ -27,11 +27,11 @@ class Engine:
         self.weight_multiplier = 1.0 / config.engine.photon_survival_chance
 
         self.results = None
+        self.on_progress = progress_callback
 
     def _init_arrays(self):
         pos = self.scene.start_pos(self.num_photons, self.rng)
         direction = self.scene.start_direction(self.num_photons, self.theta_sun, self.phi_sun)
-        material_ids = self.scene.get_material_ids(pos, self.rng)
 
         batch = PhotonBatch(
             pos=pos,
@@ -40,7 +40,6 @@ class Engine:
             is_active=np.ones(self.num_photons, dtype=bool),
             tau_to_travel=self.random_tau(self.num_photons),
             ids=np.arange(self.num_photons),
-            material_ids=material_ids,
             scatter_counts=np.zeros(self.num_photons, dtype=int),
         )
 
@@ -57,7 +56,7 @@ class Engine:
             self.detectors[det_name] = detector_class(self.scene, self.config)
 
     def run(self):
-        np.seterr(divide="ignore", invalid="ignore")
+        old_err = np.seterr(divide="ignore", invalid="ignore")
 
         self._initialize_detectors()
         batch = self._init_arrays()
@@ -65,39 +64,32 @@ class Engine:
         scene = self.scene
         rng = self.rng
 
+        on_progress = self.on_progress
+        counter = 0
+
         start_time = time.process_time()
 
         while batch.active_count > 0:
             logging.debug(f"Active photons: {batch.active_count}")
+            active_old = batch.active_count
 
-            batch.update_old_pos()
+            batch.update_old_state()
 
-            batch, dist_moved, tau_consumed = scene.move_photons(batch)
+            batch, tau_consumed = scene.move_photons(batch)
 
             batch.tau_to_travel -= tau_consumed
 
             for det in self.detectors.values():
                 det.record_movement(batch)
 
-            scatter_mask = batch.tau_to_travel <= EPSILON
+            scatter_mask = (batch.tau_to_travel <= ZERO_TOLERANCE) & scene.in_atmosphere(batch.pos)
             surface_mask = self.scene.at_surface(batch.pos)
-            in_atmosphere_mask = self.scene.in_atmosphere(batch.pos)
-
-            new_layer_mask = ~scatter_mask & in_atmosphere_mask
-            batch.material_ids[new_layer_mask] = self.scene.get_material_ids(
-                batch.pos[:, new_layer_mask], rng
-            )
-
-            old_direction = batch.direction.copy()
-            old_weight = batch.weight.copy()
 
             batch = scene.process_interactions(batch, scatter_mask, surface_mask, rng)
 
             for det in self.detectors.values():
                 det.record_interaction(
                     batch,
-                    old_direction,
-                    old_weight,
                     scatter_mask,
                     surface_mask,
                 )
@@ -123,15 +115,11 @@ class Engine:
 
                 survivors_submask = survive_rolls < self.survival_chance
 
-                new_weights = np.zeros(num_low)
-                new_weights[survivors_submask] = (
-                    batch.weight[low_weight_mask][survivors_submask] * self.weight_multiplier
-                )
+                survivor_full_mask = np.zeros(batch.active_count, dtype=bool)
+                survivor_full_mask[low_weight_mask] = survivors_submask
+                batch.weight[survivor_full_mask] *= self.weight_multiplier
 
-                died_submask = ~survivors_submask
-                killed_by_roulette[low_weight_mask] = died_submask
-
-                batch.weight[low_weight_mask] = new_weights
+                killed_by_roulette[low_weight_mask] = ~survivors_submask
 
             reflected_toa = self.scene.above_toa(batch.pos)
 
@@ -142,6 +130,12 @@ class Engine:
 
             batch.deactivate_photons(terminated_mask)
             batch.shrink_to_active()
+            counter += active_old - batch.active_count
+            if on_progress and counter > PBAR_THRESHOLD:
+                on_progress(counter)
+                counter = 0
+
+        np.seterr(**old_err)
 
         end_time = time.process_time()
 
