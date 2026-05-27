@@ -12,7 +12,7 @@ from atmorad.registry import DETECTORS
 
 
 class Engine:
-    def __init__(self, config: SimConfig, scene: Scene):
+    def __init__(self, config: SimConfig, scene: Scene, progress_callback=None):
         self.config = config
         self.scene = scene
 
@@ -27,6 +27,7 @@ class Engine:
         self.weight_multiplier = 1.0 / config.engine.photon_survival_chance
 
         self.results = None
+        self.on_progress = progress_callback
 
     def _init_arrays(self):
         pos = self.scene.start_pos(self.num_photons, self.rng)
@@ -62,6 +63,8 @@ class Engine:
 
         scene = self.scene
         rng = self.rng
+
+        on_progress = self.on_progress
 
         start_time = time.process_time()
 
@@ -125,6 +128,8 @@ class Engine:
 
             batch.deactivate_photons(terminated_mask)
             batch.shrink_to_active()
+            if on_progress:
+                on_progress(np.count_nonzero(terminated_mask))
 
         np.seterr(**old_err)
 

@@ -48,6 +48,8 @@ class PhotonBatch:
 
         self.is_active = np.ones(self.active_count, dtype=bool)
 
+        return mask.size - np.count_nonzero(mask)
+
     def update_old_state(self):
         np.copyto(self.old_pos, self.pos)
         np.copyto(self.old_direction, self.direction)

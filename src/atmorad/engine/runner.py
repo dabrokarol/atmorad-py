@@ -1,7 +1,11 @@
 import concurrent.futures
 import logging
 import multiprocessing
+import queue
+import threading
 import time
+from contextlib import contextmanager
+from copy import deepcopy
 from typing import Callable
 
 import numpy as np
@@ -45,11 +49,10 @@ class MCRadiationRunner:
     def _run_simulation(self):
         all_results = self._load_initial_state()
 
+        cfg_engine = self.context.config.engine
+        total_photons = cfg_engine.num_photons
         simulated_photons = all_results.total_photons
-        total_photons = self.context.config.engine.num_photons
         remaining_photons = total_photons - simulated_photons
-
-        accumulated_time = all_results.engine_result.simulation_time_s
 
         if remaining_photons <= 0:
             logging.info(
@@ -57,40 +60,31 @@ class MCRadiationRunner:
             )
             return all_results
 
-        batch_size = self.context.config.engine.batch_size
-        batches = self._calculate_batches(remaining_photons, batch_size)
+        batches = self._calculate_batches(remaining_photons, cfg_engine.batch_size)
+        progress_queue = multiprocessing.Manager().Queue()
 
-        cores = self.context.config.engine.cpu_cores
-        base_seed = self.context.config.engine.random_seed
-
-        if cores > 1:
+        if cfg_engine.cpu_cores > 1:
             results_generator = self._yield_results_parallel(
-                batches, simulated_photons, base_seed, cores
+                batches,
+                simulated_photons,
+                cfg_engine.random_seed,
+                cfg_engine.cpu_cores,
+                progress_queue,
             )
         else:
-            results_generator = self._yield_results_serial(batches, simulated_photons, base_seed)
+            results_generator = self._yield_results_serial(
+                batches, simulated_photons, cfg_engine.random_seed, progress_queue
+            )
 
+        accumulated_time = all_results.engine_result.simulation_time_s
         run_start_time = time.perf_counter()
 
-        exp_str = f"{self.context.config.metadata.experiment_name}"
-        scen_str = f"{self.context.config.metadata.scenario_name}"
-        if scen_str:
-            exp_str = f"{exp_str}/{scen_str}"
-
-        with tqdm(
-            total=total_photons,
-            initial=simulated_photons,
-            desc=exp_str,
-            unit=" photons",
-            disable=self.quiet,
-            smoothing=0.3,
-        ) as pbar:
-            for i, (chunk_res, chunk_size) in enumerate(results_generator):
-                pbar.update(chunk_size)
+        with self._track_progress(total_photons, simulated_photons, progress_queue):
+            for i, (chunk_res, chunk_size) in enumerate(results_generator, start=1):
                 chunk_res.total_photons = chunk_size
                 all_results = all_results.merge(chunk_res)
 
-                if (i + 1) % CHECKPOINT_INTERVAL == 0:
+                if i % CHECKPOINT_INTERVAL == 0:
                     current_elapsed = time.perf_counter() - run_start_time
                     all_results.engine_result.simulation_time_s = accumulated_time + current_elapsed
 
@@ -110,11 +104,15 @@ class MCRadiationRunner:
             batches.append(remainder)
         return batches
 
-    def _yield_results_serial(self, batches: list[int], start_photons: int, base_seed: int):
+    def _yield_results_serial(
+        self, batches: list[int], start_photons: int, base_seed: int, progress_queue
+    ):
         current_photons = start_photons
         for size in batches:
             chunk_seed = np.random.SeedSequence((base_seed, current_photons))
-            chunk_result = run_chunk(size, chunk_seed, self.context, current_photons)
+            chunk_result = run_chunk(
+                size, chunk_seed, self.context, current_photons, progress_queue
+            )
 
             yield chunk_result, size
             current_photons += size
@@ -135,7 +133,7 @@ class MCRadiationRunner:
         return SimResults()
 
     def _yield_results_parallel(
-        self, batches: list[int], start_photons: int, base_seed: int, cores: int
+        self, batches: list[int], start_photons: int, base_seed: int, cores: int, progress_queue
     ):
         start_methods = multiprocessing.get_all_start_methods()
         start_method = "forkserver" if "forkserver" in start_methods else "spawn"
@@ -150,37 +148,73 @@ class MCRadiationRunner:
             current_photons += size
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=cores, mp_context=ctx) as executor:
+            queues = [progress_queue] * len(batches)
             results = executor.map(
-                run_chunk, batches, seeds, [self.context] * len(batches), photon_counts
+                run_chunk, batches, seeds, [self.context] * len(batches), photon_counts, queues
             )
 
             for size, chunk_result in zip(batches, results):
                 yield chunk_result, size
 
+    @contextmanager
+    def _track_progress(self, total: int, initial: int, progress_queue):
+        meta = self.context.config.metadata
+        exp_str = (
+            f"{meta.experiment_name}/{meta.scenario_name}"
+            if meta.scenario_name
+            else meta.experiment_name
+        )
+
+        with tqdm(
+            total=total,
+            initial=initial,
+            desc=exp_str,
+            unit=" photons",
+            disable=self.quiet,
+            smoothing=0.3,
+        ) as pbar:
+
+            def update_pbar():
+                while True:
+                    try:
+                        died = progress_queue.get(timeout=0.1)
+                        if died == "DONE":
+                            break
+                        if not self.quiet:
+                            pbar.update(died)
+                    except queue.Empty:
+                        pass
+
+            monitor_thread = threading.Thread(target=update_pbar)
+            monitor_thread.start()
+
+            try:
+                yield
+            finally:
+                progress_queue.put("DONE")
+                monitor_thread.join()
+
 
 def run_chunk(
-    chunk_size: int, seed: np.random.SeedSequence, context: SimContext, starting_photon_count: int
+    chunk_size: int,
+    seed: np.random.SeedSequence,
+    context: SimContext,
+    starting_photon_count: int,
+    progress_queue,
 ) -> SimResults:
-    new_engine_config = context.config.engine.model_copy(
-        update={
-            "num_photons": chunk_size,
-            "random_seed": seed,
-        }
-    )
 
-    new_detector_config = context.config.detectors.model_copy(
-        update={
-            "num_full_paths": context.config.detectors.num_full_paths
-            if starting_photon_count == 0
-            else 0,
-        }
-    )
+    new_config = deepcopy(context.config)
+    new_config.engine.num_photons = chunk_size
+    new_config.engine.random_seed = seed
 
-    new_config = context.config.model_copy(
-        update={"engine": new_engine_config, "detectors": new_detector_config}
-    )
+    if starting_photon_count > 0:
+        new_config.detectors.num_full_paths = 0
 
-    sim = Engine(new_config, context.scene)
+    def put_in_queue(died_count):
+        if progress_queue is not None and died_count > 0:
+            progress_queue.put(died_count)
+
+    sim = Engine(new_config, context.scene, put_in_queue)
     sim.run()
 
     return sim.get_results()
