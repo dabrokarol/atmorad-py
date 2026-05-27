@@ -207,6 +207,8 @@ class MCRadiationRunner:
                             pbar.update(died)
                     except queue.Empty:
                         pass
+                    except Exception:
+                        break
 
             monitor_thread = threading.Thread(target=update_pbar)
             monitor_thread.start()
@@ -214,7 +216,10 @@ class MCRadiationRunner:
             try:
                 yield
             finally:
-                progress_queue.put("DONE")
+                try:
+                    progress_queue.put("DONE")
+                except Exception:
+                    pass
                 monitor_thread.join()
 
 
