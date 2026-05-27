@@ -223,13 +223,13 @@ class MCRadiationRunner:
                 except Exception:
                     pass
                 monitor_thread.join()
-                
+
                 if success and not self.quiet:
                     remaining = pbar.total - pbar.n
                     if remaining > 0:
                         pbar.update(remaining)
                     pbar.refresh()
-                
+
 
 def _set_global_context(context: SimContext):
     global _global_context

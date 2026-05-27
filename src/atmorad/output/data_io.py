@@ -1,8 +1,10 @@
+import json
 import logging
 import re
 import shutil
 from pathlib import Path
 
+import tomli_w
 import xarray as xr
 from matplotlib.figure import Figure
 
@@ -30,30 +32,23 @@ class DataIO:
         resume = config.engine.resume_from_checkpoint
         overwrite = config.output.overwrite
 
-        self.base_dir = output_dir / self.exp_name
-        self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.results_filename = f"atmorad_{self.exp_name}_{self.scen_name}.nc"
-
+        chosen_dir = None
         if resume:
-            latest_checkpoint_dir = self._find_compatible_checkpoint_dir(output_dir)
-            if latest_checkpoint_dir:
-                self.base_dir = latest_checkpoint_dir
-                self.fig_dir = fig_dir / latest_checkpoint_dir.name
-                self.fig_dir.mkdir(parents=True, exist_ok=True)
-                logging.info(f"Resuming from the most recent directory: {self.base_dir}")
-                return
+            chosen_dir = self._find_compatible_checkpoint_dir(output_dir)
+            if chosen_dir:
+                logging.info(f"Resuming from the most recent directory: {chosen_dir}")
+            else:
+                logging.warning(
+                    f"Resume requested for '{self.exp_name}', but no checkpoint found. Starting fresh."
+                )
 
-            logging.warning(
-                f"Resume requested for '{self.exp_name}', but no checkpoint found. Starting fresh."
-            )
-
-        if overwrite:
-            run_folder_name = self.exp_name
+        if chosen_dir:
+            self.base_dir = chosen_dir
+            self.fig_dir = fig_dir / chosen_dir.name
         else:
-            run_folder_name = f"{self.exp_name}-{timestamp}"
-
-        self.fig_dir = fig_dir / run_folder_name
-        self.base_dir = output_dir / run_folder_name
+            run_folder_name = self.exp_name if overwrite else f"{self.exp_name}-{timestamp}"
+            self.base_dir = output_dir / run_folder_name
+            self.fig_dir = fig_dir / run_folder_name
 
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.fig_dir.mkdir(parents=True, exist_ok=True)
@@ -106,44 +101,37 @@ class DataIO:
 
             loaded_results = self._load_nc_file(file_to_check)
 
-            if loaded_results is not None:
-                if loaded_results.config is not None:
-                    if self.config.is_compatible_for_resume(loaded_results.config):
-                        logging.debug(f"Compatible checkpoint found in: {candidate.name}")
-                        return candidate
-                    else:
-                        logging.debug(f"Skipped {candidate.name}: configuration mismatch.")
+            if loaded_results is not None and loaded_results.config is not None:
+                if self.config.is_compatible_for_resume(loaded_results.config):
+                    logging.debug(f"Compatible checkpoint found in: {candidate.name}")
+                    return candidate
+                else:
+                    logging.debug(f"Skipped {candidate.name}: configuration mismatch.")
 
         return None
 
-    def save_simulation_run(self, results: SimResults) -> None:
-        results_path = self.base_dir / self.results_filename
-        tmp_path = results_path.with_name(results_path.name + ".tmp")
-
+    def _save_nc_atomic(self, results: SimResults, target_path: Path, normalize: bool) -> None:
+        tmp_path = target_path.with_name(target_path.name + ".tmp")
         results.config = self.config
-        ds = results.to_dataset(normalize=True)
+        ds = results.to_dataset(normalize=normalize)
         ds.to_netcdf(tmp_path, engine=self.NETCDF_ENGINE)
+        shutil.move(tmp_path, target_path)
 
-        shutil.move(tmp_path, results_path)
+    def save_simulation_run(self, results: SimResults) -> None:
+        self._save_nc_atomic(results, self.base_dir / self.results_filename, normalize=True)
+
+    def save_checkpoint(self, results: SimResults) -> None:
+        self._save_nc_atomic(results, self.checkpoint_path, normalize=False)
 
     def save_figure(self, fig: Figure, plot_name: str, dpi: int = 300) -> None:
-        """Saves with prefix, e.g. plot_name="vertical_flux" -> "vertical_flux_demo001_baseline.png" """
         filename = f"{plot_name}_{self.exp_name}_{self.scen_name}.png"
         full_path = self.fig_dir / filename
-
         full_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(full_path, dpi=dpi, bbox_inches="tight")
 
     @property
     def checkpoint_path(self) -> Path:
         return self.base_dir / self.checkpoint_filename
-
-    def save_checkpoint(self, results: SimResults) -> None:
-        tmp_path = self.checkpoint_path.with_suffix(".nc.tmp")
-        results.config = self.config
-        ds = results.to_dataset(normalize=False)
-        ds.to_netcdf(tmp_path, engine=self.NETCDF_ENGINE)
-        shutil.move(tmp_path, self.checkpoint_path)
 
     def load_checkpoint(self) -> SimResults | None:
         """Loads simulation state from a completed results file or a checkpoint."""
@@ -156,26 +144,25 @@ class DataIO:
 
         return None
 
-    def _load_nc_file(self, path: Path) -> SimResults | None:
-        if not path.exists():
-            return None
-
-        try:
-            with xr.open_dataset(path, engine=self.NETCDF_ENGINE) as ds:
-                ds.load()
-                return SimResults.from_dataset(ds)
-        except (OSError, ValueError):
-            logging.exception("Failed to load checkpoint file.")
-            return None
-
     def delete_checkpoint(self) -> None:
         if self.checkpoint_path.exists():
             self.checkpoint_path.unlink()
 
     @classmethod
+    def _load_nc_file(cls, path: Path) -> SimResults | None:
+        if not path.exists():
+            return None
+        try:
+            with xr.open_dataset(path, engine=cls.NETCDF_ENGINE) as ds:
+                ds.load()
+                return SimResults.from_dataset(ds)
+        except (OSError, ValueError):
+            logging.exception(f"Failed to load data file: {path}")
+            return None
+
+    @classmethod
     def load_simulation_results(cls, directory: str | Path) -> SimResults:
         dir_path = Path(directory)
-
         nc_files = [f for f in dir_path.glob("*.nc") if "checkpoint" not in f.name]
 
         if not nc_files:
@@ -186,8 +173,30 @@ class DataIO:
             )
             nc_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
 
-        results_path = nc_files[0]
+        results = cls._load_nc_file(nc_files[0])
+        if results is None:
+            raise RuntimeError(f"Could not load valid simulation results from {nc_files[0]}")
+        return results
 
-        with xr.open_dataset(results_path, engine=cls.NETCDF_ENGINE) as ds:
-            ds.load()
-            return SimResults.from_dataset(ds)
+    @classmethod
+    def extract_config(cls, data_path: str | Path, out_path: str | Path | None = None):
+        data_path = Path(data_path)
+        out_path = Path(out_path) if out_path else Path.cwd()
+
+        if out_path.is_dir():
+            out_path = out_path / f"{data_path.stem}_config.toml"
+
+        try:
+            with xr.open_dataset(data_path, engine=cls.NETCDF_ENGINE) as ds:
+                config_raw = json.loads(ds.attrs["_simulation_config"])
+
+            with open(out_path, "wb") as f:
+                tomli_w.dump(config_raw, f)
+            logging.info(f"Config successfully extracted to: {out_path}")
+
+        except KeyError:
+            logging.error(f'File {data_path} does not have "_simulation_config" attribute.')
+        except json.JSONDecodeError:
+            logging.error("Config format is possibly corrupted or not in a json format.")
+        except (OSError, ValueError) as e:
+            logging.exception(f"Couldn't extract the configuration file: {e}")
