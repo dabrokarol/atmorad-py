@@ -63,11 +63,11 @@ class PathTrackingDetector(BaseDetector):
 
         for i in range(self.num_track):
             path = self.tracked_paths[i]
-            weights = self.tracked_weights[i]
+            w = self.tracked_weights[i]
             bounces = len(path)
             if bounces > 0:
                 paths_3d[i, :bounces, :] = np.vstack(path)
-                weights[i, :bounces] = weights
+                weights[i, :bounces] = w
 
                 last_pos = path[-1]
                 reflected[i] = self.scene.above_toa(last_pos.reshape(3, 1))[0]
