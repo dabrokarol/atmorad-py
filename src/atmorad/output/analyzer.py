@@ -273,7 +273,7 @@ class ResultAnalyzer:
             profile,
             height=spacing,
             align="center",
-            color="#1013CE",
+            color="#C25110",
             alpha=0.85,
             edgecolor="black",
         )
