@@ -45,7 +45,7 @@ class PathTrackingDetector(BaseDetector):
         if self.num_track == 0 or not self.tracked_paths:
             return PathTrackingResult(
                 sample_paths_3d=np.array([]),
-                sample_weights_2d=np.array([]),
+                sample_weights=np.array([]),
                 sample_escaped_toa=np.array([]),
                 sample_absorbed_atmosphere=np.array([]),
                 sample_absorbed_surface=np.array([]),
@@ -55,7 +55,7 @@ class PathTrackingDetector(BaseDetector):
         max_bounces = max(len(path) for path in self.tracked_paths.values())
 
         paths_3d = np.full((self.num_track, max_bounces, 3), np.nan)
-        weights_2d = np.full((self.num_track, max_bounces), np.nan)
+        weights = np.full((self.num_track, max_bounces), np.nan)
 
         reflected = np.zeros(self.num_track, dtype=bool)
         abs_atm = np.zeros(self.num_track, dtype=bool)
@@ -67,7 +67,7 @@ class PathTrackingDetector(BaseDetector):
             bounces = len(path)
             if bounces > 0:
                 paths_3d[i, :bounces, :] = np.vstack(path)
-                weights_2d[i, :bounces] = weights
+                weights[i, :bounces] = weights
 
                 last_pos = path[-1]
                 reflected[i] = self.scene.above_toa(last_pos.reshape(3, 1))[0]
@@ -76,7 +76,7 @@ class PathTrackingDetector(BaseDetector):
 
         return PathTrackingResult(
             sample_paths_3d=paths_3d,
-            sample_weights_2d=weights_2d,
+            sample_weights=weights,
             sample_escaped_toa=reflected,
             sample_absorbed_atmosphere=abs_atm,
             sample_absorbed_surface=abs_surf,

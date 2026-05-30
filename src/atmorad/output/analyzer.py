@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import xarray as xr
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 sns.set_theme(style="ticks", rc={"font.family": "serif"})
 
@@ -103,9 +104,14 @@ class ResultAnalyzer:
         Lx, Ly = self._infer_domain_size(paths)
         limit_x, limit_y = Lx / 2.0, Ly / 2.0
 
-        fig = plt.figure(figsize=(10, 10))
+        fig = plt.figure(figsize=(10, 10), dpi=120)
         ax = fig.add_subplot(projection="3d")
+
         labeled_surface, labeled_above_toa, labeled_atmosphere = False, False, False
+
+        color_surf = "tab:green"
+        color_toa = "tab:grey"
+        color_atm = "tab:red"
 
         for i in range(num_paths):
             X = paths[i, :, 0]
@@ -126,30 +132,49 @@ class ResultAnalyzer:
             Z_plot = np.insert(Z.astype(float), jump_indices, np.nan)
 
             if absorbed_surface[i]:
-                color, alpha = "tab:green", 0.3
+                c, a = color_surf, 0.3
                 lbl = "Absorbed by surface" if not labeled_surface else None
                 labeled_surface = True
             elif outgoing_toa[i]:
-                color, alpha = "tab:grey", 0.2
-                lbl = "outgoing TOA" if not labeled_above_toa else None
+                c, a = color_toa, 0.2
+                lbl = "Escaped (TOA)" if not labeled_above_toa else None
                 labeled_above_toa = True
             else:
-                color, alpha = "tab:red", 0.3
+                c, a = color_atm, 0.3
                 lbl = "Absorbed by atmosphere" if not labeled_atmosphere else None
                 labeled_atmosphere = True
 
-            ax.plot3D(X_plot, Y_plot, Z_plot, alpha=alpha, color=color, label=lbl)
+            ax.plot3D(X_plot, Y_plot, Z_plot, alpha=a, color=c, label=lbl, linewidth=1.4)
 
-        ax.set_title(title, fontsize=20)
-        ax.set_xlabel("Pos x [km]")
-        ax.set_ylabel("Pos y [km]")
-        ax.set_zlabel("Pos z [km]")
+        X_grid, Y_grid = np.meshgrid([-limit_x, limit_x], [-limit_y, limit_y])
+        ax.plot_surface(
+            X_grid, Y_grid, np.zeros_like(X_grid), color="gray", alpha=0.1, shade=False, zorder=-1
+        )
+
+        ax.view_init(elev=25, azim=-45)
+
+        ax.set_title(title, fontsize=25, fontweight="500", pad=10)
+        ax.set_xlabel("X [km]", fontsize=15, labelpad=10)
+        ax.set_ylabel("Y [km]", fontsize=15, labelpad=10)
+        ax.set_zlabel("Altitude Z [km]", fontsize=15, labelpad=10)
+
         ax.set_xlim(-limit_x, limit_x)
         ax.set_ylim(-limit_y, limit_y)
         ax.set_zlim(0, toa_z)
 
+        ax.xaxis.pane.fill = False
+        ax.yaxis.pane.fill = False
+        ax.zaxis.pane.fill = False
+        ax.xaxis.pane.set_edgecolor("white")
+        ax.yaxis.pane.set_edgecolor("white")
+        ax.zaxis.pane.set_edgecolor("white")
+
+        ax.tick_params(axis="both", which="major", labelsize=15)
+
         if labeled_surface or labeled_above_toa or labeled_atmosphere:
-            ax.legend()
+            ax.legend(loc="upper right", fontsize=15)
+
+        fig.tight_layout()
 
         return fig
 
@@ -166,10 +191,15 @@ class ResultAnalyzer:
 
         mesh = ax.pcolormesh(X, Y, flux_map.T, cmap=cmo.cm.solar, shading="nearest")  # type: ignore
         ax.set_aspect("equal")
-        fig.colorbar(mesh, ax=ax, label=label, orientation="horizontal", pad=0.1)
+
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("bottom", size="5%", pad=0.6)
+        fig.colorbar(mesh, cax=cax, label=label, orientation="horizontal")
+
         ax.set_xlabel("Position X [km]")
         ax.set_ylabel("Position Y [km]")
-        ax.set_title(title, fontsize=16)
+        ax.set_title(title, fontsize=16, pad=15)
+        sns.despine(ax=ax)
 
         return fig
 
@@ -198,19 +228,20 @@ class ResultAnalyzer:
         flux_up = self.ds[f"{prefix}_flux_up"].values
         net_flux = flux_down - flux_up
 
-        ax.plot(
-            flux_down, z, label=r"Downward flux ($F^\downarrow$)", color="tab:blue", linewidth=2
-        )
-        ax.plot(flux_up, z, label=r"Upward flux ($F^\uparrow$)", color="tab:orange", linewidth=2)
+        ax.plot(flux_down, z, label=r"Downward flux ($F^\downarrow$)", color="#f7c522", linewidth=2)
+        ax.plot(flux_up, z, label=r"Upward flux ($F^\uparrow$)", color="#1f78b4", linewidth=2)
         ax.plot(
             net_flux, z, label=r"Net flux ($F_{net}$)", color="black", linestyle="--", linewidth=2.5
         )
+        ax.axvline(0, color="gray", linestyle="-", linewidth=1, alpha=0.5)
 
         ax.set_title(title, fontsize=18)
         ax.set_xlabel("Normalized Flux", fontsize=12)
         ax.set_ylabel("Altitude Z [km]", fontsize=12)
-        ax.grid(True, linestyle=":", alpha=0.7)
-        ax.legend(fontsize=11)
+
+        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.legend(fontsize=11, frameon=True)
+        sns.despine(ax=ax)
 
         return fig
 
@@ -242,15 +273,19 @@ class ResultAnalyzer:
             profile,
             height=spacing,
             align="center",
-            color="tab:red",
-            alpha=0.6,
+            color="#1013CE",
+            alpha=0.85,
             edgecolor="black",
         )
 
-        ax.set_title(title, fontsize=16)
+        ax.set_title(title, fontsize=16, pad=15)
         ax.set_xlabel("Normalized Absorption", fontsize=12)
         ax.set_ylabel("Altitude Z [km]", fontsize=12)
-        ax.grid(True, linestyle=":", alpha=0.5)
+        ax.tick_params(axis="both", colors="#555555", labelsize=10)
+        ax.grid(True, axis="x", linestyle="--", alpha=0.4)
+        ax.set_xlim(left=0)
+        ax.set_ylim(bottom=0)
+        sns.despine(ax=ax)
 
         fig.tight_layout()
         return fig
@@ -291,7 +326,7 @@ class ResultAnalyzer:
 
                     for i, z_val in enumerate(measure_z):
                         # Downward Flux Plot
-                        title_down = f"Incident Downward Flux Map\nHeight: {z_val} km"
+                        title_down = f"Downward Flux Map\nHeight: {z_val} km"
                         fig_down = self.plot_2d_map(
                             incident_down[i], x_centers, y_centers, title=title_down
                         )
@@ -300,7 +335,7 @@ class ResultAnalyzer:
                             plt.close(fig_down)
 
                         # Upward Flux Plot
-                        title_up = f"Incident Upward Flux Map\nHeight: {z_val} km"
+                        title_up = f"Upward Flux Map\nHeight: {z_val} km"
                         fig_up = self.plot_2d_map(
                             incident_up[i], x_centers, y_centers, title=title_up
                         )

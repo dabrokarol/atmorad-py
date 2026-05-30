@@ -270,7 +270,7 @@ class PathTrackingResult(BaseResult):
         on_merge="concat",
         long_name="Photon Path Coordinates",
     )
-    sample_weights_2d: np.ndarray = data_field(
+    sample_weights: np.ndarray = data_field(
         dims=["photon", "step"], units="1", on_merge="concat", long_name="Photon Weight"
     )
     sample_escaped_toa: np.ndarray = data_field(
