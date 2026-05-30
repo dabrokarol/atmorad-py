@@ -8,7 +8,22 @@ import seaborn as sns
 import xarray as xr
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-sns.set_theme(style="ticks", rc={"font.family": "serif"})
+sns.set_theme(
+    style="ticks",
+    rc={
+        "font.family": "serif",
+        "axes.titlesize": 20,
+        "axes.titlepad": 15,
+        "axes.titleweight": "500",
+        "axes.labelsize": 17,
+        "axes.labelpad": 10,
+        "xtick.labelsize": 15,
+        "ytick.labelsize": 15,
+        "legend.fontsize": 15,
+        "legend.frameon": False,
+        "figure.dpi": 100,
+    },
+)
 
 
 class ResultAnalyzer:
@@ -104,7 +119,7 @@ class ResultAnalyzer:
         Lx, Ly = self._infer_domain_size(paths)
         limit_x, limit_y = Lx / 2.0, Ly / 2.0
 
-        fig = plt.figure(figsize=(10, 10), dpi=120)
+        fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(projection="3d")
 
         labeled_surface, labeled_above_toa, labeled_atmosphere = False, False, False
@@ -153,10 +168,10 @@ class ResultAnalyzer:
 
         ax.view_init(elev=25, azim=-45)
 
-        ax.set_title(title, fontsize=25, fontweight="500", pad=10)
-        ax.set_xlabel("X [km]", fontsize=15, labelpad=10)
-        ax.set_ylabel("Y [km]", fontsize=15, labelpad=10)
-        ax.set_zlabel("Altitude Z [km]", fontsize=15, labelpad=10)
+        ax.set_title(title)
+        ax.set_xlabel("X [km]")
+        ax.set_ylabel("Y [km]")
+        ax.set_zlabel("Altitude Z [km]")
 
         ax.set_xlim(-limit_x, limit_x)
         ax.set_ylim(-limit_y, limit_y)
@@ -169,10 +184,8 @@ class ResultAnalyzer:
         ax.yaxis.pane.set_edgecolor("white")
         ax.zaxis.pane.set_edgecolor("white")
 
-        ax.tick_params(axis="both", which="major", labelsize=15)
-
         if labeled_surface or labeled_above_toa or labeled_atmosphere:
-            ax.legend(loc="upper right", fontsize=15)
+            ax.legend(loc="upper right")
 
         fig.tight_layout()
 
@@ -186,21 +199,22 @@ class ResultAnalyzer:
         title: str,
         label: str = "Normalized Flux",
     ):
-        fig, ax = plt.subplots(figsize=(8, 7))
+        fig, ax = plt.subplots(figsize=(10, 10))
         X, Y = np.meshgrid(x_centers, y_centers)
 
-        mesh = ax.pcolormesh(X, Y, flux_map.T, cmap=cmo.cm.solar, shading="nearest")  # type: ignore
+        mesh = ax.pcolormesh(X, Y, flux_map.T, cmap=cmo.cm.solar, shading="nearest")
         ax.set_aspect("equal")
 
         divider = make_axes_locatable(ax)
-        cax = divider.append_axes("bottom", size="5%", pad=0.6)
+        cax = divider.append_axes("bottom", size="5%", pad=1)
         fig.colorbar(mesh, cax=cax, label=label, orientation="horizontal")
 
         ax.set_xlabel("Position X [km]")
         ax.set_ylabel("Position Y [km]")
-        ax.set_title(title, fontsize=16, pad=15)
+        ax.set_title(title)
         sns.despine(ax=ax)
 
+        fig.tight_layout()
         return fig
 
     def plot_surface_absorption_map(self, prefix: str, title: str = "Surface Absorption Map"):
@@ -235,14 +249,16 @@ class ResultAnalyzer:
         )
         ax.axvline(0, color="gray", linestyle="-", linewidth=1, alpha=0.5)
 
-        ax.set_title(title, fontsize=18)
-        ax.set_xlabel("Normalized Flux", fontsize=12)
-        ax.set_ylabel("Altitude Z [km]", fontsize=12)
+        ax.set_title(title)
+        ax.set_xlabel("Normalized Flux")
+        ax.set_ylabel("Altitude Z [km]")
 
-        ax.grid(True, linestyle="--", alpha=0.5)
-        ax.legend(fontsize=11, frameon=True)
+        ax.grid(True, linestyle="--", alpha=0.4)
+        ax.set_ylim(bottom=0)
+        ax.legend()
         sns.despine(ax=ax)
 
+        fig.tight_layout()
         return fig
 
     def plot_absorption_profile(self, prefix: str, title="Atmospheric Absorption Profile"):
@@ -251,7 +267,7 @@ class ResultAnalyzer:
             logging.warning(f"Warning: No absorption profile found for prefix '{prefix}'.")
             return None
 
-        fig, ax = plt.subplots(figsize=(6, 8))
+        fig, ax = plt.subplots(figsize=(8, 10))
 
         z_centers = self.ds.get(f"{prefix}_z", None)
         if z_centers is None:
@@ -278,10 +294,9 @@ class ResultAnalyzer:
             edgecolor="black",
         )
 
-        ax.set_title(title, fontsize=16, pad=15)
-        ax.set_xlabel("Normalized Absorption", fontsize=12)
-        ax.set_ylabel("Altitude Z [km]", fontsize=12)
-        ax.tick_params(axis="both", colors="#555555", labelsize=10)
+        ax.set_title(title)
+        ax.set_xlabel("Normalized Absorption")
+        ax.set_ylabel("Altitude Z [km]")
         ax.grid(True, axis="x", linestyle="--", alpha=0.4)
         ax.set_xlim(left=0)
         ax.set_ylim(bottom=0)
