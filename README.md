@@ -20,7 +20,7 @@
 | ![profile](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/vertical_flux_profile.png)| ![hist](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/absorption_profile.png) |
 
 ## Overview
-AtmoRad is a Python tool for simulating the radiative transfer of monochromatic light over a mixed 2D surface and a plane-parallel atmosphere. I started it as a hobby project during lectures of Radiative Processes in the Atmosphere at the Faculty of Physics, University of Warsaw to learn computational physics and software development. 
+AtmoRad is a Python tool for simulating the radiative transfer of monochromatic light over a mixed 2D surface and a plane-parallel atmosphere. I started it as an independent educational project alongside lectures of Radiative Processes in the Atmosphere at the Faculty of Physics, University of Warsaw to learn computational physics and software development. 
 
 ## Installation
 
@@ -64,7 +64,7 @@ Outputs saved to: results/demo001/
 *Check the `results/` directory for generated simulation artifacts and plots.*
 
 ## Features & Physical Model
-- **Vectorized Monte Carlo Approach**: To fight Python's weak performance, uses **NumPy** and **multiprocessing** for fast and parallel processing of photons in large batches.
+- **Vectorized Monte Carlo Approach**: For high-performance execution, uses NumPy and multiprocessing for fast and parallel processing of photons in large batches.
 - **3D Radiative Transfer in Plane-Parallel Approximation**: The atmosphere consists of horizontally uniform layers, but photon paths are tracked in fully 3D space over a 2D surface.
 - **Multi-Material Atmospheric Layers**: Layers can consist of multiple atmospheric materials simultaneously. Each material defines its own extinction coefficient, SSA, and phase function (built-in Rayleigh and Henyey-Greenstein, or custom).
 - **Two Scattering Mechanisms**: Supports photon scattering using analytical inverse phase functions as well as numerical inverse CDFs for custom distributions.
@@ -79,6 +79,7 @@ I'm planning to include more features in the future, such as:
 - Roughness parameter in specular reflection and other BRDF models.
 - 3D surface topography.
 - Spherical geometry for high zenith angles and whole-Earth simulations.
+- Validation against standard 3D radiative transfer models.
 
 ## Configuration
 
@@ -491,7 +492,7 @@ This method created an <exp_name>_<scen_name>_config.toml file in your working d
 
 ## Acknowledgments
 - I created this project inspired by the lectures on *Radiative Processes in the Atmosphere* by Prof. K. Markowicz, Faculty of Physics, University of Warsaw.
-- I used Large Language Models for code debugging (quite a lot) and architectural decisions (e.g., how to structure the repository, which packages to use, how to save and read data).
+- I used Large Language Models for code debugging and architectural decisions (e.g., how to structure the repository, which packages to use, how to save and read data).
 
 ## Contributing
 Feel free to open an [Issue](https://github.com/dabrokarol/atmorad-py/issues) or submit a Pull Request to report bugs, suggest new features and ask questions :))
