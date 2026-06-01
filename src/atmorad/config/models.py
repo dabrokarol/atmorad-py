@@ -177,6 +177,47 @@ class SimConfig(BaseModel):
     environment: EnvironmentConfig
     config_path: Path | None = Field(default=None, exclude=True)
 
+    @model_validator(mode="before")
+    @classmethod
+    def format_on_load(cls, data: Any) -> Any:
+        """
+        Reformats the flat TOML dictionary and nests the environment variables before Pydantic validates the schema.
+        """
+        if not isinstance(data, dict):
+            return data
+
+        data_copy = data.copy()
+
+        env_keys = ["atmosphere_materials", "surface_materials", "surface", "geometry"]
+        env_data = data_copy.get("environment", {})
+
+        for key in env_keys:
+            if key in data_copy:
+                env_data[key] = data_copy.pop(key)
+
+        if "layer" in data_copy:
+            env_data["layers"] = data_copy.pop("layer")
+
+        if env_data:
+            data_copy["environment"] = env_data
+
+        return data_copy
+
+    def format_to_save(self) -> dict:
+        """Reformats config to a format compatible with initial .toml layout (used by users)"""
+        data = self.model_dump(mode="json", exclude={"config_path"}, exclude_none=True)
+
+        env_data = data.pop("environment", {})
+
+        for key in ["atmosphere_materials", "surface_materials", "surface", "geometry"]:
+            if key in env_data:
+                data[key] = env_data[key]
+
+        if "layers" in env_data:
+            data["layer"] = env_data.pop("layers")
+
+        return data
+
     def is_compatible_for_resume(self, checkpoint_config: "SimConfig") -> bool:
         excluded_fields = {"metadata", "output"}
 

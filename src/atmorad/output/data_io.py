@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 import shutil
@@ -7,6 +6,7 @@ from pathlib import Path
 import tomli_w
 import xarray as xr
 from matplotlib.figure import Figure
+from pydantic import ValidationError
 
 from atmorad.config import SimConfig
 from atmorad.models.results import SimResults
@@ -187,15 +187,17 @@ class DataIO:
 
         try:
             with xr.open_dataset(data_path, engine=cls.NETCDF_ENGINE) as ds:
-                config_raw = json.loads(ds.attrs["_simulation_config"])
+                config_json_str = ds.attrs["_simulation_config"]
+
+            config_reformatted = SimConfig.model_validate_json(config_json_str).format_to_save()
 
             with open(out_path, "wb") as f:
-                tomli_w.dump(config_raw, f)
+                tomli_w.dump(config_reformatted, f)
             logging.info(f"Config successfully extracted to: {out_path}")
 
         except KeyError:
             logging.error(f'File {data_path} does not have "_simulation_config" attribute.')
-        except json.JSONDecodeError:
-            logging.error("Config format is possibly corrupted or not in a json format.")
+        except ValidationError as e:
+            logging.error(f"Config validation failed: {e}.")
         except (OSError, ValueError) as e:
             logging.exception(f"Couldn't extract the configuration file: {e}")

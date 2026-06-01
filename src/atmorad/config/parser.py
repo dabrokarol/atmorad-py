@@ -14,25 +14,28 @@ CURRENT_DIR = Path(__file__).parent
 
 def _deep_merge_dicts(base: dict, scenario: dict) -> dict:
     base_copy = copy.deepcopy(base)
+
+    polymorphic_keys = ["name", "type"]  # in case of change, overwrite, not merge
+
     for key, value in scenario.items():
         if isinstance(value, dict) and key in base_copy and isinstance(base_copy[key], dict):
-            base_copy[key] = _deep_merge_dicts(base_copy[key], value)
+            base_dict = base_copy[key]
+            other_dict = value
+
+            type_changed = False
+            for p_key in polymorphic_keys:
+                if p_key in base_dict and p_key in other_dict:
+                    if base_dict[p_key] != other_dict[p_key]:
+                        type_changed = True
+                        break
+
+            if type_changed:
+                base_copy[key] = copy.deepcopy(other_dict)
+            else:
+                base_copy[key] = _deep_merge_dicts(base_copy[key], other_dict)
         else:
             base_copy[key] = copy.deepcopy(value)
     return base_copy
-
-
-def _build_single_config(raw_config_data: dict, config_path: Path) -> SimConfig:
-    data = copy.deepcopy(raw_config_data)
-
-    env_keys = ["atmosphere_materials", "surface_materials", "surface", "geometry"]
-    environment_data = {key: data.pop(key, {}) for key in env_keys}
-    environment_data["layers"] = data.pop("layer", [])
-    data["environment"] = environment_data
-
-    data["config_path"] = config_path
-
-    return SimConfig(**data)
 
 
 def load_scenarios(config_path: Path) -> list[SimConfig]:
@@ -55,7 +58,7 @@ def load_scenarios(config_path: Path) -> list[SimConfig]:
         raw_data["metadata"] = {}
 
     if not scenarios:
-        return [_build_single_config(raw_data, config_path)]
+        return [SimConfig(**raw_data, config_path=config_path)]
 
     names = set()
 
@@ -81,6 +84,6 @@ def load_scenarios(config_path: Path) -> list[SimConfig]:
 
         merged_raw["metadata"]["scenario_name"] = scenario_name
 
-        configs.append(_build_single_config(merged_raw, config_path))
+        configs.append(SimConfig(**merged_raw, config_path=config_path))
 
     return configs
