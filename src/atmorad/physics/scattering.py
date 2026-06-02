@@ -36,10 +36,6 @@ class Scattering:
 
         return np.array((cos_theta, sin_theta, cos_phi, sin_phi))
 
-    def __call__(self, rand_1, rand_2):
-        return self.scatter(rand_1, rand_2)
-
-
 @register_scattering("hg")
 class HenyeyGreensteinScattering(Scattering):
     def __init__(self, g: float):
