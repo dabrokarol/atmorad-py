@@ -59,11 +59,7 @@ class DataIO:
             self._initialize_directories()
 
     def output_summary(self) -> str:
-        lines = [f"Outputs saved to: {self.base_dir}/"]
-        files = [self.results_filename]
-        for i, filename in enumerate(files):
-            lines.append(f"  {'└─' if i == len(files) - 1 else '├─'} {filename}")
-        return "\n".join(lines)
+        return f"Result File:\n  {self.base_dir}/{self.results_filename}"
 
     def _generate_candidate_dirs(self):
         """Yields valid directories sorted from newest to oldest."""
@@ -135,7 +131,7 @@ class DataIO:
 
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.fig_dir.mkdir(parents=True, exist_ok=True)
-        logging.info(f"Output directory initialized at: {self.base_dir}")
+        logging.debug(f"Output directory initialized at: {self.base_dir}")
 
     def _save_nc_file(self, ds: xr.Dataset, target_path: Path, normalize: bool) -> None:
         tmp_path = target_path.with_name(target_path.name + ".tmp")
@@ -199,7 +195,7 @@ class DataIO:
         return results
 
     @classmethod
-    def extract_config(cls, data_path: str | Path, out_path: str | Path | None = None):
+    def extract_config(cls, data_path: str | Path, out_path: str | Path | None = None) -> None:
         data_path = Path(data_path)
         out_path = Path(out_path) if out_path else Path.cwd()
 
@@ -213,12 +209,14 @@ class DataIO:
             config = SimConfig.model_validate_json(config_json_str)
 
             with open(out_path, "wb") as f:
-                tomli_w.dump(config, f)
-            logging.info(f"Config successfully extracted to: {out_path}")
+                clean_dict = config.model_dump(mode="json", exclude_unset=True)
+                tomli_w.dump(clean_dict, f)
+
+            logging.info(f"config successfully extracted to: {out_path}")
 
         except KeyError:
-            logging.error(f'File {data_path} does not have "_simulation_config" attribute.')
+            logging.error(f'file {data_path.name} does not have "_simulation_config" attribute.')
         except ValidationError as e:
-            logging.error(f"Config validation failed: {e}.")
-        except (OSError, ValueError) as e:
-            logging.exception(f"Couldn't extract the configuration file: {e}")
+            logging.error(f"config validation failed: {e}")
+        except OSError as e:
+            logging.exception(f"file I/O error during config extraction: {e}")

@@ -11,6 +11,10 @@ from atmorad.runner import execute_simulation
 
 
 def run(config_path: str | Path, quiet: bool = False) -> xr.Dataset | list[xr.Dataset]:
+    def log(msg=""):
+        if not quiet:
+            print(msg)
+
     path = Path(config_path).resolve()
     config_list = load_scenarios(path)
 
@@ -23,8 +27,8 @@ def run(config_path: str | Path, quiet: bool = False) -> xr.Dataset | list[xr.Da
 
         initial_state = None
         if config.engine.resume_from_checkpoint:
-            if not data_io.checkpoint_config and not quiet:
-                print(
+            if not data_io.checkpoint_config:
+                log(
                     f"[{config.metadata.scenario_name}] No compatible checkpoint found. Starting fresh."
                 )
             else:
@@ -51,12 +55,19 @@ def run(config_path: str | Path, quiet: bool = False) -> xr.Dataset | list[xr.Da
         norm_ds = normalize_dataset(results_ds)
         analyzer = ResultAnalyzer(norm_ds)
 
+        log("\n")
+        log(analyzer.experiment_summary() + "\n")
+        log(data_io.output_summary())
+        log()
+
         if config.output.save_plots:
+            log("Generating plots...")
+
             for fig, relative_path in analyzer.generate_all_figures():
+                log(f"- {relative_path}")
                 data_io.save_figure(fig, relative_path)
 
-        if not quiet:
-            print("\n".join((analyzer.experiment_summary(), data_io.output_summary())))
+        log("\n")
 
     return results_list[0] if len(results_list) == 1 else results_list
 

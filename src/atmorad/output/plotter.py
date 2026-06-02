@@ -55,11 +55,7 @@ class ResultAnalyzer:
         experiment_name = self.ds.attrs.get("experiment_name", "")
         scenario_name = self.ds.attrs.get("scenario_name", "")
 
-        if scenario_name:
-            experiment_name = f"{experiment_name}/{scenario_name}"
-
         total_time = self.ds.attrs.get("engine_simulation_time_s", 0.0)
-        cpu_time = self.ds.attrs.get("engine_cpu_time_s", 0.0)
         total_photons = int(self.ds.attrs.get("num_photons", 0))
 
         fate_prefix = "energy_budget"
@@ -76,15 +72,22 @@ class ResultAnalyzer:
 
         return "\n".join(
             [
-                f"\n---- Simulation Summary: {experiment_name} ----",
-                f"Time: {total_time:.2f}s (Total) | {cpu_time:.2f}s (CPU)",
-                f"Simulated Photons: {total_photons:_}\n",
-                "Energy Distribution:",
-                f"  {'Outgoing (TOA)':<23}: {outgoing_toa_pct:>6.2f}%",
-                f"  {'Surface Absorption':<23}: {absorbed_surf_pct:>6.2f}%",
-                f"  {'Atmospheric Absorption':<23}: {absorbed_atm_pct:>6.2f}%",
-                "  " + "-" * 30,
-                f"  {'Energy Conservation':<23}: {conservation:>6.2f}%\n",
+                "Simulation complete",
+                "",
+                f"experiment: {experiment_name}",
+                f"scenario: {scenario_name}",
+                "",
+                f"runtime: {total_time:.2f} s",
+                f"photons: {total_photons:_}",
+                "",
+                "Energy distribution",
+                "-" * 30,
+                f"{'toa escape':<24}{outgoing_toa_pct:>6.2f}%",
+                f"{'surface absorption':<24}{absorbed_surf_pct:>6.2f}%",
+                f"{'atmospheric absorption':<24}{absorbed_atm_pct:>6.2f}%",
+                "-" * 30,
+                f"{'energy conservation':<24}{conservation:>6.2f}%",
+                "",
             ]
         )
 
