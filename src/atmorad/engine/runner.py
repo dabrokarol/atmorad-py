@@ -1,7 +1,6 @@
 import concurrent.futures
 import logging
 import multiprocessing
-import queue
 import signal
 import threading
 import time
@@ -17,6 +16,7 @@ from atmorad.models import SimContext, SimResults
 from .core import Engine
 
 _global_context = None
+_progress_value = None
 
 
 class MCRadiationRunner:
@@ -64,7 +64,6 @@ class MCRadiationRunner:
             return all_results
 
         batches = self._calculate_batches(remaining_photons, cfg_engine.batch_size)
-        progress_queue = multiprocessing.Manager().Queue()
 
         if cfg_engine.cpu_cores > 1:
             results_generator = self._yield_results_parallel(
@@ -72,37 +71,35 @@ class MCRadiationRunner:
                 simulated_photons,
                 cfg_engine.random_seed,
                 cfg_engine.cpu_cores,
-                progress_queue,
             )
         else:
             results_generator = self._yield_results_serial(
-                batches, simulated_photons, cfg_engine.random_seed, progress_queue
+                batches,
+                simulated_photons,
+                cfg_engine.random_seed,
             )
 
         accumulated_time = all_results.engine_result.simulation_time_s
         run_start_time = time.perf_counter()
 
-        with self._track_progress(total_photons, simulated_photons, progress_queue):
-            try:
-                for i, (chunk_res, chunk_size) in enumerate(results_generator, start=1):
-                    chunk_res.total_photons = chunk_size
-                    all_results = all_results.merge(chunk_res)
+        try:
+            for i, (chunk_res, chunk_size) in enumerate(results_generator, start=1):
+                chunk_res.total_photons = chunk_size
+                all_results = all_results.merge(chunk_res)
 
-                    if i % CHECKPOINT_INTERVAL == 0:
-                        current_elapsed = time.perf_counter() - run_start_time
-                        all_results.engine_result.simulation_time_s = (
-                            accumulated_time + current_elapsed
-                        )
+                if (i + 1) % CHECKPOINT_INTERVAL == 0:
+                    current_elapsed = time.perf_counter() - run_start_time
+                    all_results.engine_result.simulation_time_s = accumulated_time + current_elapsed
 
-                        if self.on_checkpoint:
-                            self.on_checkpoint(all_results)
-            except KeyboardInterrupt:
-                current_elapsed = time.perf_counter() - run_start_time
-                all_results.engine_result.simulation_time_s = accumulated_time + current_elapsed
+                    if self.on_checkpoint:
+                        self.on_checkpoint(all_results)
+        except KeyboardInterrupt:
+            current_elapsed = time.perf_counter() - run_start_time
+            all_results.engine_result.simulation_time_s = accumulated_time + current_elapsed
 
-                if self.on_checkpoint:
-                    self.on_checkpoint(all_results)
-                raise
+            if self.on_checkpoint:
+                self.on_checkpoint(all_results)
+            raise
 
         final_elapsed = time.perf_counter() - run_start_time
         all_results.engine_result.simulation_time_s = accumulated_time + final_elapsed
@@ -116,39 +113,45 @@ class MCRadiationRunner:
             batches.append(remainder)
         return batches
 
-    def _yield_results_serial(
-        self, batches: list[int], start_photons: int, base_seed: int, progress_queue
-    ):
-        _set_global_context(self.context)
-        current_photons = start_photons
-        for size in batches:
-            chunk_seed = np.random.SeedSequence((base_seed, current_photons))
-            chunk_result = run_chunk(size, chunk_seed, current_photons, progress_queue)
+    def _yield_results_serial(self, batches: list[int], start_photons: int, base_seed: int):
+        progress_value = multiprocessing.Value("Q", 0)
+        done_event = threading.Event()
+        global _global_context, _progress_value
+        _global_context = self.context
+        _progress_value = progress_value
 
-            yield chunk_result, size
-            current_photons += size
+        current_photons = start_photons
+        with self._track_progress(
+            sum(batches) + start_photons, start_photons, progress_value, done_event
+        ):
+            try:
+                for size in batches:
+                    chunk_seed = np.random.SeedSequence((base_seed, current_photons))
+                    chunk_result = run_chunk(size, chunk_seed, current_photons)
+
+                    yield chunk_result, size
+                    current_photons += size
+            finally:
+                done_event.set()
 
     def _load_initial_state(self) -> SimResults:
         cfg = self.context.config
 
         if cfg.engine.resume_from_checkpoint and self.load_checkpoint_fn:
-            if (results := self.load_checkpoint_fn()) and results.config:
-                if cfg.is_compatible_for_resume(results.config):
-                    return results
-
-                logging.warning(
-                    "Configuration mismatch! The current setup differs from the saved simulation checkpoint. "
-                    "Starting a fresh simulation."
-                )
+            if results := self.load_checkpoint_fn():
+                return results
 
         return SimResults()
 
     def _yield_results_parallel(
-        self, batches: list[int], start_photons: int, base_seed: int, cores: int, progress_queue
+        self, batches: list[int], start_photons: int, base_seed: int, cores: int
     ):
         start_methods = multiprocessing.get_all_start_methods()
         start_method = "forkserver" if "forkserver" in start_methods else "spawn"
         ctx = multiprocessing.get_context(start_method)
+
+        progress_value = ctx.Value("Q", 0)
+        done_event = threading.Event()
 
         seeds = []
         photon_counts = []
@@ -159,27 +162,34 @@ class MCRadiationRunner:
             current_photons += size
 
         executor = concurrent.futures.ProcessPoolExecutor(
-            max_workers=cores, initializer=init_worker, mp_context=ctx, initargs=(self.context,)
+            max_workers=cores,
+            initializer=init_worker,
+            mp_context=ctx,
+            initargs=(self.context, progress_value),
         )
-        queues = [progress_queue] * len(batches)
-        try:
-            results = executor.map(run_chunk, batches, seeds, photon_counts, queues)
-
-            for size, chunk_result in zip(batches, results):
-                yield chunk_result, size
-        except KeyboardInterrupt:
-            executor.shutdown(wait=False, cancel_futures=True)
-            for process in multiprocessing.active_children():
-                try:
-                    process.terminate()
-                except Exception:
-                    pass
-            raise
-        finally:
-            executor.shutdown(wait=True)
+        with self._track_progress(
+            sum(batches) + start_photons, start_photons, progress_value, done_event
+        ):
+            try:
+                results = executor.map(run_chunk, batches, seeds, photon_counts)
+                for size, chunk_result in zip(batches, results):
+                    yield chunk_result, size
+            except KeyboardInterrupt:
+                executor.shutdown(wait=False, cancel_futures=True)
+                for process in multiprocessing.active_children():
+                    try:
+                        process.terminate()
+                    except Exception:
+                        pass
+                raise
+            finally:
+                executor.shutdown(wait=True)
+                done_event.set()
 
     @contextmanager
-    def _track_progress(self, total: int, initial: int, progress_queue):
+    def _track_progress(
+        self, total: int, initial: int, progress_value, done_event: threading.Event
+    ):
         meta = self.context.config.metadata
         exp_str = (
             f"{meta.experiment_name}/{meta.scenario_name}"
@@ -193,61 +203,45 @@ class MCRadiationRunner:
             desc=exp_str,
             unit=" photons",
             disable=self.quiet,
-            smoothing=0.01,
+            smoothing=0,
         ) as pbar:
 
             def update_pbar():
-                while True:
-                    try:
-                        died = progress_queue.get(timeout=0.1)
-                        if died == "DONE":
-                            break
-                        if not self.quiet:
-                            pbar.update(died)
-                    except queue.Empty:
-                        pass
-                    except Exception:
-                        break
+                last_val = 0
+                while not done_event.wait(timeout=0.1):
+                    current_val = progress_value.value
+                    if current_val > last_val:
+                        pbar.update(current_val - last_val)
+                        last_val = current_val
+
+                current_val = progress_value.value
+                if current_val > last_val:
+                    pbar.update(current_val - last_val)
 
             monitor_thread = threading.Thread(target=update_pbar)
             monitor_thread.start()
-
-            success = False
             try:
                 yield
-                success = True
             finally:
-                try:
-                    progress_queue.put("DONE")
-                except Exception:
-                    pass
                 monitor_thread.join()
-
-                if success and not self.quiet:
-                    remaining = pbar.total - pbar.n
-                    if remaining > 0:
-                        pbar.update(remaining)
+                if not self.quiet:
                     pbar.refresh()
 
 
-def _set_global_context(context: SimContext):
-    global _global_context
-    _global_context = context
-
-
-def init_worker(context: SimContext):
+def init_worker(context: SimContext, progress_value):
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-    _set_global_context(context)
+    global _progress_value, _global_context
+    _global_context = context
+    _progress_value = progress_value
 
 
 def run_chunk(
     chunk_size: int,
     seed: np.random.SeedSequence,
     starting_photon_count: int,
-    progress_queue,
 ) -> SimResults:
 
-    global _global_context
+    global _global_context, _progress_value
     if _global_context is None:
         raise RuntimeError("Worker context not initialized")
 
@@ -260,11 +254,12 @@ def run_chunk(
         new_config.detectors = _global_context.config.detectors.model_copy()
         new_config.detectors.num_full_paths = 0
 
-    def put_in_queue(died_count):
-        if progress_queue is not None and died_count > 0:
-            progress_queue.put(died_count)
+    def update_progress_value(died_count):
+        if _progress_value is not None and died_count > 0:
+            with _progress_value.get_lock():
+                _progress_value.value += died_count
 
-    sim = Engine(new_config, _global_context.scene, put_in_queue)
+    sim = Engine(new_config, _global_context.scene, update_progress_value)
     sim.run()
 
     return sim.get_results()
