@@ -113,7 +113,7 @@ class OutputConfig(BaseModel):
 
 
 class EngineConfig(BaseModel):
-    random_seed: int = Field(gt=0)
+    random_seed: int = -1
     num_photons: int = Field(gt=0, default=100_000)
     batch_size: int = Field(gt=0, default=100_000)
     cpu_cores: int = Field(ge=1, default=4)
@@ -219,12 +219,19 @@ class SimConfig(BaseModel):
         return data
 
     def is_compatible_for_resume(self, checkpoint_config: "SimConfig") -> bool:
-        excluded_fields = {"metadata", "output"}
+        currend_dict = self.model_dump(exclude={"metadata", "output"})
+        old_dict = checkpoint_config.model_dump(exclude={"metadata", "output"})
 
-        current_dict = self.model_dump(exclude=excluded_fields)
-        checkpoint_dict = checkpoint_config.model_dump(exclude=excluded_fields)
+        current_seed = currend_dict["engine"].pop("random_seed")
+        old_seed = old_dict["engine"].pop("random_seed")
 
-        return current_dict == checkpoint_dict
+        if currend_dict != old_dict:
+            return False
+
+        if current_seed != -1 and current_seed != old_seed:
+            return False
+
+        return True
 
     def get_experiment_attributes(self) -> dict[str, float | int | str]:
         """Returns attributes that will be saved to at root in netCDF file."""

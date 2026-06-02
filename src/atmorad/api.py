@@ -1,3 +1,4 @@
+import secrets
 from pathlib import Path
 
 from .builder import build_context_list
@@ -11,9 +12,22 @@ def run(config_path: str | Path, quiet: bool = False) -> list[SimResults] | SimR
     context_list = build_context_list(path)
 
     results_list = []
+    random_seed = secrets.randbits(32)
 
     for context in context_list:
         data_io = DataIO(context.config)
+
+        if context.config.engine.resume_from_checkpoint:
+            if not data_io.checkpoint_config and not quiet:
+                print(
+                    f"[{context.config.metadata.scenario_name}] No compatible checkpoint found. Starting fresh."
+                )
+
+        if context.config.engine.random_seed == -1:
+            if data_io.checkpoint_config:
+                context.config.engine.random_seed = data_io.checkpoint_config.engine.random_seed
+            else:
+                context.config.engine.random_seed = random_seed
 
         runner = MCRadiationRunner(
             context,
