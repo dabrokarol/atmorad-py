@@ -11,7 +11,7 @@ import numpy as np
 import xarray as xr
 from tqdm import tqdm
 
-from atmorad.config import SimConfig
+from atmorad.config.schemas import SimConfig
 from atmorad.constants import CHECKPOINT_INTERVAL
 from atmorad.detectors import DETECTORS
 from atmorad.environment import Scene
@@ -64,7 +64,7 @@ def execute_simulation(
 
     batches = _calculate_batches(remaining_photons, cfg_engine.batch_size)
 
-    if cfg_engine.cpu_cores > 1:
+    if cfg_engine.num_threads > 1:
         results_generator = _yield_results_parallel(
             config,
             scene,
@@ -72,7 +72,7 @@ def execute_simulation(
             batches,
             simulated_photons,
             cfg_engine.random_seed,
-            cfg_engine.cpu_cores,
+            cfg_engine.num_threads,
         )
     else:
         results_generator = _yield_results_serial(
@@ -140,13 +140,13 @@ def _build_final_dataset(
         master_ds = xr.Dataset()
     else:
         master_ds = xr.merge(final_components, combine_attrs="no_conflicts")
+        assert isinstance(master_ds, xr.Dataset)  # for type checker
 
     master_ds.attrs["num_photons"] = total_photons
     master_ds.attrs["engine_simulation_time_s"] = sim_time
     master_ds.attrs["is_normalized"] = 0
     master_ds.attrs["_simulation_config"] = config.model_dump_json()
     master_ds.attrs.update(config.get_experiment_attributes())
-
     return master_ds
 
 
@@ -304,7 +304,7 @@ def _run_chunk(
 
     if starting_photon_count > 0:
         new_config.detectors = _global_config.detectors.model_copy()
-        new_config.detectors.num_full_paths = 0
+        new_config.detectors.trajectories.max_tracked_paths = 0
 
     def update_progress_value(died_count):
         if _progress_value is not None and died_count > 0:

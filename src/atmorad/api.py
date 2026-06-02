@@ -3,7 +3,7 @@ from pathlib import Path
 
 import xarray as xr
 
-from atmorad.config import load_scenarios
+from atmorad.config.loader import load_scenarios
 from atmorad.environment import Scene
 from atmorad.output.io import DataIO, normalize_dataset
 from atmorad.output.plotter import ResultAnalyzer
@@ -18,7 +18,7 @@ def run(config_path: str | Path, quiet: bool = False) -> xr.Dataset | list[xr.Da
     random_seed = secrets.randbits(32)
 
     for config in config_list:
-        scene = Scene.from_config(config.environment)
+        scene = Scene.from_config(config)
         data_io = DataIO(config)
 
         initial_state = None

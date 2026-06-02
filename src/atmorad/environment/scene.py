@@ -12,7 +12,7 @@ from atmorad.physics.brdf import REFLECTION_MODELS
 from atmorad.physics.phase_functions import SCATTERING_MODELS
 
 if TYPE_CHECKING:
-    from atmorad.config import EnvironmentConfig
+    from atmorad.config.schemas import SimConfig
 
 
 class Scene:
@@ -21,12 +21,11 @@ class Scene:
         self.atmosphere = atmosphere
 
     @classmethod
-    def from_config(cls, env_config: "EnvironmentConfig") -> "Scene":
-
+    def from_config(cls, config: "SimConfig") -> "Scene":
         atm_materials = {}
-        for name, props in env_config.atmosphere_materials.items():
-            scat_type = props.scattering["type"]
-            scat_kwargs = {k: v for k, v in props.scattering.items() if k != "type"}
+        for name, props in config.atmosphere_materials.items():
+            scat_type = props.phase_function["type"]
+            scat_kwargs = {k: v for k, v in props.phase_function.items() if k != "type"}
             phase_function = SCATTERING_MODELS[scat_type](**scat_kwargs)
 
             atm_materials[name] = AtmosphericMedium(
@@ -36,26 +35,26 @@ class Scene:
             )
 
         layers = []
-        for layer_data in env_config.layers:
+        for layer_data in config.layers:
             components = [
-                (atm_materials[comp.material], comp.concentration) for comp in layer_data.components
+                (atm_materials[name], conc) for name, conc in layer_data.components.items()
             ]
             layers.append(
                 AtmosphericLayer(thickness=layer_data.thickness_km, components=components)
             )
 
         surf_materials = {}
-        for name, mat_data in env_config.surface_materials.items():
-            ref_type = mat_data.reflection["type"]
-            ref_kwargs = {k: v for k, v in mat_data.reflection.items() if k != "type"}
+        for name, mat_data in config.surface_materials.items():
+            ref_type = mat_data.brdf["type"]
+            ref_kwargs = {k: v for k, v in mat_data.brdf.items() if k != "type"}
             reflection_model = REFLECTION_MODELS[ref_type](**ref_kwargs)
 
             surf_materials[name] = SurfaceMaterial(
                 albedo=mat_data.albedo, reflection=reflection_model
             )
 
-        surf_cfg = env_config.surface
-        map_name = surf_cfg["name"]
+        surf_cfg = config.surface
+        map_name = surf_cfg["type"]
 
         map_data = SURFACE_MAPS[map_name]
         MapClass = map_data["class"]
@@ -64,16 +63,16 @@ class Scene:
         material_names = [surf_cfg[key] for key in material_keys]
         ordered_materials = [surf_materials[name] for name in material_names]
 
-        map_kwargs = {k: v for k, v in surf_cfg.items() if k not in material_keys and k != "name"}
+        map_kwargs = {k: v for k, v in surf_cfg.items() if k not in material_keys and k != "type"}
         ground_map = MapClass(**map_kwargs)
 
-        is_periodic = env_config.geometry.boundary_condition == "periodic"
+        is_periodic = config.domain.boundary_condition == "periodic"
 
         surface = FlatSurface(
             ground_map=ground_map,
             ground_types=ordered_materials,
-            domain_x_km=env_config.geometry.domain_size_x_km,
-            domain_y_km=env_config.geometry.domain_size_y_km,
+            domain_x_km=config.domain.size_x_km,
+            domain_y_km=config.domain.size_y_km,
             is_periodic=is_periodic,
         )
         return cls(surface=surface, atmosphere=Atmosphere(layers))

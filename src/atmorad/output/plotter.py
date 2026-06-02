@@ -29,15 +29,27 @@ sns.set_theme(
 class ResultAnalyzer:
     def __init__(self, ds: xr.Dataset):
         self.ds = ds
-        # ZMIANA: Czytamy aktywne detektory z konfiguracji zapisanej w metadanych
+        self.det_types = {}
         try:
             config_str = str(ds.attrs.get("_simulation_config", "{}"))
             config = json.loads(config_str)
-            active_dets = config.get("detectors", {}).get("active", [])
-            # W nowej architekturze prefix i klasa to to samo (np. 'flux_vertical')
-            self.det_types = {det: det for det in active_dets}
+
+            active_detectors = config.get("detectors", {}).get("active", [])
+
+            if not active_detectors:
+                logging.warning("No active detectors found in the dataset configuration.")
+
+            self.det_types = {det_name: det_name for det_name in active_detectors}
+
         except json.JSONDecodeError:
-            self.det_types = {}
+            logging.error("Could not decode _simulation_config from dataset attributes.")
+
+    def _get_scalar(self, name: str, default: float = 0.0) -> float:
+        if name in self.ds:
+            return float(self.ds[name].values)
+        if name in self.ds.attrs:
+            return float(self.ds.attrs[name])
+        return default
 
     def experiment_summary(self) -> str:
         experiment_name = self.ds.attrs.get("experiment_name", "")
@@ -50,16 +62,15 @@ class ResultAnalyzer:
         cpu_time = self.ds.attrs.get("engine_cpu_time_s", 0.0)
         total_photons = int(self.ds.attrs.get("num_photons", 0))
 
-        # ZMIANA: Wiemy, że prefix dla FateDetector to teraz po prostu "fate"
-        fate_prefix = "fate"
+        fate_prefix = "energy_budget"
 
-        outgoing_toa = self.ds.attrs.get(f"{fate_prefix}_energy_outgoing_toa", 0.0)
-        abs_surf = self.ds.attrs.get(f"{fate_prefix}_energy_absorbed_surface", 0.0)
-        abs_atm = self.ds.attrs.get(f"{fate_prefix}_energy_absorbed_atmosphere", 0.0)
+        outgoing_toa = self._get_scalar(f"{fate_prefix}_energy_outgoing_toa")
+        abs_surf = self._get_scalar(f"{fate_prefix}_energy_absorbed_surface")
+        abs_atm = self._get_scalar(f"{fate_prefix}_energy_absorbed_atmosphere")
 
-        outgoing_toa_pct = float(outgoing_toa) * 100.0
-        absorbed_surf_pct = float(abs_surf) * 100.0
-        absorbed_atm_pct = float(abs_atm) * 100.0
+        outgoing_toa_pct = outgoing_toa * 100.0
+        absorbed_surf_pct = abs_surf * 100.0
+        absorbed_atm_pct = abs_atm * 100.0
 
         conservation = outgoing_toa_pct + absorbed_surf_pct + absorbed_atm_pct
 
@@ -124,7 +135,6 @@ class ResultAnalyzer:
         absorbed_surface = self.ds[f"{prefix}_sample_absorbed_surface"].values[:num_paths]
         outgoing_toa = self.ds[f"{prefix}_sample_escaped_toa"].values[:num_paths]
 
-        # ZMIANA: Odczyt globalnego atrybutu (bez prefixu detektora, dzięki no_conflicts)
         toa_z = self.ds.attrs.get("toa_z_km", 10.0)
 
         Lx, Ly = self._infer_domain_size(paths)
@@ -319,29 +329,28 @@ class ResultAnalyzer:
     def generate_all_figures(self):
         """
         Iterates over all initialized detectors found in the dataset metadata,
-        generates their respective plots, and yields (Figure, filename) tuples.
+        generates their respective plots, and yields (figure, filename) tuples.
         """
         for prefix, class_name in self.det_types.items():
-            if class_name == "surface_absorption":
+            if class_name == "surface_absorption_map":
                 fig = self.plot_surface_absorption_map(prefix)
                 if fig:
                     yield (fig, "surface_absorption_map")
                     plt.close(fig)
 
-            # ZMIANA: Nazwa w Pydantic to teraz "flux_vertical"
-            elif class_name == "flux_vertical":
+            elif class_name == "flux_profile":
                 fig = self.plot_flux_profile(prefix)
                 if fig:
                     yield (fig, "vertical_flux_profile")
                     plt.close(fig)
 
-            elif class_name == "path_tracking":
+            elif class_name == "trajectories":
                 fig = self.plot_paths(prefix)
                 if fig:
                     yield (fig, "photon_paths_3d")
                     plt.close(fig)
 
-            elif class_name == "plane_flux":
+            elif class_name == "flux_maps":
                 z_var = f"{prefix}_z"
                 if z_var in self.ds:
                     measure_z = self.ds[z_var].values
@@ -370,7 +379,7 @@ class ResultAnalyzer:
                             yield (fig_up, f"{prefix}-upward_z_{z_val:g}km")
                             plt.close(fig_up)
 
-            elif class_name == "vertical_absorption":
+            elif class_name == "absorption_profile":
                 if hasattr(self, "plot_absorption_profile"):
                     fig = self.plot_absorption_profile(prefix)
                     if fig:

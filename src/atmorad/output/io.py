@@ -8,7 +8,7 @@ import xarray as xr
 from matplotlib.figure import Figure
 from pydantic import ValidationError
 
-from atmorad.config import SimConfig
+from atmorad.config.schemas import SimConfig
 
 
 def normalize_dataset(ds: xr.Dataset) -> xr.Dataset:
@@ -210,10 +210,10 @@ class DataIO:
             with xr.open_dataset(data_path, engine=cls.NETCDF_ENGINE) as ds:
                 config_json_str = ds.attrs["_simulation_config"]
 
-            config_reformatted = SimConfig.model_validate_json(config_json_str).format_to_save()
+            config = SimConfig.model_validate_json(config_json_str)
 
             with open(out_path, "wb") as f:
-                tomli_w.dump(config_reformatted, f)
+                tomli_w.dump(config, f)
             logging.info(f"Config successfully extracted to: {out_path}")
 
         except KeyError:

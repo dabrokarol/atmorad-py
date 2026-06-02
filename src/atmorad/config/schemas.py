@@ -60,18 +60,23 @@ class OutputConfig(BaseModel):
 
 # --- Detectors ---
 
+
 class TrajectoriesConfig(BaseModel):
     max_tracked_paths: int = Field(ge=0, default=200)
+
 
 class FluxProfileConfig(BaseModel):
     vertical_resolution_km: float = Field(gt=0.0, default=1.0)
 
+
 class AbsorptionProfileConfig(BaseModel):
     vertical_resolution_km: float = Field(gt=0.0, default=1.0)
+
 
 class FluxMapsConfig(BaseModel):
     horizontal_resolution_km: float = Field(gt=0.0, default=1.0)
     z_levels_km: list[float] = Field(default_factory=list)
+
 
 class SurfaceAbsorptionMapConfig(BaseModel):
     horizontal_resolution_km: float = Field(gt=0.0, default=1.0)
@@ -84,13 +89,20 @@ class DetectorsConfig(BaseModel):
     absorption_profile: AbsorptionProfileConfig | None = None
     flux_maps: FluxMapsConfig | None = None
     surface_absorption_map: SurfaceAbsorptionMapConfig | None = None
+    active: list[str] = Field(default_factory=list)
 
-    @property
-    def active(self) -> list[str]:
-        return [name for name, val in self.model_dump().items() if val is not None]
+    @model_validator(mode="after")
+    def determine_active_detectors(self) -> "DetectorsConfig":
+        self.active = [
+            field_name
+            for field_name in self.__dict__.keys()
+            if field_name != "active" and getattr(self, field_name) is not None
+        ]
+        return self
 
 
 # --- Environment Materials & Layers ---
+
 
 class SurfaceMaterialConfig(BaseModel):
     albedo: float = Field(ge=0.0, le=1.0)
@@ -117,10 +129,8 @@ class AtmosphereMaterialConfig(BaseModel):
 
 class LayerConfig(BaseModel):
     thickness_km: float = Field(gt=0.0)
-    components: dict[str, float]  # Np. {"air": 1.0, "dark_clouds": 0.9}
+    components: dict[str, float]
 
-
-# --- Główny obiekt konfiguracyjny ---
 
 class SimConfig(BaseModel):
     metadata: MetadataConfig = Field(default_factory=MetadataConfig)
@@ -129,13 +139,12 @@ class SimConfig(BaseModel):
     domain: DomainConfig
     detectors: DetectorsConfig = Field(default_factory=DetectorsConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
-    
-    # Środowisko bezpośrednio na poziomie głównym (zgodnie z układem TOML)
+
     atmosphere_materials: dict[str, AtmosphereMaterialConfig] = Field(default_factory=dict)
     surface_materials: dict[str, SurfaceMaterialConfig] = Field(default_factory=dict)
     layers: list[LayerConfig] = Field(default_factory=list)
     surface: dict[str, Any]
-    
+
     config_path: Path | None = Field(default=None, exclude=True)
 
     @model_validator(mode="before")
@@ -150,8 +159,8 @@ class SimConfig(BaseModel):
     @model_validator(mode="after")
     def validate_relations(self) -> "SimConfig":
         if "type" not in self.surface:
-             raise ValueError("Surface configuration must contain a 'type' key.")
-             
+            raise ValueError("Surface configuration must contain a 'type' key.")
+
         for i, layer in enumerate(self.layers):
             for mat_name in layer.components.keys():
                 if mat_name not in self.atmosphere_materials:

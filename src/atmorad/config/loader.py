@@ -1,14 +1,15 @@
 import copy
-import tomllib
 from pathlib import Path
 from typing import Any
 
+import tomllib
+
 from atmorad.constants import ACCEPTED_EXTENSIONS
+
 from .schemas import SimConfig
 
 
 def _set_nested_value(data: dict, path: str, value: Any):
-    """Ustawia wartość w zagnieżdżonym słowniku przy użyciu notacji kropkowej."""
     keys = path.split(".")
     current = data
     for key in keys[:-1]:
@@ -19,9 +20,8 @@ def _set_nested_value(data: dict, path: str, value: Any):
 
 
 def _deep_merge_dicts(base: dict, scenario: dict) -> dict:
-    """Głębokie scalanie słowników z nadpisywaniem typów polimorficznych."""
     base_copy = copy.deepcopy(base)
-    polymorphic_keys = ["name", "type"]
+    polymorphic_keys = ["type"]
 
     for key, value in scenario.items():
         if isinstance(value, dict) and key in base_copy and isinstance(base_copy[key], dict):
@@ -66,7 +66,6 @@ def load_scenarios(config_path: str | Path) -> list[SimConfig]:
     if "metadata" not in raw_data:
         raw_data["metadata"] = {}
 
-    # Krok 1: Wygeneruj bazowe słowniki konfiguracji (z uwzględnieniem [[scenario]])
     base_configs_data = []
     if not scenarios:
         base_configs_data.append(raw_data)
@@ -84,28 +83,27 @@ def load_scenarios(config_path: str | Path) -> list[SimConfig]:
             merged_raw["metadata"]["scenario_name"] = scenario_name
             base_configs_data.append(merged_raw)
 
-    # Krok 2: Jeśli brak sweepów, zwaliduj i zwróć same scenariusze bazowe
     if not sweeps:
         return [SimConfig(**data, config_path=path) for data in base_configs_data]
 
-    # Krok 3: Aplikuj każdy sweep sekwencyjnie (jeden parametr na raz)
     final_configs = []
     for base_config in base_configs_data:
         base_name = base_config.get("metadata", {}).get("scenario_name", "baseline")
-        
+
         for sweep_item in sweeps:
             param_path = sweep_item["parameter"]
             param_values = sweep_item["values"]
             short_param = param_path.split(".")[-1]
-            
+
             for val in param_values:
                 scenario_data = copy.deepcopy(base_config)
                 _set_nested_value(scenario_data, param_path, val)
-                
-                # Dynamiczna nazwa: np. "baseline_zenith_angle_deg_15"
+
                 clean_val = str(val).replace(".", "_")
-                scenario_data["metadata"]["scenario_name"] = f"{base_name}_{short_param}_{clean_val}"
-                
+                scenario_data["metadata"]["scenario_name"] = (
+                    f"{base_name}_{short_param}_{clean_val}"
+                )
+
                 final_configs.append(SimConfig(**scenario_data, config_path=path))
 
     return final_configs

@@ -1,5 +1,5 @@
 from .api import load, run
-from .config import SimConfig
+from .config.schemas import SimConfig
 from .detectors import BaseDetector
 from .environment import BaseSurfaceMap, Scene
 from .physics import Scattering, SurfaceReflection

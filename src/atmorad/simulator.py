@@ -4,7 +4,7 @@ import time
 import numpy as np
 import xarray as xr
 
-from atmorad.config import SimConfig
+from atmorad.config.schemas import SimConfig
 from atmorad.constants import MAX_SCATTERINGS, PBAR_INTERVAL, ZERO_TOLERANCE
 from atmorad.detectors import DETECTORS
 from atmorad.environment.scene import Scene
@@ -27,18 +27,18 @@ class _MonteCarloEngine:
         source_config = config.source
         self.num_photons = engine_config.num_photons
         self.rng = np.random.default_rng(engine_config.random_seed)
-        self.theta_sun = source_config.theta_sun_deg
-        self.phi_sun = source_config.phi_sun_deg
-        self.weight_threshold = config.engine.photon_weight_threshold
-        self.survival_chance = config.engine.photon_survival_chance
-        self.weight_multiplier = 1.0 / config.engine.photon_survival_chance
+        self.sun_zenith = source_config.zenith_angle_deg
+        self.sun_azimuth = source_config.azimuth_angle_deg
+        self.weight_threshold = config.engine.roulette_weight_threshold
+        self.survival_chance = config.engine.roulette_survival_probability
+        self.weight_multiplier = 1.0 / config.engine.roulette_survival_probability
 
         self.on_progress = progress_callback
         self.detectors = {}
 
     def _init_arrays(self):
         pos = self.scene.start_pos(self.num_photons, self.rng)
-        direction = self.scene.start_direction(self.num_photons, self.theta_sun, self.phi_sun)
+        direction = self.scene.start_direction(self.num_photons, self.sun_zenith, self.sun_azimuth)
 
         batch = PhotonBatch(
             pos=pos,
