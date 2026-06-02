@@ -2,9 +2,12 @@ import concurrent.futures
 import logging
 import multiprocessing
 import signal
+import tempfile
 import threading
 import time
+import uuid
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Callable, Iterator, Tuple
 
 import numpy as np
@@ -29,12 +32,9 @@ def execute_simulation(
     quiet: bool = False,
     on_checkpoint: Callable[[xr.Dataset], None] | None = None,
 ) -> xr.Dataset:
-    """
-    Główna funkcja orkiestrująca symulację Monte Carlo.
-    Zarządza podziałem na paczki (batches), zrównoleglaniem i zapisem punktów kontrolnych.
-    """
     cfg_engine = config.engine
-    chunk_results = {det_name: [] for det_name in config.detectors.active}
+
+    accumulated_results: dict[str, xr.Dataset] = {}
 
     simulated_photons = 0
     accumulated_time = 0.0
@@ -47,10 +47,19 @@ def execute_simulation(
             prefix = f"{det_name}_"
             det_vars = [v for v in initial_state.data_vars if str(v).startswith(prefix)]
             if det_vars:
-                det_ds = initial_state[det_vars].rename_vars(
-                    {v: str(v)[len(prefix) :] for v in det_vars}
-                )
-                chunk_results[det_name].append(det_ds)
+                ds_subset = initial_state[det_vars]
+                rename_dict = {}
+
+                for name in ds_subset.variables:
+                    if str(name).startswith(prefix):
+                        rename_dict[str(name)] = str(name)[len(prefix) :]
+
+                for dim in ds_subset.dims:
+                    if str(dim).startswith(prefix):
+                        rename_dict[str(dim)] = str(dim)[len(prefix) :]
+
+                det_ds = ds_subset.rename(rename_dict)
+                accumulated_results[det_name] = det_ds
 
     remaining_photons = cfg_engine.num_photons - simulated_photons
 
@@ -58,53 +67,74 @@ def execute_simulation(
         logging.info("Target number of photons has already been reached. Skipping simulation loop.")
         if initial_state is not None:
             return initial_state
-        return _build_final_dataset(config, chunk_results, simulated_photons, accumulated_time)
+        return _build_final_dataset(
+            config, accumulated_results, simulated_photons, accumulated_time
+        )
 
     batches = _calculate_batches(remaining_photons, cfg_engine.batch_size)
 
-    if cfg_engine.num_threads > 1:
-        results_generator = _yield_results_parallel(
-            config,
-            scene,
-            quiet,
-            batches,
-            simulated_photons,
-            cfg_engine.random_seed,
-            cfg_engine.num_threads,
-        )
-    else:
-        results_generator = _yield_results_serial(
-            config, scene, quiet, batches, simulated_photons, cfg_engine.random_seed
-        )
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        temp_dir = Path(tmpdirname)
 
-    run_start_time = time.perf_counter()
+        if cfg_engine.num_threads > 1:
+            results_generator = _yield_results_parallel(
+                config,
+                scene,
+                quiet,
+                batches,
+                simulated_photons,
+                cfg_engine.random_seed,
+                cfg_engine.num_threads,
+                temp_dir,
+            )
+        else:
+            results_generator = _yield_results_serial(
+                config, scene, quiet, batches, simulated_photons, cfg_engine.random_seed, temp_dir
+            )
 
-    try:
-        for i, (chunk_dict, chunk_size) in enumerate(results_generator, start=1):
-            simulated_photons += chunk_size
+        run_start_time = time.perf_counter()
 
-            for det_name, det_ds in chunk_dict.items():
-                chunk_results[det_name].append(det_ds)
+        try:
+            for i, (chunk_dict, chunk_size) in enumerate(results_generator, start=1):
+                simulated_photons += chunk_size
 
-            if on_checkpoint and i % CHECKPOINT_INTERVAL == 0:
-                current_elapsed = time.perf_counter() - run_start_time
-                checkpoint_ds = _build_final_dataset(
-                    config, chunk_results, simulated_photons, accumulated_time + current_elapsed
-                )
+                for det_name, filepath in chunk_dict.items():
+                    with xr.open_dataset(filepath) as chunk_ds:
+                        chunk_ds.load()
+
+                    if det_name not in accumulated_results:
+                        accumulated_results[det_name] = chunk_ds
+                    else:
+                        det_class = DETECTORS[det_name]
+                        merged_ds = det_class.merge_chunks(
+                            [accumulated_results[det_name], chunk_ds]
+                        )
+                        accumulated_results[det_name] = merged_ds
+
+                    filepath.unlink(missing_ok=True)
+
+                if on_checkpoint and i % CHECKPOINT_INTERVAL == 0:
+                    current_elapsed = time.perf_counter() - run_start_time
+                    checkpoint_ds = _build_final_dataset(
+                        config,
+                        accumulated_results,
+                        simulated_photons,
+                        accumulated_time + current_elapsed,
+                    )
+                    on_checkpoint(checkpoint_ds)
+
+        except KeyboardInterrupt:
+            current_elapsed = time.perf_counter() - run_start_time
+            checkpoint_ds = _build_final_dataset(
+                config, accumulated_results, simulated_photons, accumulated_time + current_elapsed
+            )
+            if on_checkpoint:
                 on_checkpoint(checkpoint_ds)
-
-    except KeyboardInterrupt:
-        current_elapsed = time.perf_counter() - run_start_time
-        checkpoint_ds = _build_final_dataset(
-            config, chunk_results, simulated_photons, accumulated_time + current_elapsed
-        )
-        if on_checkpoint:
-            on_checkpoint(checkpoint_ds)
-        raise
+            raise
 
     final_elapsed = time.perf_counter() - run_start_time
     final_ds = _build_final_dataset(
-        config, chunk_results, simulated_photons, accumulated_time + final_elapsed
+        config, accumulated_results, simulated_photons, accumulated_time + final_elapsed
     )
 
     return final_ds
@@ -112,16 +142,17 @@ def execute_simulation(
 
 def _build_final_dataset(
     config: SimConfig,
-    chunk_results: dict[str, list[xr.Dataset]],
+    accumulated_results: dict[str, xr.Dataset],
     total_photons: int,
     sim_time: float,
 ) -> xr.Dataset:
     final_components = []
 
     for det_name in config.detectors.active:
-        det_class = DETECTORS[det_name]
+        if det_name not in accumulated_results:
+            continue
 
-        merged_det_ds = det_class.merge_chunks(chunk_results[det_name])
+        merged_det_ds = accumulated_results[det_name]
 
         rename_dict = {}
         for name in merged_det_ds.variables:
@@ -163,7 +194,8 @@ def _yield_results_serial(
     batches: list[int],
     start_photons: int,
     base_seed: int,
-) -> Iterator[Tuple[dict[str, xr.Dataset], int]]:
+    temp_dir: Path,
+) -> Iterator[Tuple[dict[str, Path], int]]:
     progress_value = multiprocessing.Value("Q", 0)
     done_event = threading.Event()
 
@@ -179,7 +211,7 @@ def _yield_results_serial(
         try:
             for size in batches:
                 chunk_seed = np.random.SeedSequence((base_seed, current_photons))
-                chunk_result = _run_chunk(size, chunk_seed, current_photons)
+                chunk_result = _run_chunk(size, chunk_seed, current_photons, temp_dir)
 
                 yield chunk_result, size
                 current_photons += size
@@ -195,7 +227,8 @@ def _yield_results_parallel(
     start_photons: int,
     base_seed: int,
     cores: int,
-) -> Iterator[Tuple[dict[str, xr.Dataset], int]]:
+    temp_dir: Path,
+) -> Iterator[Tuple[dict[str, Path], int]]:
     start_methods = multiprocessing.get_all_start_methods()
     start_method = "forkserver" if "forkserver" in start_methods else "spawn"
     ctx = multiprocessing.get_context(start_method)
@@ -205,10 +238,13 @@ def _yield_results_parallel(
 
     seeds = []
     photon_counts = []
+    temp_dirs = []
     current_photons = start_photons
+
     for size in batches:
         seeds.append(np.random.SeedSequence((base_seed, current_photons)))
         photon_counts.append(current_photons)
+        temp_dirs.append(temp_dir)
         current_photons += size
 
     total_target = sum(batches) + start_photons
@@ -222,10 +258,11 @@ def _yield_results_parallel(
 
     with _track_progress(config, quiet, total_target, start_photons, progress_value, done_event):
         try:
-            results = executor.map(_run_chunk, batches, seeds, photon_counts)
+            results = executor.map(_run_chunk, batches, seeds, photon_counts, temp_dirs)
             for size, chunk_result in zip(batches, results):
                 yield chunk_result, size
         except KeyboardInterrupt:
+            done_event.set()
             executor.shutdown(wait=False, cancel_futures=True)
             for process in multiprocessing.active_children():
                 try:
@@ -234,8 +271,8 @@ def _yield_results_parallel(
                     pass
             raise
         finally:
-            executor.shutdown(wait=True)
             done_event.set()
+            executor.shutdown(wait=False, cancel_futures=True)
 
 
 @contextmanager
@@ -255,12 +292,18 @@ def _track_progress(
     )
 
     with tqdm(
-        total=total, initial=initial, desc=exp_str, unit=" photons", disable=quiet, smoothing=0
+        total=total,
+        initial=initial,
+        desc=exp_str,
+        unit=" photons",
+        disable=quiet,
+        smoothing=0,
+        mininterval=0.3,
     ) as pbar:
 
         def update_pbar():
             last_val = 0
-            while not done_event.wait(timeout=0.1):
+            while not done_event.wait(timeout=0.2):
                 current_val = progress_value.value
                 if current_val > last_val:
                     pbar.update(current_val - last_val)
@@ -289,8 +332,8 @@ def _init_worker(config: SimConfig, scene: Scene, progress_value):
 
 
 def _run_chunk(
-    chunk_size: int, seed: np.random.SeedSequence, starting_photon_count: int
-) -> dict[str, xr.Dataset]:
+    chunk_size: int, seed: np.random.SeedSequence, starting_photon_count: int, temp_dir: Path
+) -> dict[str, Path]:
     global _global_config, _global_scene, _progress_value
     if _global_config is None or _global_scene is None:
         raise RuntimeError("Worker context not initialized")
@@ -309,4 +352,16 @@ def _run_chunk(
             with _progress_value.get_lock():
                 _progress_value.value += died_count
 
-    return run_photon_batch(new_config, _global_scene, update_progress_value)
+    chunk_ds_dict = run_photon_batch(new_config, _global_scene, update_progress_value)
+
+    # save results to a disk to avoid python serialization
+    saved_paths = {}
+    chunk_id = uuid.uuid4().hex
+
+    for det_name, ds in chunk_ds_dict.items():
+        out_path = temp_dir / f"{det_name}_{chunk_id}.nc"
+        ds.to_netcdf(out_path)
+        ds.close()
+        saved_paths[det_name] = out_path
+
+    return saved_paths
