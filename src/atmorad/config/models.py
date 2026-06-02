@@ -169,7 +169,7 @@ class EnvironmentConfig(BaseModel):
 
 
 class SimConfig(BaseModel):
-    engine: EngineConfig = Field(default_factory=EngineConfig)
+    engine: EngineConfig
     source: SourceConfig = Field(default_factory=SourceConfig)
     metadata: MetadataConfig = Field(default_factory=MetadataConfig)
     detectors: DetectorConfig = Field(default_factory=DetectorConfig)
