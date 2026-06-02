@@ -1,4 +1,5 @@
 import copy
+import secrets
 from pathlib import Path
 
 import tomllib
@@ -56,6 +57,15 @@ def load_scenarios(config_path: Path) -> list[SimConfig]:
 
     if "metadata" not in raw_data:
         raw_data["metadata"] = {}
+
+    # set a random seed when -1 is provided
+    engine_data = raw_data.get("engine", {})
+    seed_value = engine_data.get("random_seed", -1)
+    if seed_value == -1:
+        base_seed = secrets.randbits(32)
+        engine_data["random_seed"] = base_seed
+
+    raw_data["engine"] = engine_data
 
     if not scenarios:
         return [SimConfig(**raw_data, config_path=config_path)]

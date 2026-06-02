@@ -113,9 +113,9 @@ class OutputConfig(BaseModel):
 
 
 class EngineConfig(BaseModel):
+    random_seed: int = Field(gt=0)
     num_photons: int = Field(gt=0, default=100_000)
     batch_size: int = Field(gt=0, default=100_000)
-    random_seed: int = 42
     cpu_cores: int = Field(ge=1, default=4)
     resume_from_checkpoint: bool = False
     photon_weight_threshold: float = Field(ge=0, default=1e-4)
