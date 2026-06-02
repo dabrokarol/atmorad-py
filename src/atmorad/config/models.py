@@ -181,7 +181,7 @@ class SimConfig(BaseModel):
     @classmethod
     def format_on_load(cls, data: Any) -> Any:
         """
-        Reformats the flat TOML dictionary and nests the environment variables before Pydantic validates the schema.
+        Reformats the TOML dictionary and rearranges environment variables before Pydantic validation.
         """
         if not isinstance(data, dict):
             return data
