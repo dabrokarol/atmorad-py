@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 
-from atmorad.config import SimConfig
+from atmorad.config.schemas import SimConfig
 from atmorad.constants import Z
 from atmorad.environment import Scene
 from atmorad.physics.batch import PhotonBatch
@@ -13,7 +13,7 @@ class VerticalFluxDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
         self.scene = scene
         top_of_atmosphere = scene.atmosphere.top_of_atmosphere
-        self.spacing = config.detectors.vertical_profiles_resolution_km
+        self.spacing = config.detectors.flux_profile.vertical_resolution_km
 
         self.measure_z = np.arange(0, top_of_atmosphere, self.spacing)
         if not np.isclose(self.measure_z[-1], top_of_atmosphere):

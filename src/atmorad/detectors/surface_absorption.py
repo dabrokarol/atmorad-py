@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 
-from atmorad.config import SimConfig
+from atmorad.config.schemas import SimConfig
 from atmorad.constants import X, Y
 from atmorad.environment import Scene
 from atmorad.physics.batch import PhotonBatch
@@ -12,10 +12,10 @@ from .base import BaseDetector
 class SurfaceAbsorptionDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
         self.scene = scene
-        self.domain_x = config.environment.geometry.domain_size_x_km
-        self.domain_y = config.environment.geometry.domain_size_y_km
+        self.domain_x = config.domain.size_x_km
+        self.domain_y = config.domain.size_y_km
 
-        resolution = config.detectors.horizontal_maps_resolution_km
+        resolution = config.detectors.surface_absorption_map.horizontal_resolution_km
         num_bins_x = int(np.round(self.domain_x / resolution))
         num_bins_y = int(np.round(self.domain_y / resolution))
 

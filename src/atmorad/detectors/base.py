@@ -8,7 +8,7 @@ from atmorad.environment import Scene
 from atmorad.physics.batch import PhotonBatch
 
 if TYPE_CHECKING:
-    from atmorad.config import SimConfig
+    from atmorad.config.schemas import SimConfig
 
 
 class BaseDetector(ABC):

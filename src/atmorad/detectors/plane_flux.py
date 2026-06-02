@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 
-from atmorad.config import SimConfig
+from atmorad.config.schemas import SimConfig
 from atmorad.constants import X, Y, Z
 from atmorad.environment import Scene
 from atmorad.physics.batch import PhotonBatch
@@ -9,13 +9,13 @@ from atmorad.physics.batch import PhotonBatch
 from .base import BaseDetector
 
 
-class PlaneFluxDetector(BaseDetector):
+class FluxMapsDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
-        resolution = config.detectors.horizontal_maps_resolution_km
+        resolution = config.detectors.flux_maps.horizontal_resolution_km
 
-        self.measure_z = np.array(config.detectors.flux_maps_z_levels_km, dtype=float)
-        self.domain_x = config.environment.geometry.domain_size_x_km
-        self.domain_y = config.environment.geometry.domain_size_y_km
+        self.measure_z = np.array(config.detectors.flux_maps.z_levels_km, dtype=float)
+        self.domain_x = config.domain.size_x_km
+        self.domain_y = config.domain.size_y_km
 
         self.num_bins_x = int(np.round(self.domain_x / resolution))
         self.num_bins_y = int(np.round(self.domain_y / resolution))

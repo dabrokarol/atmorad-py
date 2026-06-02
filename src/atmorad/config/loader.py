@@ -1,21 +1,27 @@
 import copy
-from pathlib import Path
-
 import tomllib
+from pathlib import Path
+from typing import Any
 
 from atmorad.constants import ACCEPTED_EXTENSIONS
+from .schemas import SimConfig
 
-from .schema import (
-    SimConfig,
-)
 
-CURRENT_DIR = Path(__file__).parent
+def _set_nested_value(data: dict, path: str, value: Any):
+    """Ustawia wartość w zagnieżdżonym słowniku przy użyciu notacji kropkowej."""
+    keys = path.split(".")
+    current = data
+    for key in keys[:-1]:
+        if key not in current:
+            current[key] = {}
+        current = current[key]
+    current[keys[-1]] = value
 
 
 def _deep_merge_dicts(base: dict, scenario: dict) -> dict:
+    """Głębokie scalanie słowników z nadpisywaniem typów polimorficznych."""
     base_copy = copy.deepcopy(base)
-
-    polymorphic_keys = ["name", "type"]  # in case of change, overwrite, not merge
+    polymorphic_keys = ["name", "type"]
 
     for key, value in scenario.items():
         if isinstance(value, dict) and key in base_copy and isinstance(base_copy[key], dict):
@@ -38,52 +44,68 @@ def _deep_merge_dicts(base: dict, scenario: dict) -> dict:
     return base_copy
 
 
-def load_scenarios(config_path: Path) -> list[SimConfig]:
-    """Read TOML and returns SimConfig list (base or scenarios)."""
-    if not config_path.exists():
-        raise FileNotFoundError(f"Config file not found at {config_path}")
+def load_scenarios(config_path: str | Path) -> list[SimConfig]:
+    """Wczytuje TOML i zwraca sekwencyjną listę konfiguracji."""
+    path = Path(config_path).resolve()
 
-    if config_path.suffix.lower() not in ACCEPTED_EXTENSIONS:
+    if not path.exists():
+        raise FileNotFoundError(f"Config file not found at {path}")
+
+    if path.suffix.lower() not in ACCEPTED_EXTENSIONS:
         raise ValueError(
-            f"Invalid configuration file extension: {config_path.suffix}"
-            f"Allowed extensions: {', '.join(ACCEPTED_EXTENSIONS)}"
+            f"Invalid configuration file extension: {path.suffix}. "
+            f"Allowed: {', '.join(ACCEPTED_EXTENSIONS)}"
         )
 
-    with open(config_path, "rb") as f:
+    with open(path, "rb") as f:
         raw_data = tomllib.load(f)
 
     scenarios = raw_data.pop("scenario", [])
+    sweeps = raw_data.pop("sweep", [])
 
     if "metadata" not in raw_data:
         raw_data["metadata"] = {}
 
+    # Krok 1: Wygeneruj bazowe słowniki konfiguracji (z uwzględnieniem [[scenario]])
+    base_configs_data = []
     if not scenarios:
-        return [SimConfig(**raw_data, config_path=config_path)]
+        base_configs_data.append(raw_data)
+    else:
+        names = set()
+        for idx, scenario_dict in enumerate(scenarios):
+            scenario_name = scenario_dict.pop("name", None)
+            if not scenario_name:
+                raise ValueError(f"Configuration Error: Found unnamed [[scenario]] at index {idx}.")
+            if scenario_name in names:
+                raise ValueError(f"Overlapping scenario name: {scenario_name}")
+            names.add(scenario_name)
 
-    names = set()
+            merged_raw = _deep_merge_dicts(raw_data, scenario_dict)
+            merged_raw["metadata"]["scenario_name"] = scenario_name
+            base_configs_data.append(merged_raw)
 
-    configs = []
-    for idx, scenario_dict in enumerate(scenarios):
-        scenario_name = scenario_dict.pop("name", None)
+    # Krok 2: Jeśli brak sweepów, zwaliduj i zwróć same scenariusze bazowe
+    if not sweeps:
+        return [SimConfig(**data, config_path=path) for data in base_configs_data]
 
-        if not scenario_name:
-            raise ValueError(
-                f"Configuration Error: Found an unnamed [[scenario]] (index {idx}).\n"
-                f"Each scenario has to have an explicit name to ensure organized output files.\n"
-                f"Example:\n"
-                f"  [[scenario]]\n"
-                f'  name = "tau_20"'
-            )
-        if scenario_name in names:
-            raise ValueError(
-                f"Overlapping scenario names in an experiment. Each scenario name should be unique. Overlapping: {scenario_name}"
-            )
-        names.add(scenario_name)
+    # Krok 3: Aplikuj każdy sweep sekwencyjnie (jeden parametr na raz)
+    final_configs = []
+    for base_config in base_configs_data:
+        base_name = base_config.get("metadata", {}).get("scenario_name", "baseline")
+        
+        for sweep_item in sweeps:
+            param_path = sweep_item["parameter"]
+            param_values = sweep_item["values"]
+            short_param = param_path.split(".")[-1]
+            
+            for val in param_values:
+                scenario_data = copy.deepcopy(base_config)
+                _set_nested_value(scenario_data, param_path, val)
+                
+                # Dynamiczna nazwa: np. "baseline_zenith_angle_deg_15"
+                clean_val = str(val).replace(".", "_")
+                scenario_data["metadata"]["scenario_name"] = f"{base_name}_{short_param}_{clean_val}"
+                
+                final_configs.append(SimConfig(**scenario_data, config_path=path))
 
-        merged_raw = _deep_merge_dicts(raw_data, scenario_dict)
-
-        merged_raw["metadata"]["scenario_name"] = scenario_name
-
-        configs.append(SimConfig(**merged_raw, config_path=config_path))
-
-    return configs
+    return final_configs
