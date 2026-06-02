@@ -87,7 +87,7 @@ class MCRadiationRunner:
                 chunk_res.total_photons = chunk_size
                 all_results = all_results.merge(chunk_res)
 
-                if (i + 1) % CHECKPOINT_INTERVAL == 0:
+                if i % CHECKPOINT_INTERVAL == 0:
                     current_elapsed = time.perf_counter() - run_start_time
                     all_results.engine_result.simulation_time_s = accumulated_time + current_elapsed
 
