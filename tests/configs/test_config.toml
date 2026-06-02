@@ -6,46 +6,52 @@ description = "Test config."
 num_photons = 2_000
 batch_size = 400
 random_seed = 42
-cpu_cores = 1
+num_threads = 1
 
 [source]
-theta_sun_deg = 30
-phi_sun_deg = 0
+zenith_angle_deg = 30
+azimuth_angle_deg = 0
 wavelength_nm = 530
 
-[geometry]
-domain_size_x_km = 100
-domain_size_y_km = 100
+[domain]
+size_x_km = 100
+size_y_km = 100
 boundary_condition = "periodic"
 
-[detectors]
-active = [
-    "fate", 
-    "path_tracking", 
-    "vertical_flux", 
-    "vertical_absorption", 
-    "plane_flux", 
-    "surface_absorption"
-]
-vertical_profiles_resolution_km = 11.3
-horizontal_maps_resolution_km = 5.0
+[detectors.energy_budget]
+
+[detectors.trajectories]
+
+[detectors.flux_profile]
+vertical_resolution_km = 11.3
+
+[detectors.absorption_profile]
+vertical_resolution_km = 11.3
+
+[detectors.flux_maps]
+horizontal_resolution_km = 5.0
+
+[detectors.surface_absorption_map]
+horizontal_resolution_km = 5.0
 
 [output]
 overwrite = true
+base_dir = "results"
+fig_dir = "plots"
 
 [surface_materials.snow]
 albedo = 0.85
-reflection = { type = "lambertian" }
+brdf = { type = "lambertian" }
 
 [atmosphere_materials.air]
 extinction_coeff_per_km = 0.01
 ssa = 0.9
-scattering = { type = "rayleigh" }
+phase_function = { type = "rayleigh" }
 
 [[layer]]
 thickness_km = 10.0
-components = [{ material = "air", concentration = 1.0 }]
+components = { air = 1.0 }
 
 [surface]
-name = "uniform"
+type = "uniform"
 material = "snow"
