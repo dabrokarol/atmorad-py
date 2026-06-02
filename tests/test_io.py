@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from atmorad.config import SimConfig, load_scenarios
+from atmorad.config.loader import load_scenarios
+from atmorad.config.schemas import SimConfig
 from atmorad.environment import Scene
 from atmorad.output.io import DataIO, normalize_dataset
 from atmorad.runner import execute_simulation
@@ -24,7 +25,7 @@ def test_data_io_save_load_sim(config_path, tmp_path):
     config.output.overwrite = True
 
     data_io = DataIO(config)
-    scene = Scene.from_config(config.environment)
+    scene = Scene.from_config(config)
 
     results_ds = execute_simulation(
         config=config,

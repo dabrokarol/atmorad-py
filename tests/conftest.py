@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from atmorad.config import load_scenarios
+from atmorad.config.loader import load_scenarios
 
 
 @pytest.fixture

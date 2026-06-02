@@ -39,12 +39,10 @@ def execute_simulation(
     simulated_photons = 0
     accumulated_time = 0.0
 
-    # 1. Odtwarzanie stanu początkowego (Checkpoint)
     if initial_state is not None:
         simulated_photons = int(initial_state.attrs.get("num_photons", 0))
         accumulated_time = float(initial_state.attrs.get("engine_simulation_time_s", 0.0))
 
-        # Rozdzielamy zmienne z powrotem do detektorów (usuwając prefixy)
         for det_name in config.detectors.active:
             prefix = f"{det_name}_"
             det_vars = [v for v in initial_state.data_vars if str(v).startswith(prefix)]
@@ -302,8 +300,8 @@ def _run_chunk(
     new_config.engine.num_photons = chunk_size
     new_config.engine.random_seed = seed
 
-    if starting_photon_count > 0:
-        new_config.detectors = _global_config.detectors.model_copy()
+    # track trajectories only in the first chunk
+    if starting_photon_count > 0 and new_config.detectors.trajectories:
         new_config.detectors.trajectories.max_tracked_paths = 0
 
     def update_progress_value(died_count):
