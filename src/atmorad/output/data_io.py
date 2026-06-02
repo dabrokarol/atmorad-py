@@ -161,7 +161,7 @@ class DataIO:
 
     @classmethod
     def _load_nc_file(cls, path: Path) -> SimResults | None:
-        if not path.exists():
+        if not path.exists() and not path.is_file():
             return None
         try:
             with xr.open_dataset(path, engine=cls.NETCDF_ENGINE) as ds:
@@ -171,21 +171,11 @@ class DataIO:
             logging.exception(f"Failed to load data file: {path}. Error: {e}")
 
     @classmethod
-    def load_simulation_results(cls, directory: str | Path) -> SimResults:
-        dir_path = Path(directory)
-        nc_files = [f for f in dir_path.glob("*.nc") if "checkpoint" not in f.name]
-
-        if not nc_files:
-            raise FileNotFoundError(f"Could not find any result .nc files at {dir_path.resolve()}")
-        elif len(nc_files) > 1:
-            logging.warning(
-                f"Multiple .nc files found in {dir_path}. Loading the most recently modified."
-            )
-            nc_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-
-        results = cls._load_nc_file(nc_files[0])
+    def load_simulation_results(cls, data_path: str | Path) -> SimResults:
+        data_path = Path(data_path)
+        results = cls._load_nc_file(data_path)
         if results is None:
-            raise RuntimeError(f"Could not load valid simulation results from {nc_files[0]}")
+            raise RuntimeError(f"Could not load valid simulation results from {data_path}")
         return results
 
     @classmethod
