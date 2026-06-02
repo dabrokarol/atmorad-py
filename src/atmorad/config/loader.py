@@ -1,4 +1,5 @@
 import copy
+import itertools
 from pathlib import Path
 from typing import Any
 
@@ -28,12 +29,10 @@ def _deep_merge_dicts(base: dict, scenario: dict) -> dict:
             base_dict = base_copy[key]
             other_dict = value
 
-            type_changed = False
-            for p_key in polymorphic_keys:
-                if p_key in base_dict and p_key in other_dict:
-                    if base_dict[p_key] != other_dict[p_key]:
-                        type_changed = True
-                        break
+            type_changed = any(
+                p_key in base_dict and p_key in other_dict and base_dict[p_key] != other_dict[p_key]
+                for p_key in polymorphic_keys
+            )
 
             if type_changed:
                 base_copy[key] = copy.deepcopy(other_dict)
@@ -87,23 +86,29 @@ def load_scenarios(config_path: str | Path) -> list[SimConfig]:
         return [SimConfig(**data, config_path=path) for data in base_configs_data]
 
     final_configs = []
+    sweep_params = [s["parameter"] for s in sweeps]
+    sweep_values = [s["values"] for s in sweeps]
+
     for base_config in base_configs_data:
         base_name = base_config.get("metadata", {}).get("scenario_name", "baseline")
 
-        for sweep_item in sweeps:
-            param_path = sweep_item["parameter"]
-            param_values = sweep_item["values"]
-            short_param = param_path.split(".")[-1]
+        # a carthesian product of value combinations
+        for combo in itertools.product(*sweep_values):
+            scenario_data = copy.deepcopy(base_config)
 
-            for val in param_values:
-                scenario_data = copy.deepcopy(base_config)
+            name_parts = [base_name] if base_name != "baseline" else []
+
+            for param_path, val in zip(sweep_params, combo):
                 _set_nested_value(scenario_data, param_path, val)
 
+                short_param = param_path.split(".")[-1]
                 clean_val = str(val).replace(".", "_")
-                scenario_data["metadata"]["scenario_name"] = (
-                    f"{base_name}_{short_param}_{clean_val}"
-                )
+                name_parts.append(f"{short_param}_{clean_val}")
 
-                final_configs.append(SimConfig(**scenario_data, config_path=path))
+            scenario_data["metadata"]["scenario_name"] = (
+                "_".join(name_parts) if name_parts else "baseline"
+            )
+
+            final_configs.append(SimConfig(**scenario_data, config_path=path))
 
     return final_configs
