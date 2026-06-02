@@ -28,7 +28,7 @@ active = [ # list of supported detectors
     "fate", 
     "path_tracking", 
     "vertical_flux", 
-    "absorption_vertical", 
+    "vertical_absorption", 
     "plane_flux", 
     "surface_absorption"
 ]

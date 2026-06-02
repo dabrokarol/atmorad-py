@@ -5,8 +5,8 @@ from typing import Sequence
 import numpy as np
 
 from atmorad.constants import BOUNDARY_EPSILON, ZERO_TOLERANCE, X, Y, Z
-from atmorad.models import PhotonBatch
 from atmorad.physics import SurfaceReflection
+from atmorad.physics.batch import PhotonBatch
 
 from .surface_maps import BaseSurfaceMap
 

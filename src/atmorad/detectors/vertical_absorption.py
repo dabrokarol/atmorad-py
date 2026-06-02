@@ -1,14 +1,13 @@
 import numpy as np
+import xarray as xr
 
 from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import AbsorptionProfileResult, PhotonBatch
-from atmorad.registry import register_detector
+from atmorad.physics.batch import PhotonBatch
 
 from .base import BaseDetector
 
 
-@register_detector("absorption_vertical", AbsorptionProfileResult)
 class AbsorptionProfileDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
         self.scene = scene
@@ -42,9 +41,26 @@ class AbsorptionProfileDetector(BaseDetector):
         )
         self.absorption_profile += layer_counts
 
-    def get_results(self) -> AbsorptionProfileResult:
+    def get_results(self) -> xr.Dataset:
         z_centers = (self.measure_z[:-1] + self.measure_z[1:]) / 2.0
 
-        return AbsorptionProfileResult(
-            z_centers=z_centers, absorption_profile_1d=self.absorption_profile
+        return xr.Dataset(
+            data_vars={
+                "absorption_profile_1d": (
+                    ["z"],
+                    self.absorption_profile,
+                    {"units": "photons", "long_name": "Absorption Profile"},
+                ),
+            },
+            coords={
+                "z": ("z", z_centers, {"units": "km", "long_name": "Altitude"}),
+            },
         )
+
+    @staticmethod
+    def merge_chunks(chunks: list[xr.Dataset]) -> xr.Dataset:
+        if not chunks:
+            return xr.Dataset()
+
+        combined = xr.concat(chunks, dim="batch")
+        return combined.sum(dim="batch", keep_attrs=True)

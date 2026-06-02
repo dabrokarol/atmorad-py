@@ -9,7 +9,26 @@ from matplotlib.figure import Figure
 from pydantic import ValidationError
 
 from atmorad.config import SimConfig
-from atmorad.models.results import SimResults
+
+
+def normalize_dataset(ds: xr.Dataset) -> xr.Dataset:
+    """Normalizes all variables with 'photons' units to fractions."""
+    if ds.attrs.get("is_normalized", 0):
+        return ds
+
+    num_photons = ds.attrs.get("num_photons", 1)
+    if num_photons <= 1:
+        return ds
+
+    norm_ds = ds.copy(deep=False)
+
+    for var_name, var_data in norm_ds.data_vars.items():
+        if var_data.attrs.get("units") == "photons":
+            norm_ds[var_name] = var_data / num_photons
+            norm_ds[var_name].attrs["units"] = "fraction"
+
+    norm_ds.attrs["is_normalized"] = 1
+    return norm_ds
 
 
 class DataIO:
@@ -118,18 +137,19 @@ class DataIO:
         self.fig_dir.mkdir(parents=True, exist_ok=True)
         logging.info(f"Output directory initialized at: {self.base_dir}")
 
-    def _save_nc_file(self, results: SimResults, target_path: Path, normalize: bool) -> None:
+    def _save_nc_file(self, ds: xr.Dataset, target_path: Path, normalize: bool) -> None:
         tmp_path = target_path.with_name(target_path.name + ".tmp")
-        ds = results.to_dataset(normalize=normalize)
+        if normalize:
+            ds = normalize_dataset(ds)
         ds.to_netcdf(tmp_path, engine=self.NETCDF_ENGINE)
         shutil.move(tmp_path, target_path)
 
-    def save_simulation_run(self, results: SimResults) -> None:
+    def save_simulation_run(self, results_ds: xr.Dataset) -> None:
         assert self.base_dir is not None
-        self._save_nc_file(results, self.base_dir / self.results_filename, normalize=True)
+        self._save_nc_file(results_ds, self.base_dir / self.results_filename, normalize=True)
 
-    def save_checkpoint(self, results: SimResults) -> None:
-        self._save_nc_file(results, self.checkpoint_path, normalize=False)
+    def save_checkpoint(self, results_ds: xr.Dataset) -> None:
+        self._save_nc_file(results_ds, self.checkpoint_path, normalize=False)
 
     def save_figure(self, fig: Figure, plot_name: str, dpi: int = 300) -> None:
         assert self.fig_dir is not None
@@ -143,7 +163,7 @@ class DataIO:
         assert self.base_dir is not None
         return self.base_dir / self.checkpoint_filename
 
-    def load_checkpoint(self) -> SimResults | None:
+    def load_checkpoint(self) -> xr.Dataset | None:
         """Loads simulation state from a completed results file or a checkpoint."""
         assert self.base_dir is not None
         finished_path = self.base_dir / self.results_filename
@@ -160,18 +180,18 @@ class DataIO:
             self.checkpoint_path.unlink()
 
     @classmethod
-    def _load_nc_file(cls, path: Path) -> SimResults | None:
+    def _load_nc_file(cls, path: Path) -> xr.Dataset | None:
         if not path.exists() and not path.is_file():
             return None
         try:
             with xr.open_dataset(path, engine=cls.NETCDF_ENGINE) as ds:
                 ds.load()
-                return SimResults.from_dataset(ds)
+                return ds
         except (OSError, ValueError, TypeError) as e:
             logging.exception(f"Failed to load data file: {path}. Error: {e}")
 
     @classmethod
-    def load_simulation_results(cls, data_path: str | Path) -> SimResults:
+    def load_simulation_results(cls, data_path: str | Path) -> xr.Dataset:
         data_path = Path(data_path)
         results = cls._load_nc_file(data_path)
         if results is None:

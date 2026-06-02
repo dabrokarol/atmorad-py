@@ -29,7 +29,15 @@ sns.set_theme(
 class ResultAnalyzer:
     def __init__(self, ds: xr.Dataset):
         self.ds = ds
-        self.det_types = json.loads(str(ds.attrs.get("_detector_types", "{}")))
+        # ZMIANA: Czytamy aktywne detektory z konfiguracji zapisanej w metadanych
+        try:
+            config_str = str(ds.attrs.get("_simulation_config", "{}"))
+            config = json.loads(config_str)
+            active_dets = config.get("detectors", {}).get("active", [])
+            # W nowej architekturze prefix i klasa to to samo (np. 'flux_vertical')
+            self.det_types = {det: det for det in active_dets}
+        except json.JSONDecodeError:
+            self.det_types = {}
 
     def experiment_summary(self) -> str:
         experiment_name = self.ds.attrs.get("experiment_name", "")
@@ -42,15 +50,16 @@ class ResultAnalyzer:
         cpu_time = self.ds.attrs.get("engine_cpu_time_s", 0.0)
         total_photons = int(self.ds.attrs.get("num_photons", 0))
 
-        fate_prefix = next((p for p, c in self.det_types.items() if c == "FateResult"), "fate")
+        # ZMIANA: Wiemy, że prefix dla FateDetector to teraz po prostu "fate"
+        fate_prefix = "fate"
 
         outgoing_toa = self.ds.attrs.get(f"{fate_prefix}_energy_outgoing_toa", 0.0)
         abs_surf = self.ds.attrs.get(f"{fate_prefix}_energy_absorbed_surface", 0.0)
         abs_atm = self.ds.attrs.get(f"{fate_prefix}_energy_absorbed_atmosphere", 0.0)
 
-        outgoing_toa_pct = outgoing_toa * 100.0
-        absorbed_surf_pct = abs_surf * 100.0
-        absorbed_atm_pct = abs_atm * 100.0
+        outgoing_toa_pct = float(outgoing_toa) * 100.0
+        absorbed_surf_pct = float(abs_surf) * 100.0
+        absorbed_atm_pct = float(abs_atm) * 100.0
 
         conservation = outgoing_toa_pct + absorbed_surf_pct + absorbed_atm_pct
 
@@ -114,7 +123,9 @@ class ResultAnalyzer:
 
         absorbed_surface = self.ds[f"{prefix}_sample_absorbed_surface"].values[:num_paths]
         outgoing_toa = self.ds[f"{prefix}_sample_escaped_toa"].values[:num_paths]
-        toa_z = self.ds.attrs.get(f"{prefix}_toa_z", 10.0)
+
+        # ZMIANA: Odczyt globalnego atrybutu (bez prefixu detektora, dzięki no_conflicts)
+        toa_z = self.ds.attrs.get("toa_z_km", 10.0)
 
         Lx, Ly = self._infer_domain_size(paths)
         limit_x, limit_y = Lx / 2.0, Ly / 2.0
@@ -317,7 +328,8 @@ class ResultAnalyzer:
                     yield (fig, "surface_absorption_map")
                     plt.close(fig)
 
-            elif class_name == "vertical_flux":
+            # ZMIANA: Nazwa w Pydantic to teraz "flux_vertical"
+            elif class_name == "flux_vertical":
                 fig = self.plot_flux_profile(prefix)
                 if fig:
                     yield (fig, "vertical_flux_profile")
@@ -358,7 +370,7 @@ class ResultAnalyzer:
                             yield (fig_up, f"{prefix}-upward_z_{z_val:g}km")
                             plt.close(fig_up)
 
-            elif class_name == "absorption_vertical":
+            elif class_name == "vertical_absorption":
                 if hasattr(self, "plot_absorption_profile"):
                     fig = self.plot_absorption_profile(prefix)
                     if fig:

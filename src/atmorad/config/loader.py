@@ -5,7 +5,7 @@ import tomllib
 
 from atmorad.constants import ACCEPTED_EXTENSIONS
 
-from .models import (
+from .schema import (
     SimConfig,
 )
 

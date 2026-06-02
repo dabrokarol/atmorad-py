@@ -2,11 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from atmorad.builder import build_context_list
+from atmorad.config import load_scenarios
 
 
 @pytest.fixture
-def sim_context_list(request):
+def config_list(request):
     filename = request.param
     config_path = Path(__file__).parent / filename
-    return build_context_list(config_path)
+    return load_scenarios(config_path)

@@ -1,15 +1,14 @@
 import numpy as np
+import xarray as xr
 
 from atmorad.config import SimConfig
 from atmorad.constants import Z
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch, VerticalFluxResult
-from atmorad.registry import register_detector
+from atmorad.physics.batch import PhotonBatch
 
 from .base import BaseDetector
 
 
-@register_detector("vertical_flux", VerticalFluxResult)
 class VerticalFluxDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
         self.scene = scene
@@ -65,8 +64,32 @@ class VerticalFluxDetector(BaseDetector):
             self.diff_up += start_bins
             self.diff_up -= end_bins
 
-    def get_results(self) -> VerticalFluxResult:
+    def get_results(self) -> xr.Dataset:
         flux_down = np.cumsum(self.diff_down)[:-1]
         flux_up = np.cumsum(self.diff_up)[:-1]
 
-        return VerticalFluxResult(measure_z=self.measure_z, flux_up=flux_up, flux_down=flux_down)
+        return xr.Dataset(
+            data_vars={
+                "flux_up": (
+                    ["z"],
+                    flux_up,
+                    {"units": "photons", "long_name": "Upward Flux"},
+                ),
+                "flux_down": (
+                    ["z"],
+                    flux_down,
+                    {"units": "photons", "long_name": "Downward Flux"},
+                ),
+            },
+            coords={
+                "z": ("z", self.measure_z, {"units": "km", "long_name": "Altitude"}),
+            },
+        )
+
+    @staticmethod
+    def merge_chunks(chunks: list[xr.Dataset]) -> xr.Dataset:
+        if not chunks:
+            return xr.Dataset()
+
+        combined = xr.concat(chunks, dim="batch")
+        return combined.sum(dim="batch", keep_attrs=True)

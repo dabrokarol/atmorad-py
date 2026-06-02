@@ -2,16 +2,23 @@ import logging
 import time
 
 import numpy as np
+import xarray as xr
 
 from atmorad.config import SimConfig
 from atmorad.constants import MAX_SCATTERINGS, PBAR_INTERVAL, ZERO_TOLERANCE
-from atmorad.detectors import BaseDetector
+from atmorad.detectors import DETECTORS
 from atmorad.environment.scene import Scene
-from atmorad.models import EngineResult, PhotonBatch, SimResults
-from atmorad.registry import DETECTORS
+from atmorad.physics.batch import PhotonBatch
 
 
-class Engine:
+def run_photon_batch(
+    config: SimConfig, scene: Scene, progress_callback=None
+) -> dict[str, xr.Dataset]:
+    engine = _MonteCarloEngine(config, scene, progress_callback)
+    return engine.run()
+
+
+class _MonteCarloEngine:
     def __init__(self, config: SimConfig, scene: Scene, progress_callback=None):
         self.config = config
         self.scene = scene
@@ -26,8 +33,8 @@ class Engine:
         self.survival_chance = config.engine.photon_survival_chance
         self.weight_multiplier = 1.0 / config.engine.photon_survival_chance
 
-        self.results = None
         self.on_progress = progress_callback
+        self.detectors = {}
 
     def _init_arrays(self):
         pos = self.scene.start_pos(self.num_photons, self.rng)
@@ -49,13 +56,11 @@ class Engine:
         return self.rng.exponential(scale=1.0, size=size)
 
     def _initialize_detectors(self):
-        self.detectors: dict[str, BaseDetector] = {}
-
         for det_name in self.config.detectors.active:
             detector_class = DETECTORS[det_name]
             self.detectors[det_name] = detector_class(self.scene, self.config)
 
-    def run(self):
+    def run(self) -> dict[str, xr.Dataset]:
         old_err = np.seterr(divide="ignore", invalid="ignore")
 
         self._initialize_detectors()
@@ -67,7 +72,6 @@ class Engine:
         on_progress = self.on_progress
         counter = 0
 
-        start_time = time.process_time()
         progress_report_time = time.perf_counter()
 
         while batch.active_count > 0:
@@ -145,28 +149,9 @@ class Engine:
 
         np.seterr(**old_err)
 
-        end_time = time.process_time()
-
-        self.cpu_time_s = end_time - start_time
-        self.results = self._build_results()
-
-    def _build_results(self) -> SimResults:
-        detector_results = {}
-
+        results_dict = {}
         for det_id, det in self.detectors.items():
             det.finalize()
-            detector_results[det_id] = det.get_results()
+            results_dict[det_id] = det.get_results()
 
-        return SimResults(
-            engine_result=EngineResult(
-                cpu_time_s=self.cpu_time_s,
-            ),
-            detector_results=detector_results,
-            total_photons=self.num_photons,
-        )
-
-    def get_results(self):
-        if self.results is None:
-            raise RuntimeError("No results, use '.run()' first")
-
-        return self.results
+        return results_dict

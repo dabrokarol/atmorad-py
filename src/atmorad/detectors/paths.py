@@ -1,14 +1,13 @@
 import numpy as np
+import xarray as xr
 
 from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import PathTrackingResult, PhotonBatch
-from atmorad.registry import register_detector
+from atmorad.physics.batch import PhotonBatch
 
 from .base import BaseDetector
 
 
-@register_detector("path_tracking", PathTrackingResult)
 class PathTrackingDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
         self.num_track = min(config.detectors.num_full_paths, config.engine.num_photons)
@@ -41,16 +40,9 @@ class PathTrackingDetector(BaseDetector):
                 self.tracked_paths[i].append(pos.copy())
                 self.tracked_weights[i].append(w)
 
-    def get_results(self) -> PathTrackingResult:
+    def get_results(self) -> xr.Dataset:
         if self.num_track == 0 or not self.tracked_paths:
-            return PathTrackingResult(
-                sample_paths_3d=np.array([]),
-                sample_weights=np.array([]),
-                sample_escaped_toa=np.array([]),
-                sample_absorbed_atmosphere=np.array([]),
-                sample_absorbed_surface=np.array([]),
-                toa_z=self.toa_z,
-            )
+            return xr.Dataset(attrs={"toa_z_km": self.toa_z})
 
         max_bounces = max(len(path) for path in self.tracked_paths.values())
 
@@ -74,11 +66,44 @@ class PathTrackingDetector(BaseDetector):
                 abs_atm[i] = self.scene.in_atmosphere(last_pos.reshape(3, 1))[0]
                 abs_surf[i] = self.scene.at_surface(last_pos.reshape(3, 1))[0]
 
-        return PathTrackingResult(
-            sample_paths_3d=paths_3d,
-            sample_weights=weights,
-            sample_escaped_toa=reflected,
-            sample_absorbed_atmosphere=abs_atm,
-            sample_absorbed_surface=abs_surf,
-            toa_z=self.toa_z,
+        return xr.Dataset(
+            data_vars={
+                "sample_paths_3d": (
+                    ["photon", "step", "coord"],
+                    paths_3d,
+                    {"units": "km", "long_name": "Photon Path Coordinates"},
+                ),
+                "sample_weights": (
+                    ["photon", "step"],
+                    weights,
+                    {"units": "1", "long_name": "Photon Weight"},
+                ),
+                "sample_escaped_toa": (
+                    ["photon"],
+                    reflected,
+                    {"units": "boolean", "long_name": "Reflected TOA Flag"},
+                ),
+                "sample_absorbed_atmosphere": (
+                    ["photon"],
+                    abs_atm,
+                    {"units": "boolean", "long_name": "Absorbed in Atmosphere Flag"},
+                ),
+                "sample_absorbed_surface": (
+                    ["photon"],
+                    abs_surf,
+                    {"units": "boolean", "long_name": "Absorbed at Surface Flag"},
+                ),
+            },
+            coords={
+                "coord": ("coord", ["x", "y", "z"], {"long_name": "Spatial Dimension"}),
+            },
+            attrs={"toa_z_km": self.toa_z},
         )
+
+    @staticmethod
+    def merge_chunks(chunks: list[xr.Dataset]) -> xr.Dataset:
+        valid_chunks = [c for c in chunks if "sample_paths_3d" in c.data_vars]
+        if not valid_chunks:
+            return xr.Dataset()
+
+        return xr.concat(valid_chunks, dim="photon", join="outer", combine_attrs="no_conflicts")

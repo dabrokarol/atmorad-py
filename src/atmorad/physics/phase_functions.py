@@ -1,7 +1,6 @@
 import numpy as np
 
 from atmorad.constants import BOUNDARY_EPSILON
-from atmorad.registry import register_scattering
 
 
 class Scattering:
@@ -36,7 +35,7 @@ class Scattering:
 
         return np.array((cos_theta, sin_theta, cos_phi, sin_phi))
 
-@register_scattering("hg")
+
 class HenyeyGreensteinScattering(Scattering):
     def __init__(self, g: float):
         self.g = g
@@ -57,7 +56,6 @@ class HenyeyGreensteinScattering(Scattering):
         return self.scatter(rand_1, rand_2)
 
 
-@register_scattering("isotropic")
 class IsotropicScattering(Scattering):
     def __init__(self):
         pass
@@ -73,7 +71,6 @@ class IsotropicScattering(Scattering):
         return self.scatter(rand_1, rand_2)
 
 
-@register_scattering("rayleigh")
 class RayleighScattering(Scattering):
     def __init__(self):
         pass
@@ -89,3 +86,10 @@ class RayleighScattering(Scattering):
 
     def __call__(self, rand_1, rand_2):
         return self.scatter(rand_1, rand_2)
+
+
+SCATTERING_MODELS = {
+    "hg": HenyeyGreensteinScattering,
+    "isotropic": IsotropicScattering,
+    "rayleigh": RayleighScattering,
+}

@@ -1,4 +1,5 @@
-from atmorad.config.models import (
+from atmorad.config.loader import load_scenarios
+from atmorad.config.schema import (
     DetectorConfig,
     EngineConfig,
     EnvironmentConfig,
@@ -7,7 +8,6 @@ from atmorad.config.models import (
     SimConfig,
     SourceConfig,
 )
-from atmorad.config.parser import load_scenarios
 
 __all__ = [
     "SimConfig",
@@ -19,4 +19,3 @@ __all__ = [
     "EnvironmentConfig",
     "load_scenarios",
 ]
-import atmorad.detectors  # to ensure default detectors are registered

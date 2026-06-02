@@ -6,12 +6,17 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from atmorad.constants import TIMESTAMP_FORMAT
-from atmorad.registry import (
-    DETECTORS,
-    REFLECTION_MODELS,
-    SCATTERING_MODELS,
-    SURFACE_MAPS,
-)
+
+# --- Zero importów z detectors, environment i physics! ---
+
+DetectorName = Literal[
+    "fate",
+    "vertical_flux",
+    "path_tracking",
+    "plane_flux",
+    "surface_absorption",
+    "vertical_absorption",
+]
 
 # ------- Environment Config models: ----------
 
@@ -24,11 +29,6 @@ class SurfaceMaterialConfig(BaseModel):
     def validate_reflection(self) -> "SurfaceMaterialConfig":
         if "type" not in self.reflection:
             raise ValueError("Surface reflection configuration must contain a 'type' key.")
-        if self.reflection["type"] not in REFLECTION_MODELS:
-            raise ValueError(
-                f"Surface reflection model not found: {self.reflection['type']}. "
-                f"Available: {list(REFLECTION_MODELS.keys())}"
-            )
         return self
 
 
@@ -41,11 +41,6 @@ class AtmosphereMaterialConfig(BaseModel):
     def validate_scattering(self) -> "AtmosphereMaterialConfig":
         if "type" not in self.scattering:
             raise ValueError("Atmosphere scattering configuration must contain a 'type' key.")
-        if self.scattering["type"] not in SCATTERING_MODELS:
-            raise ValueError(
-                f"Scattering model not found: {self.scattering['type']}. "
-                f"Available: {list(SCATTERING_MODELS.keys())}"
-            )
         return self
 
 
@@ -83,7 +78,7 @@ class MetadataConfig(BaseModel):
 
 
 class DetectorConfig(BaseModel):
-    active: list[str] = Field(
+    active: list[DetectorName] = Field(
         default=["fate"], description="List of active detectors to use during the simulation."
     )
 
@@ -92,13 +87,6 @@ class DetectorConfig(BaseModel):
     num_full_paths: int = Field(ge=0, default=0)
     flux_maps_z_levels_km: list[float] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def validate_detectors(self) -> "DetectorConfig":
-        for det in self.active:
-            if det not in DETECTORS.keys():
-                raise ValueError(f"Unknown detector: '{det}'. Available: {list(DETECTORS.keys())}")
-        return self
-
 
 class OutputConfig(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
@@ -106,7 +94,7 @@ class OutputConfig(BaseModel):
     overwrite: bool = False
     save_plots: bool = Field(
         default=True,
-        description="If true, generates and saves standard PNG plots for all active default detectors.",
+        description="If true, generates and saves standard PNG plots.",
     )
     base_dir: Path = Path("results")
     fig_dir: Path = Path("plots")
@@ -143,19 +131,8 @@ class EnvironmentConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_environment(self) -> "EnvironmentConfig":
-        map_name = self.surface.get("name")
-        if not map_name or map_name not in SURFACE_MAPS:
-            raise ValueError(
-                f"Valid surface 'name' required. Available: {list(SURFACE_MAPS.keys())}"
-            )
-
-        for key in SURFACE_MAPS[map_name]["material_keys"]:
-            if key not in self.surface:
-                raise ValueError(f"Map '{map_name}' requires key '{key}' in [surface].")
-            if self.surface[key] not in self.surface_materials:
-                raise ValueError(
-                    f"Material '{self.surface[key]}' not defined in [surface_materials]."
-                )
+        if "name" not in self.surface:
+            raise ValueError("Surface configuration must contain a 'name' key for the map type.")
 
         for i, layer in enumerate(self.layers):
             for comp in layer.components:

@@ -1,16 +1,15 @@
 import numpy as np
+import xarray as xr
 
 from atmorad.config import SimConfig
 from atmorad.constants import X, Y, Z
 from atmorad.environment import Scene
-from atmorad.models import IncidentFluxMapResult, PhotonBatch
-from atmorad.registry import register_detector
+from atmorad.physics.batch import PhotonBatch
 
 from .base import BaseDetector
 
 
-@register_detector("plane_flux", IncidentFluxMapResult)
-class IncidentFluxMapDetector(BaseDetector):
+class PlaneFluxDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
         resolution = config.detectors.horizontal_maps_resolution_km
 
@@ -87,7 +86,7 @@ class IncidentFluxMapDetector(BaseDetector):
         self._process_hits(batch, down_mask, self.flux_down_flat)
         self._process_hits(batch, up_mask, self.flux_up_flat)
 
-    def get_results(self) -> IncidentFluxMapResult:
+    def get_results(self) -> xr.Dataset:
         x_centers = (self.x_edges[:-1] + self.x_edges[1:]) / 2.0
         y_centers = (self.y_edges[:-1] + self.y_edges[1:]) / 2.0
 
@@ -96,10 +95,30 @@ class IncidentFluxMapDetector(BaseDetector):
         )
         flux_up_3d = self.flux_up_flat.reshape((self.num_planes, self.num_bins_x, self.num_bins_y))
 
-        return IncidentFluxMapResult(
-            x_centers=x_centers,
-            y_centers=y_centers,
-            measure_z=self.measure_z,
-            incident_flux_down_3d=flux_down_3d,
-            incident_flux_up_3d=flux_up_3d,
+        return xr.Dataset(
+            data_vars={
+                "incident_flux_down_3d": (
+                    ["z", "x", "y"],
+                    flux_down_3d,
+                    {"units": "photons", "long_name": "Incident Downward Flux"},
+                ),
+                "incident_flux_up_3d": (
+                    ["z", "x", "y"],
+                    flux_up_3d,
+                    {"units": "photons", "long_name": "Incident Upward Flux"},
+                ),
+            },
+            coords={
+                "z": ("z", self.measure_z, {"units": "km", "long_name": "Altitude"}),
+                "x": ("x", x_centers, {"units": "km", "long_name": "X Coordinate"}),
+                "y": ("y", y_centers, {"units": "km", "long_name": "Y Coordinate"}),
+            },
         )
+
+    @staticmethod
+    def merge_chunks(chunks: list[xr.Dataset]) -> xr.Dataset:
+        if not chunks:
+            return xr.Dataset()
+
+        combined = xr.concat(chunks, dim="batch")
+        return combined.sum(dim="batch", keep_attrs=True)

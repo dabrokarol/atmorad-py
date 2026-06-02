@@ -1,15 +1,14 @@
 import numpy as np
+import xarray as xr
 
 from atmorad.config import SimConfig
 from atmorad.constants import X, Y
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch, SurfaceAbsorptionResult
-from atmorad.registry import register_detector
+from atmorad.physics.batch import PhotonBatch
 
 from .base import BaseDetector
 
 
-@register_detector("surface_absorption", SurfaceAbsorptionResult)
 class SurfaceAbsorptionDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
         self.scene = scene
@@ -48,12 +47,28 @@ class SurfaceAbsorptionDetector(BaseDetector):
 
         self.surface_map += batch_map
 
-    def get_results(self) -> SurfaceAbsorptionResult:
+    def get_results(self) -> xr.Dataset:
         x_centers = (self.x_edges[:-1] + self.x_edges[1:]) / 2.0
         y_centers = (self.y_edges[:-1] + self.y_edges[1:]) / 2.0
 
-        return SurfaceAbsorptionResult(
-            x_centers=x_centers,
-            y_centers=y_centers,
-            surface_absorption_map_2d=self.surface_map,
+        return xr.Dataset(
+            data_vars={
+                "surface_absorption_map_2d": (
+                    ["x", "y"],
+                    self.surface_map,
+                    {"units": "photons", "long_name": "Surface Absorption"},
+                ),
+            },
+            coords={
+                "x": ("x", x_centers, {"units": "km", "long_name": "X Coordinate"}),
+                "y": ("y", y_centers, {"units": "km", "long_name": "Y Coordinate"}),
+            },
         )
+
+    @staticmethod
+    def merge_chunks(chunks: list[xr.Dataset]) -> xr.Dataset:
+        if not chunks:
+            return xr.Dataset()
+
+        combined = xr.concat(chunks, dim="batch")
+        return combined.sum(dim="batch", keep_attrs=True)
