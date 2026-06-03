@@ -19,7 +19,14 @@ def generate_timestamp() -> str:
     return datetime.datetime.now().strftime(TIMESTAMP_FORMAT)
 
 
-class MetadataConfig(BaseModel):
+class StrictModel(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
+
+
+class MetadataConfig(StrictModel):
     experiment_name: str = "simulation"
     scenario_name: str = "baseline"
     description: str = ""
@@ -28,7 +35,7 @@ class MetadataConfig(BaseModel):
     run_timestamp: str = Field(default_factory=generate_timestamp)
 
 
-class EngineConfig(BaseModel):
+class EngineConfig(StrictModel):
     random_seed: int = -1
     num_photons: int = Field(gt=0, default=100_000)
     batch_size: int = Field(gt=0, default=100_000)
@@ -38,20 +45,19 @@ class EngineConfig(BaseModel):
     roulette_survival_probability: float = Field(default=0.1, ge=0.0, le=1.0)
 
 
-class SourceConfig(BaseModel):
+class SourceConfig(StrictModel):
     zenith_angle_deg: float = Field(ge=0.0, le=180.0, default=0)
     azimuth_angle_deg: float = Field(ge=0.0, le=360.0, default=0)
     wavelength_nm: float = Field(ge=0.0, default=0)
 
 
-class DomainConfig(BaseModel):
+class DomainConfig(StrictModel):
     size_x_km: float = Field(gt=0.0, default=100)
     size_y_km: float = Field(gt=0.0, default=100)
     boundary_condition: Literal["periodic", "open"] = "periodic"
 
 
-class OutputConfig(BaseModel):
-    model_config = ConfigDict(validate_assignment=True)
+class OutputConfig(StrictModel):
     overwrite: bool = False
     save_plots: bool = True
     base_dir: Path = Path("results")
@@ -61,28 +67,28 @@ class OutputConfig(BaseModel):
 # --- detectors ---
 
 
-class TrajectoriesConfig(BaseModel):
+class TrajectoriesConfig(StrictModel):
     max_tracked_paths: int = Field(ge=0, default=200)
 
 
-class FluxProfileConfig(BaseModel):
+class FluxProfileConfig(StrictModel):
     vertical_resolution_km: float = Field(gt=0.0, default=1.0)
 
 
-class AbsorptionProfileConfig(BaseModel):
+class AbsorptionProfileConfig(StrictModel):
     vertical_resolution_km: float = Field(gt=0.0, default=1.0)
 
 
-class FluxMapsConfig(BaseModel):
+class FluxMapsConfig(StrictModel):
     horizontal_resolution_km: float = Field(gt=0.0, default=1.0)
     z_levels_km: list[float] = Field(default_factory=list)
 
 
-class SurfaceAbsorptionMapConfig(BaseModel):
+class SurfaceAbsorptionMapConfig(StrictModel):
     horizontal_resolution_km: float = Field(gt=0.0, default=1.0)
 
 
-class DetectorsConfig(BaseModel):
+class DetectorsConfig(StrictModel):
     energy_budget: Any | None = None
     trajectories: TrajectoriesConfig | None = None
     flux_profile: FluxProfileConfig | None = None
@@ -104,7 +110,7 @@ class DetectorsConfig(BaseModel):
 # --- environment ---
 
 
-class SurfaceMaterialConfig(BaseModel):
+class SurfaceMaterialConfig(StrictModel):
     albedo: float = Field(ge=0.0, le=1.0)
     brdf: dict[str, Any]
 
@@ -115,7 +121,7 @@ class SurfaceMaterialConfig(BaseModel):
         return self
 
 
-class AtmosphereMaterialConfig(BaseModel):
+class AtmosphereMaterialConfig(StrictModel):
     extinction_coeff_per_km: float = Field(ge=0.0)
     ssa: float = Field(ge=0.0, le=1.0)
     phase_function: dict[str, Any]
@@ -127,12 +133,12 @@ class AtmosphereMaterialConfig(BaseModel):
         return self
 
 
-class LayerConfig(BaseModel):
+class LayerConfig(StrictModel):
     thickness_km: float = Field(gt=0.0)
     components: dict[str, float]
 
 
-class SimConfig(BaseModel):
+class SimConfig(StrictModel):
     metadata: MetadataConfig = Field(default_factory=MetadataConfig)
     engine: EngineConfig = Field(default_factory=EngineConfig)
     source: SourceConfig = Field(default_factory=SourceConfig)
@@ -149,7 +155,7 @@ class SimConfig(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def handle_aliases(cls, data: Any) -> Any:
+    def convert_toml_sections(cls, data: Any) -> Any:
         """Mapuje klucz 'layer' z pliku TOML na pole 'layers' w modelu Pydantic."""
         if isinstance(data, dict):
             if "layer" in data and "layers" not in data:
@@ -171,13 +177,13 @@ class SimConfig(BaseModel):
         return self
 
     def is_compatible_for_resume(self, checkpoint_config: "SimConfig") -> bool:
-        currend_dict = self.model_dump(exclude={"metadata", "output"})
+        current_dict = self.model_dump(exclude={"metadata", "output"})
         old_dict = checkpoint_config.model_dump(exclude={"metadata", "output"})
 
-        current_seed = currend_dict["engine"].pop("random_seed")
+        current_seed = current_dict["engine"].pop("random_seed")
         old_seed = old_dict["engine"].pop("random_seed")
 
-        return currend_dict == old_dict and (current_seed == -1 or current_seed == old_seed)
+        return current_dict == old_dict and (current_seed == -1 or current_seed == old_seed)
 
     def get_experiment_attributes(self) -> dict[str, float | int | str]:
         return {
