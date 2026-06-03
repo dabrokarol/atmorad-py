@@ -11,8 +11,7 @@
 | ![map](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/surface_absorption_map.png) | ![paths](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/3d_photon_paths.png) |
 | **Vertical flux profile** | **Vertical absorption profile** |
 | ![profile](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/vertical_flux_profile.png)| ![hist](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/absorption_profile.png) |
-
-Example outputs generated from the default configuration (approx 10 seconds for 400_000 photons on thinkpad T480s).
+Example outputs generated from the default configuration |(approx 10 seconds for 400_000 photons on thinkpad T480s).
 
 ## Overview
 
