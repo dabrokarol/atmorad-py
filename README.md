@@ -299,7 +299,7 @@ active_detectors = ds.attrs["active_detectors"]
 <!-- [[[end]]] -->
 Or via atmorad:
 ```python
-from atmorad import load()
+from atmorad import load
 ds = load("results/demo001/atmorad_demo001_baseline.nc")
 ```
 
