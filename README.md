@@ -11,7 +11,8 @@
 | ![map](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/surface_absorption_map.png) | ![paths](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/3d_photon_paths.png) |
 | **Vertical flux profile** | **Vertical absorption profile** |
 | ![profile](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/vertical_flux_profile.png)| ![hist](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/absorption_profile.png) |
-Example outputs generated from the default configuration.
+
+Example outputs generated from the default configuration (approx 10 seconds for 400_000 photons on thinkpad T480s).
 
 ## Overview
 
@@ -20,12 +21,12 @@ atmorad is a Monte Carlo radiative transfer model written in Python.
 The code simulates photon transport through a plane-parallel atmosphere above a heterogeneous surface and records quantities such as radiative fluxes, absorption profiles, and surface energy deposition.
 
 
-### Why
+### Motivation
 I started it as a learning project during lectures on Radiative Processes in the Atmosphere at the Faculty of Physics, University of Warsaw.
 
 The original goal was to better understand Monte Carlo radiative transfer by implementing the underlying algorithms from scratch.
 
-As the I wrote more code, it also became an opportunity to learn how to organize a larger coding project.
+As I wrote more code, it also became an opportunity to learn how to organize a larger codebase.
 
 ### Capabilities
 - vectorized photon transport using NumPy arrays
