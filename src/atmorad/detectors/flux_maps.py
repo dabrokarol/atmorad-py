@@ -21,6 +21,7 @@ class FluxMapsDetector(BaseDetector):
         self.num_bins_y = int(np.round(self.domain_y / resolution))
         self.num_planes = len(self.measure_z)
 
+        # actual dx and dy may vary slightly from requested resolution (to fit domain size)
         self.dx = self.domain_x / self.num_bins_x
         self.dy = self.domain_y / self.num_bins_y
 

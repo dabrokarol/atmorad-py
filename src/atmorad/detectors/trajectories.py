@@ -46,10 +46,10 @@ class PathTrackingDetector(BaseDetector):
         if self.num_track == 0 or not self.tracked_paths:
             return xr.Dataset(attrs={"toa_z_km": self.toa_z})
 
-        max_bounces = max(len(path) for path in self.tracked_paths.values())
+        max_steps = max(len(path) for path in self.tracked_paths.values())
 
-        paths_3d = np.full((self.num_track, max_bounces, 3), np.nan)
-        weights = np.full((self.num_track, max_bounces), np.nan)
+        paths_3d = np.full((self.num_track, max_steps, 3), np.nan)
+        weights = np.full((self.num_track, max_steps), np.nan)
 
         reflected = np.zeros(self.num_track, dtype=bool)
         abs_atm = np.zeros(self.num_track, dtype=bool)
@@ -58,10 +58,10 @@ class PathTrackingDetector(BaseDetector):
         for i in range(self.num_track):
             path = self.tracked_paths[i]
             w = self.tracked_weights[i]
-            bounces = len(path)
-            if bounces > 0:
-                paths_3d[i, :bounces, :] = np.vstack(path)
-                weights[i, :bounces] = w
+            steps = len(path)
+            if steps > 0:
+                paths_3d[i, :steps, :] = np.vstack(path)
+                weights[i, :steps] = w
 
                 last_pos = path[-1]
                 reflected[i] = self.scene.above_toa(last_pos.reshape(3, 1))[0]
