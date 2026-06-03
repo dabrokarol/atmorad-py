@@ -92,7 +92,7 @@ def load_scenarios(config_path: str | Path) -> list[SimConfig]:
     for base_config in base_configs_data:
         base_name = base_config.get("metadata", {}).get("scenario_name", "baseline")
 
-        # a carthesian product of value combinations
+        # a cartesian product of value combinations
         for combo in itertools.product(*sweep_values):
             scenario_data = copy.deepcopy(base_config)
 
