@@ -179,7 +179,7 @@ class DataIO:
 
     @classmethod
     def _load_nc_file(cls, path: Path) -> xr.Dataset | None:
-        if not path.exists() and not path.is_file():
+        if not path.exists() or not path.is_file():
             return None
         try:
             with xr.open_dataset(path, engine=cls.NETCDF_ENGINE) as ds:
