@@ -319,5 +319,5 @@ This creates an `<exp_name>_<scen_name>_config.toml` file in the current working
 
 ## Contributing
 Contributions of any size are welcome. 
-- [Open an issue](https://github.com/dabrokarol/atmorad-py/issues) to report a bug or suggest a feature.
+- [Open an issue](https://github.com/dabrokarol/atmorad-py/issues) to report a bug or to suggest something.
 - You can contact me at atmorad@kdabr.com for any further questions.
