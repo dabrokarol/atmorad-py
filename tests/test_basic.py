@@ -20,10 +20,10 @@ def test_energy_conservation(config_path):
         results = [results]
 
     for ds in results:
-        if "energy_budget_energy_outgoing_toa" in ds:
-            reflected = float(ds["energy_budget_energy_outgoing_toa"].values)
-            transmitted = float(ds["energy_budget_energy_absorbed_surface"].values)
-            absorbed_atm = float(ds["energy_budget_energy_absorbed_atmosphere"].values)
+        if "energy_toa_outgoing" in ds:
+            reflected = ds["energy_toa_outgoing"].item()
+            transmitted = ds["energy_surface_absorbed"].item()
+            absorbed_atm = ds["energy_atmosphere_absorbed"].item()
         else:
             reflected = transmitted = absorbed_atm = 0.0
 
@@ -46,13 +46,11 @@ def test_no_nan_in_maps(config_path):
         results = [results]
 
     for ds in results:
-        surface_map_key = "surface_absorption_map_surface_absorption_map_2d"
+        if "surface_absorption_map" in ds:
+            assert not np.isnan(ds["surface_absorption_map"].values).any()
 
-        if surface_map_key in ds:
-            assert not np.isnan(ds[surface_map_key].values).any()
+        if "downward_flux" in ds:
+            assert not np.isnan(ds["downward_flux"].values).any()
 
-        if "flux_maps_incident_flux_down_3d" in ds:
-            assert not np.isnan(ds["flux_maps_incident_flux_down_3d"].values).any()
-
-        if "flux_maps_incident_flux_up_3d" in ds:
-            assert not np.isnan(ds["flux_maps_incident_flux_up_3d"].values).any()
+        if "upward_flux" in ds:
+            assert not np.isnan(ds["upward_flux"].values).any()
