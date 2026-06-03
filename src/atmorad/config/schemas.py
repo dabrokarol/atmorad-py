@@ -58,7 +58,7 @@ class OutputConfig(BaseModel):
     fig_dir: Path = Path("plots")
 
 
-# --- Detectors ---
+# --- detectors ---
 
 
 class TrajectoriesConfig(BaseModel):

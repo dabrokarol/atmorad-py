@@ -55,7 +55,7 @@ def run(config_path: str | Path, quiet: bool = False) -> xr.Dataset | list[xr.Da
         norm_ds = normalize_dataset(results_ds)
         analyzer = ResultAnalyzer(norm_ds)
 
-        log("\n")
+        log()
         log(analyzer.experiment_summary() + "\n")
         log(data_io.output_summary())
         log()

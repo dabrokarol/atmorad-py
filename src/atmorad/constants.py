@@ -1,17 +1,17 @@
-# Engine
+# engine
 MAX_SCATTERINGS = 100_000
 BOUNDARY_EPSILON = 1e-10
 ZERO_TOLERANCE = 1e-12
 
-# Nametags
+# nametags
 X = 0
 Y = 1
 Z = 2
 
-# Runtime
+# runtime
 CHECKPOINT_INTERVAL = 10
 PBAR_INTERVAL = 0.1
 
-# IO
+# io
 ACCEPTED_EXTENSIONS = {".toml"}
 TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"

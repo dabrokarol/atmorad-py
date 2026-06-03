@@ -1,5 +1,5 @@
-# AtmoRad
-## A vectorized Monte Carlo simulation of atmospheric radiative transfer.
+# atmorad
+## Monte Carlo atmospheric radiative transfer in Python.
 
 [![PyPI version](https://img.shields.io/pypi/v/atmorad-py.svg?color=blue)](https://pypi.org/project/atmorad-py/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -13,14 +13,52 @@
 [![pytest](https://img.shields.io/badge/pytest-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/)
 [![CI](https://github.com/dabrokarol/atmorad-py/actions/workflows/ci.yml/badge.svg)](https://github.com/dabrokarol/atmorad-py/actions)
 
-| **2D Surface absorption map** | **Sample photon paths** |
+| **2D surface absorption map** | **Sample photon paths** |
 | :--- | :--- |
 | ![map](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/surface_absorption_map.png) | ![paths](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/3d_photon_paths.png) |
 | **Vertical flux profile** | **Vertical absorption profile** |
 | ![profile](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/vertical_flux_profile.png)| ![hist](https://raw.githubusercontent.com/dabrokarol/atmorad-py/main/docs/img/absorption_profile.png) |
+Example outputs generated from the default configuration.
 
 ## Overview
-AtmoRad is a Python tool for simulating the radiative transfer of monochromatic light over a mixed 2D surface and a plane-parallel atmosphere. I started it as an independent educational project alongside lectures of Radiative Processes in the Atmosphere at the Faculty of Physics, University of Warsaw to learn computational physics and software development. 
+
+atmorad is a Monte Carlo radiative transfer model written in Python.
+
+The code simulates photon transport through a plane-parallel atmosphere above a heterogeneous surface and records quantities such as radiative fluxes, absorption profiles, and surface energy deposition.
+
+
+### Why
+I started it as a learning project during lectures on Radiative Processes in the Atmosphere at the Faculty of Physics, University of Warsaw.
+
+The original goal was to better understand Monte Carlo radiative transfer by implementing the underlying algorithms from scratch.
+
+As the I wrote more code, it also became an opportunity to learn how to organize a larger scientific codebase.
+
+### Capabilities
+- vectorized photon transport using NumPy arrays
+- plane-parallel layered atmosphere (photons tracked in 3D)
+- heterogeneous 2D surface maps
+- Rayleigh and Henyey-Greenstein phase functions
+- Lambertian and specular BRDFs
+- xarray-compatible NetCDF/HDF5 output
+- checkpointing and simulation resume
+
+### Limitations
+- monochromatic radiation
+- no polarization
+- plane-parallel atmosphere
+- horizontally homogeneous atmospheric layers
+- no validation against reference radiative transfer benchmarks yet
+- atmospheric optical properties are currently wavelength-independent
+
+### Future work
+- validation against standard 3D radiative transfer models
+- delta tracking for arbitrary 3D cloud geometries
+- wavelength-dependent optical properties of materials
+- roughness parameter in specular reflection and other BRDF models
+- 3D surface topography
+- spherical geometry for high zenith angles and whole-Earth simulations
+
 
 ## Installation
 
@@ -36,6 +74,8 @@ Using `pip`:
 
 ## Quickstart
 
+### CLI
+
 Initialize a default configuration file in your current directory:
 ```bash
 > atmorad --init
@@ -44,42 +84,36 @@ Initialize a default configuration file in your current directory:
 Run the simulation:
 ```bash
 > atmorad simulation.toml
-demo001/baseline: 100%|███████████████████████████████| 400000/400000 [00:10<00:00, 37632.74 photons/s]
+demo001/baseline: 100%|█████████████████████████████████████████████████████████| 400000/400000 [00:08<00:00, 48699.42 photons/s]
 
----- Simulation Summary: demo001/baseline ----
-Time: 10.63s (Total) | 35.49s (CPU)
-Simulated Photons: 400_000
+Simulation complete
 
-Energy Distribution:
-  Outgoing (TOA)         :  64.35%
-  Surface Absorption     :  33.57%
-  Atmospheric Absorption :   2.08%
-  ------------------------------
-  Energy Conservation    : 100.00%
+experiment: demo001
+scenario: baseline
 
-Outputs saved to: results/demo001/
-  └─ atmorad_demo001_baseline.nc
+runtime: 8.22 s
+photons: 400_000
 
+Energy distribution
+------------------------------
+toa escape               65.75%
+surface absorption       34.23%
+atmospheric absorption    0.03%
+------------------------------
+energy conservation     100.00%
+
+
+Result File:
+  results/demo001/atmorad_demo001_baseline.nc
 ```
-*Check the `results/` directory for generated simulation artifacts and plots.*
+Check the `results/` and `plots/` directories for generated simulation artifacts and plots.
 
-## Features & Physical Model
-- **Vectorized Monte Carlo Approach**: For high-performance execution, uses NumPy and multiprocessing for fast and parallel processing of photons in large batches.
-- **3D Radiative Transfer in Plane-Parallel Approximation**: The atmosphere consists of horizontally uniform layers, but photon paths are tracked in fully 3D space over a 2D surface.
-- **Multi-Material Atmospheric Layers**: Layers can consist of multiple atmospheric materials simultaneously. Each material defines its own extinction coefficient, SSA, and phase function (built-in Rayleigh and Henyey-Greenstein, or custom).
-- **Two Scattering Mechanisms**: Supports photon scattering using analytical inverse phase functions as well as numerical inverse CDFs for custom distributions.
-- **Surface Reflections**: The surface consists of materials with specific albedos, predefined BRDF reflection models (`lambertian`, `specular`), and a `ProceduralMap` mapping material IDs to spatial coordinates.
-- **Photon Properties**: Light is treated as monochromatic, non-polarized, weighted particles that can be scattered, reflected, and partially absorbed.
-- **Checkpointing & Data Formats**: Supports resuming from checkpoints in case of interruption. Results are stored in the **NetCDF/HDF5** standard. Results are self-contained in a single `.nc` file.
+### Python script
+```python
+from atmorad import run
 
-## Roadmap
-I'm planning to include more features in the future, such as:
-- Delta tracking for arbitrary 3D cloud geometries.
-- Wavelength-dependent optical properties of materials.
-- Roughness parameter in specular reflection and other BRDF models.
-- 3D surface topography.
-- Spherical geometry for high zenith angles and whole-Earth simulations.
-- Validation against standard 3D radiative transfer models.
+ds = run("simulation.toml")
+```
 
 ## Configuration
 
@@ -241,23 +275,8 @@ values    = [0, 45, 90, 135, 180]
 
 </details>
 
-### Running Multiple Scenarios:
-You can run multiple scenarios by appending [[scenario]] blocks to the end of your TOML file. You can override any base variable using dot-notation.
-```toml
-# Overrides the solar angle to 30 degrees
-[[scenario]]
-name = "sun_30"
-source.theta_sun_deg = 30
-
-# Overrides both the solar angle and the photon count
-[[scenario]]
-name = "sun_60"
-engine.num_photons = 500_000
-source.theta_sun_deg = 60
-```
-
-## Loading Results
-Because AtmoRad saves data in the standard NetCDF4/HDF5 format, you can read the `data.nc` file directly using libraries like `xarray` or `netCDF4`.
+## Loading results
+Results are stored as NetCDF4/HDF5 files and can be loaded directly with xarray:
 
 <!-- [[[cog
 import cog
@@ -285,30 +304,26 @@ active_detectors = ds.attrs["active_detectors"]
 
 ```
 <!-- [[[end]]] -->
+Or via atmorad:
+```python
+from atmorad import load()
+ds = load("results/demo001/atmorad_demo001_baseline.nc")
+```
 
 ### Extracting configuration file from results
 Each data `.nc`  file contains configuration data used to run the simulation. You can extract it by running:
 ```bash
 atmorad --extract-config <path-to-data.nc>
 ```
-This method created an <exp_name>_<scen_name>_config.toml file in your working directory.
+This creates an `<exp_name>_<scen_name>_config.toml` file in the current working directory.
 
-## Project Structure
-- `engine/`: Handles photon batching and runs the main simulation loop.
-- `physics/`: Contains rotation functions, scattering phase functions, and reflection models.
-- `environment/`: Manages the environment (`Scene`, `Atmosphere`, `Surface`).
-- `detectors/`: Implements photon tracking and result generation.
-- `models/`: Defines base classes used throughout the program (and extensive 'results.py' for parsing netcdf).
-- `output/`: Handles data IO and figure generation.
-- `config/`: Parses `.toml` configuration files and constructs the simulation context.
-- `cli.py`: Command-line interface entry point.
-
-## References and Literature
-- (in Polish) Script for Lecture about [Radiative Processes in the Atmosphere](https://www.igf.fuw.edu.pl/~kmark/stacja/wyklady/ProcesyRadiacyjne/2013/WykladRadiacjaKlimat.pdf), Prof. K. Markowicz, Faculty of Physics, University of Warsaw, 2013.
+## References and literature
+- (in Polish) Script for lecture about [Radiative Processes in the Atmosphere](https://www.igf.fuw.edu.pl/~kmark/stacja/wyklady/ProcesyRadiacyjne/2013/WykladRadiacjaKlimat.pdf), Prof. K. Markowicz, Faculty of Physics, University of Warsaw, 2013.
 
 ## Acknowledgments
 - I created this project inspired by the lectures on *Radiative Processes in the Atmosphere* by Prof. K. Markowicz, Faculty of Physics, University of Warsaw.
-- I used Large Language Models for code debugging and architectural decisions (e.g., how to structure the repository, which packages to use, how to save and read data).
+- I used Large Language Models as a programming aid during development.
 
 ## Contributing
-Feel free to open an [Issue](https://github.com/dabrokarol/atmorad-py/issues) or submit a Pull Request to report bugs, suggest new features and ask questions :))
+Contributions of any size are welcome.
+[Open issue](https://github.com/dabrokarol/atmorad-py/issues)
