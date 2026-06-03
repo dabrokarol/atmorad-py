@@ -67,6 +67,10 @@ class OutputConfig(StrictModel):
 # --- detectors ---
 
 
+class EnergyBudgetConfig(StrictModel):
+    pass
+
+
 class TrajectoriesConfig(StrictModel):
     max_tracked_paths: int = Field(ge=0, default=200)
 
@@ -89,22 +93,20 @@ class SurfaceAbsorptionMapConfig(StrictModel):
 
 
 class DetectorsConfig(StrictModel):
-    energy_budget: Any | None = None
+    energy_budget: EnergyBudgetConfig | None = None
     trajectories: TrajectoriesConfig | None = None
     flux_profile: FluxProfileConfig | None = None
     absorption_profile: AbsorptionProfileConfig | None = None
     flux_maps: FluxMapsConfig | None = None
     surface_absorption_map: SurfaceAbsorptionMapConfig | None = None
-    active: list[str] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def determine_active_detectors(self) -> "DetectorsConfig":
-        self.active = [
+    @property
+    def active(self) -> list[str]:
+        return [
             field_name
-            for field_name in self.__dict__.keys()
-            if field_name != "active" and getattr(self, field_name) is not None
+            for field_name in type(self).model_fields
+            if getattr(self, field_name) is not None
         ]
-        return self
 
 
 # --- environment ---

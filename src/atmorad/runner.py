@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from atmorad.config.schemas import SimConfig
 from atmorad.constants import CHECKPOINT_INTERVAL
-from atmorad.detectors import DETECTORS
+from atmorad.detectors import DETECTORS, BaseDetector, PathTrackingDetector
 from atmorad.environment import Scene
 from atmorad.simulation import run_photon_batch
 
@@ -334,21 +334,21 @@ def _run_chunk(
     if _global_config is None or _global_scene is None:
         raise RuntimeError("Worker context not initialized")
 
-    new_config = _global_config.model_copy(deep=False)
-    new_config.engine = _global_config.engine.model_copy()
-    new_config.engine.num_photons = chunk_size
-    new_config.engine.random_seed = seed
-
-    # track trajectories only in the first chunk
-    if starting_photon_count > 0 and new_config.detectors.trajectories:
-        new_config.detectors.trajectories.max_tracked_paths = 0
-
     def update_progress_value(died_count):
         if _progress_value is not None and died_count > 0:
             with _progress_value.get_lock():
                 _progress_value.value += died_count
 
-    chunk_ds_dict = run_photon_batch(new_config, _global_scene, update_progress_value)
+    detectors: dict[str, BaseDetector] = {}
+    for det_name in _global_config.detectors.active:
+        detector_class = DETECTORS[det_name]
+        if detector_class is PathTrackingDetector and starting_photon_count > 0:
+            continue
+        detectors[det_name] = detector_class(_global_scene, _global_config)
+
+    chunk_ds_dict = run_photon_batch(
+        _global_config, chunk_size, seed, _global_scene, detectors, update_progress_value
+    )
 
     # save results to a disk to avoid python serialization
     saved_paths = {}

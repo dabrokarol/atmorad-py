@@ -8,7 +8,7 @@ from .trajectories import PathTrackingDetector
 from .vertical_absorption import AbsorptionProfileDetector
 from .vertical_flux import VerticalFluxDetector
 
-DETECTORS = {
+DETECTORS: dict[str, type[BaseDetector]] = {
     "energy_budget": EnergyBudgetDetector,
     "flux_profile": VerticalFluxDetector,
     "trajectories": PathTrackingDetector,

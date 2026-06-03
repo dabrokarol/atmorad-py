@@ -6,27 +6,40 @@ import xarray as xr
 
 from atmorad.config.schemas import SimConfig
 from atmorad.constants import MAX_SCATTERINGS, PBAR_INTERVAL, ZERO_TOLERANCE
-from atmorad.detectors import DETECTORS
+from atmorad.detectors import BaseDetector
 from atmorad.environment.scene import Scene
 from atmorad.physics.batch import PhotonBatch
 
 
 def run_photon_batch(
-    config: SimConfig, scene: Scene, progress_callback=None
+    config: SimConfig,
+    batch_size: int,
+    random_seed: np.random.SeedSequence,
+    scene: Scene,
+    detectors: dict[str, BaseDetector],
+    progress_callback=None,
 ) -> dict[str, xr.Dataset]:
-    engine = _MonteCarloEngine(config, scene, progress_callback)
+    engine = _MonteCarloEngine(config, batch_size, random_seed, scene, detectors, progress_callback)
     return engine.run()
 
 
 class _MonteCarloEngine:
-    def __init__(self, config: SimConfig, scene: Scene, progress_callback=None):
+    def __init__(
+        self,
+        config: SimConfig,
+        batch_size: int,
+        random_seed: np.random.SeedSequence,
+        scene: Scene,
+        detectors: dict[str, BaseDetector],
+        progress_callback=None,
+    ):
         self.config = config
         self.scene = scene
 
-        engine_config = config.engine
         source_config = config.source
-        self.num_photons = engine_config.num_photons
-        self.rng = np.random.default_rng(engine_config.random_seed)
+        self.num_photons = batch_size
+        self.rng = np.random.default_rng(random_seed)
+        self.detectors = detectors
         self.sun_zenith = source_config.zenith_angle_deg
         self.sun_azimuth = source_config.azimuth_angle_deg
         self.weight_threshold = config.engine.roulette_weight_threshold
@@ -34,7 +47,6 @@ class _MonteCarloEngine:
         self.weight_multiplier = 1.0 / config.engine.roulette_survival_probability
 
         self.on_progress = progress_callback
-        self.detectors = {}
 
     def _init_arrays(self):
         pos = self.scene.start_pos(self.num_photons, self.rng)
@@ -55,15 +67,8 @@ class _MonteCarloEngine:
     def random_tau(self, size):
         return self.rng.exponential(scale=1.0, size=size)
 
-    def _initialize_detectors(self):
-        for det_name in self.config.detectors.active:
-            detector_class = DETECTORS[det_name]
-            self.detectors[det_name] = detector_class(self.scene, self.config)
-
     def run(self) -> dict[str, xr.Dataset]:
         old_err = np.seterr(divide="ignore", invalid="ignore")
-
-        self._initialize_detectors()
         batch = self._init_arrays()
 
         scene = self.scene
