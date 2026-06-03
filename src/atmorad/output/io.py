@@ -53,6 +53,7 @@ class DataIO:
 
         self.base_dir: Path | None = None
         self.fig_dir: Path | None = None
+        self.checkpoint_config: SimConfig | None = None
 
         if config.engine.resume_from_checkpoint:
             checkpoint_dir, self.checkpoint_config = self.find_checkpoint()
