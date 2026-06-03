@@ -1,8 +1,17 @@
 import xarray as xr
 
-# Open the NetCDF file directly
+# open NetCDF file
 ds = xr.open_dataset("results/demo001/atmorad_demo001_baseline.nc", engine="h5netcdf")
 
-# Access variables and attributes ({detector_name}_{attribute_name})
-map_2d = ds["surface_absorption_surface_absorption_map_2d"].values
-total_reflected_energy = ds.attrs["fate_energy_outgoing_toa"]
+# access arrays
+map_2d = ds["surface_absorption_map"].values
+flux_profile = ds["flux_down_profile"].values
+
+# access numbers
+total_reflected_energy = ds["energy_toa_outgoing"].item()
+total_absorbed_surf = ds["energy_surface_absorbed"].item()
+
+# access attributes
+num_photons = ds.attrs["num_photons"]
+sim_time = ds.attrs["simulation_time_s"]
+active_detectors = ds.attrs["active_detectors"]
