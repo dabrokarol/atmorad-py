@@ -3,8 +3,8 @@ __all__ = ["BaseDetector", "DETECTORS"]
 from .base import BaseDetector
 from .energy_budget import EnergyBudgetDetector
 from .flux_maps import FluxMapsDetector
-from .path_tracking import PathTrackingDetector
 from .surface_absorption import SurfaceAbsorptionDetector
+from .trajectories import PathTrackingDetector
 from .vertical_absorption import AbsorptionProfileDetector
 from .vertical_flux import VerticalFluxDetector
 

@@ -108,7 +108,7 @@ class PathTrackingDetector(BaseDetector):
 
     @staticmethod
     def merge_chunks(chunks: list[xr.Dataset]) -> xr.Dataset:
-        valid_chunks = [c for c in chunks if "sample_paths_3d" in c.data_vars]
+        valid_chunks = [c for c in chunks if "paths" in c.data_vars]
         if not valid_chunks:
             return xr.Dataset()
 
