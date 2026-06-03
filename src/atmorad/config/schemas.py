@@ -101,7 +101,7 @@ class DetectorsConfig(BaseModel):
         return self
 
 
-# --- Environment Materials & Layers ---
+# --- environment ---
 
 
 class SurfaceMaterialConfig(BaseModel):
@@ -134,9 +134,9 @@ class LayerConfig(BaseModel):
 
 class SimConfig(BaseModel):
     metadata: MetadataConfig = Field(default_factory=MetadataConfig)
-    engine: EngineConfig
+    engine: EngineConfig = Field(default_factory=EngineConfig)
     source: SourceConfig = Field(default_factory=SourceConfig)
-    domain: DomainConfig
+    domain: DomainConfig = Field(default_factory=DomainConfig)
     detectors: DetectorsConfig = Field(default_factory=DetectorsConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
 

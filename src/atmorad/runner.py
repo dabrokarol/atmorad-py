@@ -18,7 +18,7 @@ from atmorad.config.schemas import SimConfig
 from atmorad.constants import CHECKPOINT_INTERVAL
 from atmorad.detectors import DETECTORS
 from atmorad.environment import Scene
-from atmorad.simulator import run_photon_batch
+from atmorad.simulation import run_photon_batch
 
 _global_config = None
 _global_scene = None
@@ -166,10 +166,11 @@ def _build_final_dataset(
             ds[var_name].attrs["source_detector"] = det_name
 
     master_ds = xr.merge(list(accumulated_results.values()), combine_attrs="drop_conflicts")
-    master_ds.attrs["num_photons"] = total_photons
     master_ds.attrs["simulation_time_s"] = sim_time
+    master_ds.attrs["num_photons"] = total_photons
     master_ds.attrs["_simulation_config"] = config.model_dump_json()
     master_ds.attrs["active_detectors"] = list(accumulated_results.keys())
+    master_ds.attrs.update(config.get_experiment_attributes())
 
     return master_ds
 

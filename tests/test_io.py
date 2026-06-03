@@ -31,7 +31,7 @@ def test_data_io_save_load_sim(config_path, tmp_path):
     data_io = DataIO(config)
     scene = Scene.from_config(config)
 
-    # 1. Run simulation and trigger checkpoint saving
+    # run simulation and trigger checkpoint saving
     results_ds = execute_simulation(
         config=config,
         scene=scene,
@@ -39,24 +39,24 @@ def test_data_io_save_load_sim(config_path, tmp_path):
         on_checkpoint=data_io.save_checkpoint,
     )
 
-    # 2. Save final output
+    # save final output
     data_io.save_simulation_run(results_ds)
 
-    # 3. Load from disk and verify extraction
+    # load from disk and verify extraction
     loaded_ds = data_io.load_checkpoint()
     assert loaded_ds is not None, "Failed to load the dataset from disk."
 
-    # 4. Verify that the configuration was properly preserved in the global attributes
+    # verify that the configuration was properly preserved in the global attributes
     loaded_config = SimConfig.model_validate_json(loaded_ds.attrs["_simulation_config"])
     loaded_config.config_path = config.config_path
     loaded_config.output.base_dir = config.output.base_dir
     assert config == loaded_config, "Loaded configuration does not match the original."
 
-    # 5. Verify data integrity (assert_allclose checks all data_vars and coords automatically)
+    # verify data integrity (assert_allclose checks all data_vars and coords automatically)
     expected_normalized = normalize_dataset(results_ds)
     xr.testing.assert_allclose(expected_normalized, loaded_ds)
 
-    # 6. Test checkpoint override behavior
+    # test checkpoint override behavior
     (data_io.base_dir / data_io.results_filename).unlink(missing_ok=True)
     results_ds.attrs["num_photons"] = 42
     data_io.save_checkpoint(results_ds)

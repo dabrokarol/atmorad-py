@@ -58,7 +58,7 @@ class ResultAnalyzer:
         experiment_name = self.ds.attrs.get("experiment_name", "")
         scenario_name = self.ds.attrs.get("scenario_name", "")
 
-        total_time = self.ds.attrs.get("engine_simulation_time_s", 0.0)
+        total_time = self.ds.attrs.get("simulation_time_s", 0.0)
         total_photons = int(self.ds.attrs.get("num_photons", 0))
 
         outgoing_toa = self._get_scalar("energy_toa_outgoing")
