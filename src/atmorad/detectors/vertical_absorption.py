@@ -10,6 +10,7 @@ from .base import BaseDetector
 
 class AbsorptionProfileDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
+        assert config.detectors.absorption_profile is not None
         self.scene = scene
         top_of_atmosphere = scene.atmosphere.top_of_atmosphere
         self.spacing = config.detectors.absorption_profile.vertical_resolution_km

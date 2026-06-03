@@ -11,6 +11,7 @@ from .base import BaseDetector
 
 class FluxMapsDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
+        assert config.detectors.flux_maps is not None
         resolution = config.detectors.flux_maps.horizontal_resolution_km
 
         self.measure_z = np.array(config.detectors.flux_maps.z_levels_km, dtype=float)

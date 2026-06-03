@@ -11,6 +11,7 @@ from .base import BaseDetector
 
 class SurfaceAbsorptionDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
+        assert config.detectors.surface_absorption_map is not None
         self.scene = scene
         self.domain_x = config.domain.size_x_km
         self.domain_y = config.domain.size_y_km

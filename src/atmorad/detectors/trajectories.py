@@ -10,6 +10,7 @@ from .base import BaseDetector
 
 class PathTrackingDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
+        assert config.detectors.trajectories is not None
         self.num_track = min(
             config.detectors.trajectories.max_tracked_paths, config.engine.num_photons
         )
