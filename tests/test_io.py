@@ -57,6 +57,7 @@ def test_data_io_save_load_sim(config_path, tmp_path):
     xr.testing.assert_allclose(expected_normalized, loaded_ds)
 
     # test checkpoint override behavior
+    assert data_io.base_dir is not None
     (data_io.base_dir / data_io.results_filename).unlink(missing_ok=True)
     results_ds.attrs["num_photons"] = 42
     data_io.save_checkpoint(results_ds)
