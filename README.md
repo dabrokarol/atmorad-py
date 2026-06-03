@@ -4,13 +4,6 @@
 [![PyPI version](https://img.shields.io/pypi/v/atmorad-py.svg?color=blue)](https://pypi.org/project/atmorad-py/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Physics: Radiative Transfer](https://img.shields.io/badge/Physics-Radiative_Transfer-ff8c00)](#)
-[![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white)](https://numpy.org/)
-[![xarray](https://img.shields.io/badge/xarray-000000?logo=xarray&logoColor=white)](https://xarray.dev/)
-[![h5netcdf](https://img.shields.io/badge/h5netcdf-4B8BBE)](https://github.com/h5netcdf/h5netcdf)
-[![uv](https://img.shields.io/badge/uv-fast_python_packager-DE5FE9)](https://docs.astral.sh/uv/)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://docs.astral.sh/ruff/)
-[![pytest](https://img.shields.io/badge/pytest-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/)
 [![CI](https://github.com/dabrokarol/atmorad-py/actions/workflows/ci.yml/badge.svg)](https://github.com/dabrokarol/atmorad-py/actions)
 
 | **2D surface absorption map** | **Sample photon paths** |
