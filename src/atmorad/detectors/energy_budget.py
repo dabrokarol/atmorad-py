@@ -40,20 +40,20 @@ class EnergyBudgetDetector(BaseDetector):
     def get_results(self) -> xr.Dataset:
         return xr.Dataset(
             data_vars={
-                "energy_absorbed_surface": (
+                "energy_surface_absorbed": (
                     [],
                     self.absorbed_surface,
-                    {"units": "photons", "long_name": "Energy Absorbed at Surface"},
+                    {"units": "photons", "long_name": "Energy absorbed at surface"},
                 ),
-                "energy_absorbed_atmosphere": (
+                "energy_atmosphere_absorbed": (
                     [],
                     self.absorbed_atmosphere,
-                    {"units": "photons", "long_name": "Energy Absorbed in Atmosphere"},
+                    {"units": "photons", "long_name": "Energy absorbed in atmosphere"},
                 ),
-                "energy_outgoing_toa": (
+                "energy_toa_outgoing": (
                     [],
                     self.escaped_toa,
-                    {"units": "photons", "long_name": "Energy Escaped TOA"},
+                    {"units": "photons", "long_name": "Outgoing energy at TOA"},
                 ),
             }
         )

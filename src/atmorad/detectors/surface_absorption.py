@@ -53,15 +53,23 @@ class SurfaceAbsorptionDetector(BaseDetector):
 
         return xr.Dataset(
             data_vars={
-                "surface_absorption_map_2d": (
-                    ["x", "y"],
+                "surface_absorption_map": (
+                    ["x_surface", "y_surface"],
                     self.surface_map,
-                    {"units": "photons", "long_name": "Surface Absorption"},
+                    {"units": "photons", "long_name": "Surface absorption map"},
                 ),
             },
             coords={
-                "x": ("x", x_centers, {"units": "km", "long_name": "X Coordinate"}),
-                "y": ("y", y_centers, {"units": "km", "long_name": "Y Coordinate"}),
+                "x_surface": (
+                    "x_surface",
+                    x_centers,
+                    {"units": "km", "long_name": "X coordinate (surface)"},
+                ),
+                "y_surface": (
+                    "y_surface",
+                    y_centers,
+                    {"units": "km", "long_name": "Y coordinate (surface)"},
+                ),
             },
         )
 

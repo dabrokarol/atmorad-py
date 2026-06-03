@@ -41,7 +41,7 @@ def execute_simulation(
 
     if initial_state is not None:
         simulated_photons = int(initial_state.attrs.get("num_photons", 0))
-        accumulated_time = float(initial_state.attrs.get("engine_simulation_time_s", 0.0))
+        accumulated_time = float(initial_state.attrs.get("simulation_time_s", 0.0))
 
         for det_name in config.detectors.active:
             prefix = f"{det_name}_"
@@ -146,36 +146,31 @@ def _build_final_dataset(
     total_photons: int,
     sim_time: float,
 ) -> xr.Dataset:
-    final_components = []
 
-    for det_name in config.detectors.active:
-        if det_name not in accumulated_results:
-            continue
+    if not accumulated_results:
+        return xr.Dataset()
 
-        merged_det_ds = accumulated_results[det_name]
+    seen_vars = {}
 
-        rename_dict = {}
-        for name in merged_det_ds.variables:
-            rename_dict[str(name)] = f"{det_name}_{name}"
+    # unique name validation
+    for det_name, ds in accumulated_results.items():
+        for var_name in ds.data_vars:
+            if var_name in seen_vars:
+                raise ValueError(
+                    f"Name collision: Variable '{var_name}' is defined by both "
+                    f"'{seen_vars[var_name]}' and '{det_name}'. "
+                    "Data variables must be globally unique."
+                )
+            seen_vars[var_name] = det_name
+            # source in attributes
+            ds[var_name].attrs["source_detector"] = det_name
 
-        for dim in merged_det_ds.dims:
-            if str(dim) not in rename_dict:
-                rename_dict[str(dim)] = f"{det_name}_{dim}"
-
-        merged_det_ds = merged_det_ds.rename(rename_dict)
-        final_components.append(merged_det_ds)
-
-    if not final_components:
-        master_ds = xr.Dataset()
-    else:
-        master_ds = xr.merge(final_components, combine_attrs="no_conflicts")
-        assert isinstance(master_ds, xr.Dataset)  # for type checker
-
+    master_ds = xr.merge(list(accumulated_results.values()), combine_attrs="drop_conflicts")
     master_ds.attrs["num_photons"] = total_photons
-    master_ds.attrs["engine_simulation_time_s"] = sim_time
-    master_ds.attrs["is_normalized"] = 0
+    master_ds.attrs["simulation_time_s"] = sim_time
     master_ds.attrs["_simulation_config"] = config.model_dump_json()
-    master_ds.attrs.update(config.get_experiment_attributes())
+    master_ds.attrs["active_detectors"] = list(accumulated_results.keys())
+
     return master_ds
 
 

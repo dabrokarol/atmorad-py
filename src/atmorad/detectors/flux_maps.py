@@ -97,21 +97,33 @@ class FluxMapsDetector(BaseDetector):
 
         return xr.Dataset(
             data_vars={
-                "incident_flux_down_3d": (
-                    ["z", "x", "y"],
+                "downward_flux": (
+                    ["z_flux_map", "x_flux", "y_flux"],
                     flux_down_3d,
-                    {"units": "photons", "long_name": "Incident Downward Flux"},
+                    {"units": "photons", "long_name": "Downward radiative flux map"},
                 ),
-                "incident_flux_up_3d": (
-                    ["z", "x", "y"],
+                "upward_flux": (
+                    ["z_flux_map", "x_flux", "y_flux"],
                     flux_up_3d,
-                    {"units": "photons", "long_name": "Incident Upward Flux"},
+                    {"units": "photons", "long_name": "Upward radiative flux map"},
                 ),
             },
             coords={
-                "z": ("z", self.measure_z, {"units": "km", "long_name": "Altitude"}),
-                "x": ("x", x_centers, {"units": "km", "long_name": "X Coordinate"}),
-                "y": ("y", y_centers, {"units": "km", "long_name": "Y Coordinate"}),
+                "z_flux_map": (
+                    "z_flux_map",
+                    self.measure_z,
+                    {"units": "km", "long_name": "Altitude (map)"},
+                ),
+                "x_flux": (
+                    "x_flux",
+                    x_centers,
+                    {"units": "km", "long_name": "X coordinate (flux)"},
+                ),
+                "y_flux": (
+                    "y_flux",
+                    y_centers,
+                    {"units": "km", "long_name": "Y coordinate (flux)"},
+                ),
             },
         )
 

@@ -70,34 +70,38 @@ class PathTrackingDetector(BaseDetector):
 
         return xr.Dataset(
             data_vars={
-                "sample_paths_3d": (
-                    ["photon", "step", "coord"],
+                "paths": (
+                    ["photon", "path_step", "cartesian_axis"],
                     paths_3d,
-                    {"units": "km", "long_name": "Photon Path Coordinates"},
+                    {"units": "km", "long_name": "Photon path coordinates"},
                 ),
-                "sample_weights": (
-                    ["photon", "step"],
+                "weights": (
+                    ["photon", "path_step"],
                     weights,
-                    {"units": "1", "long_name": "Photon Weight"},
+                    {"units": "1", "long_name": "Photon statistical weight"},
                 ),
-                "sample_escaped_toa": (
+                "escaped_toa": (
                     ["photon"],
                     reflected,
-                    {"units": "boolean", "long_name": "Reflected TOA Flag"},
+                    {"units": "1", "long_name": "Reflected at top of atmosphere flag"},
                 ),
-                "sample_absorbed_atmosphere": (
+                "absorbed_atmosphere": (
                     ["photon"],
                     abs_atm,
-                    {"units": "boolean", "long_name": "Absorbed in Atmosphere Flag"},
+                    {"units": "1", "long_name": "Absorbed in atmosphere flag"},
                 ),
-                "sample_absorbed_surface": (
+                "absorbed_surface": (
                     ["photon"],
                     abs_surf,
-                    {"units": "boolean", "long_name": "Absorbed at Surface Flag"},
+                    {"units": "1", "long_name": "Absorbed at surface flag"},
                 ),
             },
             coords={
-                "coord": ("coord", ["x", "y", "z"], {"long_name": "Spatial Dimension"}),
+                "cartesian_axis": (
+                    "cartesian_axis",
+                    ["x", "y", "z"],
+                    {"long_name": "Cartesian axis"},
+                ),
             },
             attrs={"toa_z_km": self.toa_z},
         )

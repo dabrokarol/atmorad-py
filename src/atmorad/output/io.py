@@ -12,7 +12,9 @@ from atmorad.config.schemas import SimConfig
 
 
 def normalize_dataset(ds: xr.Dataset) -> xr.Dataset:
-    """Normalizes all variables with 'photons' units to fractions."""
+    """
+    Normalizes variables representing photon counts into dimensionless fractions (probabilities).
+    """
     if ds.attrs.get("is_normalized", 0):
         return ds
 
@@ -25,7 +27,7 @@ def normalize_dataset(ds: xr.Dataset) -> xr.Dataset:
     for var_name, var_data in norm_ds.data_vars.items():
         if var_data.attrs.get("units") == "photons":
             norm_ds[var_name] = var_data / num_photons
-            norm_ds[var_name].attrs["units"] = "fraction"
+            norm_ds[var_name].attrs["units"] = "1"
 
     norm_ds.attrs["is_normalized"] = 1
     return norm_ds

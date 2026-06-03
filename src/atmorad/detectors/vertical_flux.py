@@ -70,19 +70,23 @@ class VerticalFluxDetector(BaseDetector):
 
         return xr.Dataset(
             data_vars={
-                "flux_up": (
-                    ["z"],
+                "flux_up_profile": (
+                    ["z_flux"],
                     flux_up,
-                    {"units": "photons", "long_name": "Upward Flux"},
+                    {"units": "photons", "long_name": "Upward radiative flux profile"},
                 ),
-                "flux_down": (
-                    ["z"],
+                "flux_down_profile": (
+                    ["z_flux"],
                     flux_down,
-                    {"units": "photons", "long_name": "Downward Flux"},
+                    {"units": "photons", "long_name": "Downward radiative flux profile"},
                 ),
             },
             coords={
-                "z": ("z", self.measure_z, {"units": "km", "long_name": "Altitude"}),
+                "z_flux": (
+                    "z_flux",
+                    self.measure_z,
+                    {"units": "km", "long_name": "Altitude (flux profile)"},
+                ),
             },
         )
 

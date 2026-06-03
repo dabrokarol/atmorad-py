@@ -122,7 +122,7 @@ material_out = "ocean"
 # material_b   = "ocean"
 
 # -----------------------------------------------------------------------------
-# batch experiments (scenarios & sweeps)
+# scenarios and sweeps (batch experiments)
 # -----------------------------------------------------------------------------
 
 # scenario overrides: each block runs a separate simulation

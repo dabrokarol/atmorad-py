@@ -39,12 +39,20 @@ class ResultAnalyzer:
             if not active_detectors:
                 logging.warning("No active detectors found in the dataset configuration.")
 
-            self.det_types = {det_name: det_name for det_name in active_detectors}
+            # Support both list and dict structures for backward compatibility
+            if isinstance(active_detectors, list):
+                self.det_types = {det_name: det_name for det_name in active_detectors}
+            elif isinstance(active_detectors, dict):
+                self.det_types = {k: k for k in active_detectors.keys()}
 
         except json.JSONDecodeError:
             logging.error("Could not decode _simulation_config from dataset attributes.")
 
     def _get_scalar(self, name: str, default: float = 0.0) -> float:
+        """
+        Helper method to safely retrieve a scalar value.
+        Checks data variables (0D arrays) first, then falls back to global attributes.
+        """
         if name in self.ds:
             return float(self.ds[name].values)
         if name in self.ds.attrs:
@@ -52,17 +60,20 @@ class ResultAnalyzer:
         return default
 
     def experiment_summary(self) -> str:
+        """
+        Generates a formatted text summary of the simulation,
+        focusing on runtime and the global energy conservation budget.
+        """
         experiment_name = self.ds.attrs.get("experiment_name", "")
         scenario_name = self.ds.attrs.get("scenario_name", "")
 
         total_time = self.ds.attrs.get("engine_simulation_time_s", 0.0)
         total_photons = int(self.ds.attrs.get("num_photons", 0))
 
-        fate_prefix = "energy_budget"
-
-        outgoing_toa = self._get_scalar(f"{fate_prefix}_energy_outgoing_toa")
-        abs_surf = self._get_scalar(f"{fate_prefix}_energy_absorbed_surface")
-        abs_atm = self._get_scalar(f"{fate_prefix}_energy_absorbed_atmosphere")
+        # Retrieve energy budget variables (0D data variables)
+        outgoing_toa = self._get_scalar("energy_toa_outgoing")
+        abs_surf = self._get_scalar("energy_surface_absorbed")
+        abs_atm = self._get_scalar("energy_atmosphere_absorbed")
 
         outgoing_toa_pct = outgoing_toa * 100.0
         absorbed_surf_pct = abs_surf * 100.0
@@ -92,24 +103,26 @@ class ResultAnalyzer:
         )
 
     def _infer_domain_size(self, paths_array: np.ndarray) -> tuple[float, float]:
-        """Dynamically infers the physical domain limits (Lx, Ly) from the dataset."""
+        """
+        Dynamically infers the physical domain limits (Lx, Ly) from the dataset.
+        It checks attributes, then coordinates, and falls back to maximum path extents.
+        """
         Lx = self.ds.attrs.get("domain_size_x_km")
         Ly = self.ds.attrs.get("domain_size_y_km")
 
+        # Try to infer from coordinates if explicit attributes are missing
         if Lx is None or Ly is None:
-            x_coords = [k for k in self.ds.coords if isinstance(k, str) and k.endswith("_x")]
-            y_coords = [k for k in self.ds.coords if isinstance(k, str) and k.endswith("_y")]
-
-            if x_coords and Lx is None:
-                x_vals = self.ds.coords[x_coords[0]].values
+            if "x_surface" in self.ds.coords and Lx is None:
+                x_vals = self.ds.coords["x_surface"].values
                 if len(x_vals) > 1:
                     Lx = float(x_vals.max() - x_vals.min() + (x_vals[1] - x_vals[0]))
 
-            if y_coords and Ly is None:
-                y_vals = self.ds.coords[y_coords[0]].values
+            if "y_surface" in self.ds.coords and Ly is None:
+                y_vals = self.ds.coords["y_surface"].values
                 if len(y_vals) > 1:
                     Ly = float(y_vals.max() - y_vals.min() + (y_vals[1] - y_vals[0]))
 
+        # Ultimate fallback: max recorded path extents
         if Lx is None:
             Lx = float(np.nanmax(np.abs(paths_array[:, :, 0]))) * 2.0
         if Ly is None:
@@ -117,17 +130,21 @@ class ResultAnalyzer:
 
         return max(Lx, 1.0), max(Ly, 1.0)
 
-    def plot_paths(self, prefix: str, title: str = "Sample 3D photon paths", max_paths: int = 500):
-        path_var = f"{prefix}_sample_paths_3d"
-        if path_var not in self.ds:
+    def plot_paths(self, title: str = "Sample 3D photon paths", max_paths: int = 500):
+        """
+        Renders a 3D plot of photon trajectories.
+        Handles periodic boundary condition visual wrapping.
+        """
+        if "paths" not in self.ds:
             return None
 
-        paths = self.ds[path_var].values
+        paths = self.ds["paths"].values
         num_paths = paths.shape[0]
 
         if num_paths == 0:
             return None
 
+        # Limit paths to avoid matplotlib freezing on large datasets
         if num_paths > max_paths:
             logging.warning(
                 f"Limiting 3D plot to {max_paths} paths (out of {num_paths}) to prevent freezing."
@@ -135,8 +152,9 @@ class ResultAnalyzer:
             paths = paths[:max_paths]
             num_paths = max_paths
 
-        absorbed_surface = self.ds[f"{prefix}_sample_absorbed_surface"].values[:num_paths]
-        outgoing_toa = self.ds[f"{prefix}_sample_escaped_toa"].values[:num_paths]
+        # Fate flags to color the trajectories
+        absorbed_surface = self.ds["absorbed_surface"].values[:num_paths]
+        outgoing_toa = self.ds["escaped_toa"].values[:num_paths]
 
         toa_z = self.ds.attrs.get("toa_z_km", 10.0)
 
@@ -157,19 +175,23 @@ class ResultAnalyzer:
             Y = paths[i, :, 1]
             Z = paths[i, :, 2]
 
+            # Wrap coordinates to domain limits to represent periodic boundaries visually
             with np.errstate(invalid="ignore"):
                 X_wrapped = ((X + limit_x) % Lx) - limit_x
                 Y_wrapped = ((Y + limit_y) % Ly) - limit_y
 
+                # Find points where the path crosses the boundary
                 jump_mask = (np.abs(np.diff(X_wrapped)) > limit_x) | (
                     np.abs(np.diff(Y_wrapped)) > limit_y
                 )
                 jump_indices = np.where(jump_mask)[0] + 1
 
+            # Insert NaN at boundaries to prevent drawing lines across the entire domain
             X_plot = np.insert(X_wrapped.astype(float), jump_indices, np.nan)
             Y_plot = np.insert(Y_wrapped.astype(float), jump_indices, np.nan)
             Z_plot = np.insert(Z.astype(float), jump_indices, np.nan)
 
+            # Assign colors based on photon fate (only label the first occurrence)
             if absorbed_surface[i]:
                 c, a = color_surf, 0.3
                 lbl = "Absorbed by surface" if not labeled_surface else None
@@ -185,6 +207,7 @@ class ResultAnalyzer:
 
             ax.plot3D(X_plot, Y_plot, Z_plot, alpha=a, color=c, label=lbl, linewidth=1.4)
 
+        # Draw a semi-transparent surface representing the ground
         X_grid, Y_grid = np.meshgrid([-limit_x, limit_x], [-limit_y, limit_y])
         ax.plot_surface(
             X_grid, Y_grid, np.zeros_like(X_grid), color="gray", alpha=0.1, shade=False, zorder=-1
@@ -201,6 +224,7 @@ class ResultAnalyzer:
         ax.set_ylim(-limit_y, limit_y)
         ax.set_zlim(0, toa_z)
 
+        # Remove background panes for a cleaner 3D look
         ax.xaxis.pane.fill = False
         ax.yaxis.pane.fill = False
         ax.zaxis.pane.fill = False
@@ -229,6 +253,7 @@ class ResultAnalyzer:
         mesh = ax.pcolormesh(X, Y, flux_map.T, cmap=cmo.cm.solar, shading="nearest")
         ax.set_aspect("equal")
 
+        # Append colorbar cleanly to the bottom
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("bottom", size="5%", pad=1)
         fig.colorbar(mesh, cax=cax, label=label, orientation="horizontal")
@@ -241,29 +266,28 @@ class ResultAnalyzer:
         fig.tight_layout()
         return fig
 
-    def plot_surface_absorption_map(self, prefix: str, title: str = "Surface Absorption Map"):
-        var_name = f"{prefix}_surface_absorption_map_2d"
-        if var_name not in self.ds:
-            logging.warning(f"Warning: No surface absorption map found for prefix '{prefix}'.")
+    def plot_surface_absorption_map(self, title: str = "Surface absorption map"):
+        """Plots the 2D energy deposition map on the surface."""
+        if "surface_absorption_map" not in self.ds:
             return None
 
         return self.plot_2d_map(
-            self.ds[var_name].values,
-            self.ds[f"{prefix}_x"].values,
-            self.ds[f"{prefix}_y"].values,
+            self.ds["surface_absorption_map"].values,
+            self.ds["x_surface"].values,
+            self.ds["y_surface"].values,
             title,
         )
 
-    def plot_flux_profile(self, prefix: str, title="Vertical Flux Profile"):
-        var_down = f"{prefix}_flux_down"
-        if var_down not in self.ds:
+    def plot_flux_profile(self, title="Vertical radiative flux profile"):
+        """Plots upward, downward, and net radiative fluxes along the Z axis."""
+        if "flux_down_profile" not in self.ds:
             return None
 
         fig, ax = plt.subplots(figsize=(8, 10))
-        z = self.ds[f"{prefix}_z"].values
+        z = self.ds["z_flux"].values
 
-        flux_down = self.ds[var_down].values
-        flux_up = self.ds[f"{prefix}_flux_up"].values
+        flux_down = self.ds["flux_down_profile"].values
+        flux_up = self.ds["flux_up_profile"].values
         net_flux = flux_down - flux_up
 
         ax.plot(flux_down, z, label=r"Downward flux ($F^\downarrow$)", color="#f7c522", linewidth=2)
@@ -271,6 +295,8 @@ class ResultAnalyzer:
         ax.plot(
             net_flux, z, label=r"Net flux ($F_{net}$)", color="black", linestyle="--", linewidth=2.5
         )
+
+        # Add zero-line reference for net flux
         ax.axvline(0, color="gray", linestyle="-", linewidth=1, alpha=0.5)
 
         ax.set_title(title)
@@ -285,22 +311,21 @@ class ResultAnalyzer:
         fig.tight_layout()
         return fig
 
-    def plot_absorption_profile(self, prefix: str, title="Atmospheric Absorption Profile"):
-        var_name = f"{prefix}_absorption_profile_1d"
-        if var_name not in self.ds:
-            logging.warning(f"Warning: No absorption profile found for prefix '{prefix}'.")
+    def plot_absorption_profile(self, title="Atmospheric absorption profile"):
+        """Plots a horizontal bar chart showing energy absorbed in each atmospheric layer."""
+        if "absorption_rate" not in self.ds:
             return None
 
         fig, ax = plt.subplots(figsize=(8, 10))
 
-        z_centers = self.ds.get(f"{prefix}_z", None)
+        z_centers = self.ds.get("z_absorption")
         if z_centers is None:
-            logging.warning(f"Warning: No Z coordinates found for {prefix}.")
             return None
 
         z_centers = z_centers.values
-        profile = self.ds[var_name].values
+        profile = self.ds["absorption_rate"].values
 
+        # Determine bar thickness based on resolution to ensure no gaps
         spacing = self.ds.attrs.get("vertical_resolution_km")
         if spacing is None:
             if len(z_centers) > 1:
@@ -331,60 +356,54 @@ class ResultAnalyzer:
 
     def generate_all_figures(self):
         """
-        Iterates over all initialized detectors found in the dataset metadata,
-        generates their respective plots, and yields (figure, filename) tuples.
+        Duck-typing approach: Iterates through expected data variables.
+        If a variable exists in the dataset, its corresponding plot is generated.
+        Yields a tuple of (matplotlib.figure.Figure, suggested_filename).
         """
-        for prefix, class_name in self.det_types.items():
-            if class_name == "surface_absorption_map":
-                fig = self.plot_surface_absorption_map(prefix)
-                if fig:
-                    yield (fig, "surface_absorption_map")
-                    plt.close(fig)
 
-            elif class_name == "flux_profile":
-                fig = self.plot_flux_profile(prefix)
-                if fig:
-                    yield (fig, "vertical_flux_profile")
-                    plt.close(fig)
+        if "surface_absorption_map" in self.ds:
+            fig = self.plot_surface_absorption_map()
+            if fig:
+                yield (fig, "surface_absorption_map")
+                plt.close(fig)
 
-            elif class_name == "trajectories":
-                fig = self.plot_paths(prefix)
-                if fig:
-                    yield (fig, "photon_paths_3d")
-                    plt.close(fig)
+        if "flux_down_profile" in self.ds:
+            fig = self.plot_flux_profile()
+            if fig:
+                yield (fig, "vertical_flux_profile")
+                plt.close(fig)
 
-            elif class_name == "flux_maps":
-                z_var = f"{prefix}_z"
-                if z_var in self.ds:
-                    measure_z = self.ds[z_var].values
-                    x_centers = self.ds[f"{prefix}_x"].values
-                    y_centers = self.ds[f"{prefix}_y"].values
+        if "paths" in self.ds:
+            fig = self.plot_paths()
+            if fig:
+                yield (fig, "photon_paths_3d")
+                plt.close(fig)
 
-                    incident_down = self.ds[f"{prefix}_incident_flux_down_3d"].values
-                    incident_up = self.ds[f"{prefix}_incident_flux_up_3d"].values
+        if "downward_flux" in self.ds and "upward_flux" in self.ds:
+            measure_z = self.ds["z_flux_map"].values
+            x_centers = self.ds["x_flux"].values
+            y_centers = self.ds["y_flux"].values
 
-                    for i, z_val in enumerate(measure_z):
-                        # Downward Flux Plot
-                        title_down = f"Downward Flux Map\nHeight: {z_val} km"
-                        fig_down = self.plot_2d_map(
-                            incident_down[i], x_centers, y_centers, title=title_down
-                        )
-                        if fig_down:
-                            yield (fig_down, f"{prefix}-downward_z_{z_val:g}km")
-                            plt.close(fig_down)
+            incident_down = self.ds["downward_flux"].values
+            incident_up = self.ds["upward_flux"].values
 
-                        # Upward Flux Plot
-                        title_up = f"Upward Flux Map\nHeight: {z_val} km"
-                        fig_up = self.plot_2d_map(
-                            incident_up[i], x_centers, y_centers, title=title_up
-                        )
-                        if fig_up:
-                            yield (fig_up, f"{prefix}-upward_z_{z_val:g}km")
-                            plt.close(fig_up)
+            for i, z_val in enumerate(measure_z):
+                title_down = f"Downward radiative flux map\nHeight: {z_val} km"
+                fig_down = self.plot_2d_map(
+                    incident_down[i], x_centers, y_centers, title=title_down
+                )
+                if fig_down:
+                    yield (fig_down, f"flux_map_downward_z_{z_val:g}km")
+                    plt.close(fig_down)
 
-            elif class_name == "absorption_profile":
-                if hasattr(self, "plot_absorption_profile"):
-                    fig = self.plot_absorption_profile(prefix)
-                    if fig:
-                        yield (fig, "absorption_profile")
-                        plt.close(fig)
+                title_up = f"Upward radiative flux map\nHeight: {z_val} km"
+                fig_up = self.plot_2d_map(incident_up[i], x_centers, y_centers, title=title_up)
+                if fig_up:
+                    yield (fig_up, f"flux_map_upward_z_{z_val:g}km")
+                    plt.close(fig_up)
+
+        if "absorption_rate" in self.ds:
+            fig = self.plot_absorption_profile()
+            if fig:
+                yield (fig, "absorption_profile")
+                plt.close(fig)
