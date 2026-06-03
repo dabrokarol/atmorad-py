@@ -7,7 +7,7 @@ ds = xr.open_dataset("results/demo001/atmorad_demo001_baseline.nc", engine="h5ne
 map_2d = ds["surface_absorption_map"].values
 flux_profile = ds["flux_down_profile"].values
 
-# access numbers
+# access scalars
 total_reflected_energy = ds["energy_toa_outgoing"].item()
 total_absorbed_surf = ds["energy_surface_absorbed"].item()
 

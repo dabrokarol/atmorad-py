@@ -32,7 +32,7 @@ I started it as a learning project during lectures on Radiative Processes in the
 
 The original goal was to better understand Monte Carlo radiative transfer by implementing the underlying algorithms from scratch.
 
-As the I wrote more code, it also became an opportunity to learn how to organize a larger scientific codebase.
+As the I wrote more code, it also became an opportunity to learn how to organize a larger coding project.
 
 ### Capabilities
 - vectorized photon transport using NumPy arrays
@@ -253,23 +253,23 @@ material_out = "ocean"
 # -----------------------------------------------------------------------------
 
 # scenario overrides: each block runs a separate simulation
-[[scenario]]
-name    = "checkerboard-surface"
-surface = { type = "checkerboard", tile_size_km = 10.0, material_a = "snow", material_b = "ocean" }
+# [[scenario]]
+# name    = "checkerboard-surface"
+# surface = { type = "checkerboard", tile_size_km = 10.0, material_a = "snow", material_b = "ocean" }
 
-[[scenario]]
-name               = "less-photons"
-engine.num_photons = 50_000
-engine.batch_size  = 12_500
+# [[scenario]]
+# name               = "less-photons"
+# engine.num_photons = 50_000
+# engine.batch_size  = 12_500
 
 # multiple sweep blocks are combined using a cartesian product
-[[sweep]]
-parameter = "source.zenith_angle_deg"
-values    = [0, 15, 30, 45, 60]
+# [[sweep]]
+# parameter = "source.zenith_angle_deg"
+# values    = [0, 15, 30, 45, 60]
 
-[[sweep]]
-parameter = "source.azimuth_angle_deg"
-values    = [0, 45, 90, 135, 180]
+# [[sweep]]
+# parameter = "source.azimuth_angle_deg"
+# values    = [0, 45, 90, 135, 180]
 ```
 <!-- [[[end]]] -->
 
@@ -293,7 +293,7 @@ ds = xr.open_dataset("results/demo001/atmorad_demo001_baseline.nc", engine="h5ne
 map_2d = ds["surface_absorption_map"].values
 flux_profile = ds["flux_down_profile"].values
 
-# access numbers
+# access scalars
 total_reflected_energy = ds["energy_toa_outgoing"].item()
 total_absorbed_surf = ds["energy_surface_absorbed"].item()
 
