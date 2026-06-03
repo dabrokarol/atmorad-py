@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "atmorad-py"
 dynamic = ["version"]
-description = "A 3D monte carlo simulation of Atmospheric Radiative Transfer"
+description = "Monte Carlo atmospheric radiative transfer model written in Python"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
@@ -17,6 +17,8 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Development Status :: 3 - Alpha",
 ]
 dependencies = [
     "numpy>=1.26.0",
@@ -30,6 +32,19 @@ dependencies = [
     "tqdm>=4.66.0",
     "tomli-w>=1.2.0",
 ]
+keywords = [
+    "radiative-transfer",
+    "monte-carlo",
+    "atmospheric-science",
+    "physics",
+    "remote-sensing",
+    "climate",
+]
+[project.urls]
+Homepage = "https://github.com/dabrokarol/atmorad-py"
+Repository = "https://github.com/dabrokarol/atmorad-py"
+Issues = "https://github.com/dabrokarol/atmorad-py/issues"
+Changelog = "https://github.com/dabrokarol/atmorad-py/releases"
 
 [project.scripts]
 atmorad = "atmorad.cli:main"
