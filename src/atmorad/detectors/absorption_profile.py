@@ -47,7 +47,7 @@ class AbsorptionProfileDetector(BaseDetector):
 
         return xr.Dataset(
             data_vars={
-                "absorption_rate": (
+                "absorption_profile": (
                     ["z_absorption"],
                     self.absorption_profile,
                     {"units": "photons", "long_name": "Atmospheric absorption profile"},

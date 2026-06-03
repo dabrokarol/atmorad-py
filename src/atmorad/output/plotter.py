@@ -276,7 +276,7 @@ class ResultAnalyzer:
         return fig
 
     def plot_absorption_profile(self, title="Atmospheric absorption profile"):
-        if "absorption_rate" not in self.ds:
+        if "absorption_profile" not in self.ds:
             return None
 
         fig, ax = plt.subplots(figsize=(8, 10))
@@ -286,7 +286,7 @@ class ResultAnalyzer:
             return None
 
         z_centers = z_centers.values
-        profile = self.ds["absorption_rate"].values
+        profile = self.ds["absorption_profile"].values
 
         spacing = self.ds.attrs.get("vertical_resolution_km")
         if spacing is None:
@@ -358,7 +358,7 @@ class ResultAnalyzer:
                     yield (fig_up, f"flux_map_upward_z_{z_val:g}km")
                     plt.close(fig_up)
 
-        if "absorption_rate" in self.ds:
+        if "absorption_profile" in self.ds:
             fig = self.plot_absorption_profile()
             if fig:
                 yield (fig, "absorption_profile")
