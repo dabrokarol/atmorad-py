@@ -26,8 +26,8 @@ def test_data_io_save_load_sim(config_path, tmp_path):
     """
     config = load_scenarios(config_path)[0]
     config.output.base_dir = tmp_path
+    config.output.fig_dir = tmp_path / "plots"
     config.output.overwrite = True
-
     data_io = DataIO(config)
     scene = Scene.from_config(config)
 
