@@ -1,4 +1,3 @@
-import json
 import logging
 
 import cmocean as cmo
@@ -8,9 +7,9 @@ import seaborn as sns
 import xarray as xr
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-sns.set_theme(
-    style="ticks",
-    rc={
+
+class ResultAnalyzer:
+    plot_rc = {
         "font.family": "serif",
         "axes.titlesize": 20,
         "axes.titlepad": 15,
@@ -22,30 +21,11 @@ sns.set_theme(
         "legend.fontsize": 15,
         "legend.frameon": False,
         "figure.dpi": 100,
-    },
-)
+    }
 
-
-class ResultAnalyzer:
     def __init__(self, ds: xr.Dataset):
         self.ds = ds
-        self.det_types = {}
-        try:
-            config_str = str(ds.attrs.get("_simulation_config", "{}"))
-            config = json.loads(config_str)
-
-            active_detectors = config.get("detectors", {}).get("active", [])
-
-            if not active_detectors:
-                logging.warning("No active detectors found in the dataset configuration.")
-
-            if isinstance(active_detectors, list):
-                self.det_types = {det_name: det_name for det_name in active_detectors}
-            elif isinstance(active_detectors, dict):
-                self.det_types = {k: k for k in active_detectors.keys()}
-
-        except json.JSONDecodeError:
-            logging.error("Could not decode _simulation_config from dataset attributes.")
+        sns.set_theme(style="ticks", rc=self.plot_rc)
 
     def _get_scalar(self, name: str, default: float = 0.0) -> float:
         if name in self.ds:
