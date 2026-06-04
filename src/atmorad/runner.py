@@ -44,22 +44,13 @@ def execute_simulation(
         accumulated_time = float(initial_state.attrs.get("simulation_time_s", 0.0))
 
         for det_name in config.detectors.active:
-            prefix = f"{det_name}_"
-            det_vars = [v for v in initial_state.data_vars if str(v).startswith(prefix)]
+            det_vars = [
+                v
+                for v in initial_state.data_vars
+                if initial_state[v].attrs.get("source_detector") == det_name
+            ]
             if det_vars:
-                ds_subset = initial_state[det_vars]
-                rename_dict = {}
-
-                for name in ds_subset.variables:
-                    if str(name).startswith(prefix):
-                        rename_dict[str(name)] = str(name)[len(prefix) :]
-
-                for dim in ds_subset.dims:
-                    if str(dim).startswith(prefix):
-                        rename_dict[str(dim)] = str(dim)[len(prefix) :]
-
-                det_ds = ds_subset.rename(rename_dict)
-                accumulated_results[det_name] = det_ds
+                accumulated_results[det_name] = initial_state[det_vars]
 
     remaining_photons = cfg_engine.num_photons - simulated_photons
 
