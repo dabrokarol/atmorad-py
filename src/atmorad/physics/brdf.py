@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from atmorad.constants import Z
-from atmorad.registry import register_reflection
 
 from .geometry import orientation
 
@@ -17,11 +16,7 @@ class SurfaceReflection(ABC):
         """
         pass
 
-    def __call__(self, direction, rand_1, rand_2):
-        return self.reflect(direction, rand_1, rand_2)
 
-
-@register_reflection("specular")
 class SpecularReflection(SurfaceReflection):
     def __init__(self, roughness: float = 0.0):
         self.roughness = roughness
@@ -36,7 +31,6 @@ class SpecularReflection(SurfaceReflection):
         return new_direction
 
 
-@register_reflection("lambertian")
 class LambertianReflection(SurfaceReflection):
     def reflect(self, direction, rand_1, rand_2):
         phi = rand_2 * 2 * np.pi
@@ -50,7 +44,6 @@ class LambertianReflection(SurfaceReflection):
         return orientation(cos_theta, sin_theta, cos_phi, sin_phi)
 
 
-@register_reflection("uniform")
 class UniformReflection(SurfaceReflection):
     def reflect(self, direction, rand_1, rand_2):
         phi = rand_2 * 2 * np.pi
@@ -62,3 +55,10 @@ class UniformReflection(SurfaceReflection):
         sin_phi = np.sin(phi)
 
         return orientation(cos_theta, sin_theta, cos_phi, sin_phi)
+
+
+REFLECTION_MODELS = {
+    "uniform": UniformReflection,
+    "specular": SpecularReflection,
+    "lambertian": LambertianReflection,
+}

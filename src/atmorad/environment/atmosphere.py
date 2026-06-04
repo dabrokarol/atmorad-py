@@ -4,8 +4,8 @@ from typing import Sequence
 import numpy as np
 
 from atmorad.constants import BOUNDARY_EPSILON, ZERO_TOLERANCE, Z
-from atmorad.models import PhotonBatch
 from atmorad.physics import Scattering, rotate
+from atmorad.physics.batch import PhotonBatch
 
 
 @dataclass(slots=True)

@@ -71,7 +71,7 @@ def main():
             return 0
 
         if args.extract_config:
-            from atmorad.output import DataIO
+            from atmorad.output.io import DataIO
 
             DataIO.extract_config(data_path=args.extract_config)
             return 0

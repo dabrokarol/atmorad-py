@@ -1,27 +1,28 @@
 import numpy as np
+import xarray as xr
 
-from atmorad.config import SimConfig
+from atmorad.config.schemas import SimConfig
 from atmorad.constants import X, Y, Z
 from atmorad.environment import Scene
-from atmorad.models import IncidentFluxMapResult, PhotonBatch
-from atmorad.registry import register_detector
+from atmorad.physics.batch import PhotonBatch
 
 from .base import BaseDetector
 
 
-@register_detector("plane_flux", IncidentFluxMapResult)
-class IncidentFluxMapDetector(BaseDetector):
+class FluxMapsDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
-        resolution = config.detectors.horizontal_maps_resolution_km
+        assert config.detectors.flux_maps is not None
+        resolution = config.detectors.flux_maps.horizontal_resolution_km
 
-        self.measure_z = np.array(config.detectors.flux_maps_z_levels_km, dtype=float)
-        self.domain_x = config.environment.geometry.domain_size_x_km
-        self.domain_y = config.environment.geometry.domain_size_y_km
+        self.measure_z = np.array(config.detectors.flux_maps.z_levels_km, dtype=float)
+        self.domain_x = config.domain.size_x_km
+        self.domain_y = config.domain.size_y_km
 
         self.num_bins_x = int(np.round(self.domain_x / resolution))
         self.num_bins_y = int(np.round(self.domain_y / resolution))
         self.num_planes = len(self.measure_z)
 
+        # actual dx and dy may vary slightly from requested resolution (to fit domain size)
         self.dx = self.domain_x / self.num_bins_x
         self.dy = self.domain_y / self.num_bins_y
 
@@ -87,7 +88,7 @@ class IncidentFluxMapDetector(BaseDetector):
         self._process_hits(batch, down_mask, self.flux_down_flat)
         self._process_hits(batch, up_mask, self.flux_up_flat)
 
-    def get_results(self) -> IncidentFluxMapResult:
+    def get_results(self) -> xr.Dataset:
         x_centers = (self.x_edges[:-1] + self.x_edges[1:]) / 2.0
         y_centers = (self.y_edges[:-1] + self.y_edges[1:]) / 2.0
 
@@ -96,10 +97,42 @@ class IncidentFluxMapDetector(BaseDetector):
         )
         flux_up_3d = self.flux_up_flat.reshape((self.num_planes, self.num_bins_x, self.num_bins_y))
 
-        return IncidentFluxMapResult(
-            x_centers=x_centers,
-            y_centers=y_centers,
-            measure_z=self.measure_z,
-            incident_flux_down_3d=flux_down_3d,
-            incident_flux_up_3d=flux_up_3d,
+        return xr.Dataset(
+            data_vars={
+                "downward_flux": (
+                    ["z_flux_map", "x_flux", "y_flux"],
+                    flux_down_3d,
+                    {"units": "photons", "long_name": "Downward radiative flux map"},
+                ),
+                "upward_flux": (
+                    ["z_flux_map", "x_flux", "y_flux"],
+                    flux_up_3d,
+                    {"units": "photons", "long_name": "Upward radiative flux map"},
+                ),
+            },
+            coords={
+                "z_flux_map": (
+                    "z_flux_map",
+                    self.measure_z,
+                    {"units": "km", "long_name": "Altitude (map)"},
+                ),
+                "x_flux": (
+                    "x_flux",
+                    x_centers,
+                    {"units": "km", "long_name": "X coordinate (flux)"},
+                ),
+                "y_flux": (
+                    "y_flux",
+                    y_centers,
+                    {"units": "km", "long_name": "Y coordinate (flux)"},
+                ),
+            },
         )
+
+    @staticmethod
+    def merge_chunks(chunks: list[xr.Dataset]) -> xr.Dataset:
+        if not chunks:
+            return xr.Dataset()
+
+        combined = xr.concat(chunks, dim="batch")
+        return combined.sum(dim="batch", keep_attrs=True)

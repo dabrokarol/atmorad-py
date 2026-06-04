@@ -1,22 +1,22 @@
 import numpy as np
+import xarray as xr
 
-from atmorad.config import SimConfig
+from atmorad.config.schemas import SimConfig
 from atmorad.constants import X, Y
 from atmorad.environment import Scene
-from atmorad.models import PhotonBatch, SurfaceAbsorptionResult
-from atmorad.registry import register_detector
+from atmorad.physics.batch import PhotonBatch
 
 from .base import BaseDetector
 
 
-@register_detector("surface_absorption", SurfaceAbsorptionResult)
 class SurfaceAbsorptionDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
+        assert config.detectors.surface_absorption_map is not None
         self.scene = scene
-        self.domain_x = config.environment.geometry.domain_size_x_km
-        self.domain_y = config.environment.geometry.domain_size_y_km
+        self.domain_x = config.domain.size_x_km
+        self.domain_y = config.domain.size_y_km
 
-        resolution = config.detectors.horizontal_maps_resolution_km
+        resolution = config.detectors.surface_absorption_map.horizontal_resolution_km
         num_bins_x = int(np.round(self.domain_x / resolution))
         num_bins_y = int(np.round(self.domain_y / resolution))
 
@@ -48,12 +48,36 @@ class SurfaceAbsorptionDetector(BaseDetector):
 
         self.surface_map += batch_map
 
-    def get_results(self) -> SurfaceAbsorptionResult:
+    def get_results(self) -> xr.Dataset:
         x_centers = (self.x_edges[:-1] + self.x_edges[1:]) / 2.0
         y_centers = (self.y_edges[:-1] + self.y_edges[1:]) / 2.0
 
-        return SurfaceAbsorptionResult(
-            x_centers=x_centers,
-            y_centers=y_centers,
-            surface_absorption_map_2d=self.surface_map,
+        return xr.Dataset(
+            data_vars={
+                "surface_absorption_map": (
+                    ["x_surface", "y_surface"],
+                    self.surface_map,
+                    {"units": "photons", "long_name": "Surface absorption map"},
+                ),
+            },
+            coords={
+                "x_surface": (
+                    "x_surface",
+                    x_centers,
+                    {"units": "km", "long_name": "X coordinate (surface)"},
+                ),
+                "y_surface": (
+                    "y_surface",
+                    y_centers,
+                    {"units": "km", "long_name": "Y coordinate (surface)"},
+                ),
+            },
         )
+
+    @staticmethod
+    def merge_chunks(chunks: list[xr.Dataset]) -> xr.Dataset:
+        if not chunks:
+            return xr.Dataset()
+
+        combined = xr.concat(chunks, dim="batch")
+        return combined.sum(dim="batch", keep_attrs=True)

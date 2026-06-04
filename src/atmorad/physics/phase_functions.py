@@ -1,7 +1,6 @@
 import numpy as np
 
 from atmorad.constants import BOUNDARY_EPSILON
-from atmorad.registry import register_scattering
 
 
 class Scattering:
@@ -16,7 +15,7 @@ class Scattering:
         pdf_array = pdf_array / (np.sum(pdf_array) * dx)
         self.distribuant = np.cumsum(pdf_array) * dx
 
-    def scatter(self, rand_1, rand_2):
+    def __call__(self, rand_1, rand_2):
         """Computes sin and cos of theta, phi used for scattering. Uses `np.interp` to obtain reversed cdf values for given rand_1. Samples phi from uniform distribution [0,2pi].
 
         Args:
@@ -36,17 +35,12 @@ class Scattering:
 
         return np.array((cos_theta, sin_theta, cos_phi, sin_phi))
 
-    def __call__(self, rand_1, rand_2):
-        return self.scatter(rand_1, rand_2)
 
-
-@register_scattering("hg")
 class HenyeyGreensteinScattering(Scattering):
     def __init__(self, g: float):
         self.g = g
-        pass
 
-    def scatter(self, rand_1, rand_2):
+    def __call__(self, rand_1, rand_2):
         if abs(self.g) < BOUNDARY_EPSILON:
             cos_theta = 2.0 * rand_1 - 1.0
         else:
@@ -57,32 +51,24 @@ class HenyeyGreensteinScattering(Scattering):
         phi = 2.0 * np.pi * rand_2
         return np.array((cos_theta, sin_theta, np.cos(phi), np.sin(phi)))
 
-    def __call__(self, rand_1, rand_2):
-        return self.scatter(rand_1, rand_2)
 
-
-@register_scattering("isotropic")
 class IsotropicScattering(Scattering):
     def __init__(self):
         pass
 
-    def scatter(self, rand_1, rand_2):
+    def __call__(self, rand_1, rand_2):
         cos_theta = 2.0 * rand_1 - 1.0
-        sin_theta = np.sqrt(1.0 - cos_theta**2)
+        sin_theta = np.sqrt(1.0 - np.clip(cos_theta**2, 0.0, 1.0))
 
         phi = 2.0 * np.pi * rand_2
         return np.array((cos_theta, sin_theta, np.cos(phi), np.sin(phi)))
 
-    def __call__(self, rand_1, rand_2):
-        return self.scatter(rand_1, rand_2)
 
-
-@register_scattering("rayleigh")
 class RayleighScattering(Scattering):
     def __init__(self):
         pass
 
-    def scatter(self, rand_1, rand_2):
+    def __call__(self, rand_1, rand_2):
         u = 2.0 * rand_1 - 1.0
         w = np.cbrt(2.0 * u + np.sqrt(4.0 * u**2 + 1.0))
         cos_theta = w - 1.0 / w
@@ -91,5 +77,9 @@ class RayleighScattering(Scattering):
         phi = 2.0 * np.pi * rand_2
         return np.array((cos_theta, sin_theta, np.cos(phi), np.sin(phi)))
 
-    def __call__(self, rand_1, rand_2):
-        return self.scatter(rand_1, rand_2)
+
+SCATTERING_MODELS = {
+    "hg": HenyeyGreensteinScattering,
+    "isotropic": IsotropicScattering,
+    "rayleigh": RayleighScattering,
+}

@@ -1,81 +1,105 @@
 [metadata]
-experiment_name = "adjacency001"
-description = "Demo showcasing adjacency effect"
+experiment_name = "adjacency"
+description     = "demo showcasing adjacency effect"
 
 [engine]
-num_photons = 10_000_000
-batch_size = 200_000
-cpu_cores = 4
-resume_from_checkpoint = true
+random_seed                   = -1
+num_photons                   = 50_000_000
+batch_size                    = 100_000
+num_threads                   = 4
+resume_from_checkpoint        = true
 
 [source]
-theta_sun_deg = 0
+zenith_angle_deg  = 0
+azimuth_angle_deg = 0
 
-[geometry]
-domain_size_x_km = 10
-domain_size_y_km = 10
+[domain]
+size_x_km = 10.0
+size_y_km = 10.0
 
-[detectors]
-active = [
-    "fate", 
-    "path_tracking", 
-    "vertical_flux", 
-    "absorption_vertical", 
-    "plane_flux", 
-    "surface_absorption"
-]
-horizontal_maps_resolution_km = 0.1
-flux_maps_z_levels_km = [0, 1.0, 2.0, 3.0]
+# -----------------------------------------------------------------------------
+# active detectors configuration
+# -----------------------------------------------------------------------------
+
+[detectors.energy_budget]
+
+[detectors.trajectories]
+
+[detectors.flux_profile]
+vertical_resolution_km = 0.05
+
+[detectors.absorption_profile]
+vertical_resolution_km = 0.05
+
+[detectors.flux_maps]
+horizontal_resolution_km = 0.05
+z_levels_km              = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+
+[detectors.surface_absorption_map]
+horizontal_resolution_km = 0.05
 
 [output]
-overwrite = false
-save_plots = true
+overwrite  = false
+save_plots = false
+base_dir   = "results"
+fig_dir    = "plots"
+
+# -----------------------------------------------------------------------------
+# material types and properties
+# -----------------------------------------------------------------------------
 
 [surface_materials.snow]
 albedo = 0.85
-reflection = {type = "lambertian"}
+brdf   = { type = "lambertian" }
+
 [surface_materials.ocean]
-albedo = 0.01
-reflection = {type = "specular", roughness = 0.0}
+albedo = 0.0
+brdf   = { type = "specular", roughness = 0.0 }
 
 [atmosphere_materials.material_1]
-extinction_coeff_per_km = 10
-ssa = 0.999999
-scattering = {type = "hg", g = 0.85}
+extinction_coeff_per_km = 10.0
+ssa                     = 0.999999
+phase_function          = { type = "hg", g = 0.85 }
 
+# -----------------------------------------------------------------------------
+# atmospheric layers (bottom to top)
+# -----------------------------------------------------------------------------
 
 [[layer]]
-thickness_km = 10
-components = [
-    {material = "material_1", concentration = 1.0}
-]
+thickness_km = 5.0
+components   = { material_1 = 1.0 }
+
+# -----------------------------------------------------------------------------
+# default surface map (fallback base layout)
+# -----------------------------------------------------------------------------
 
 [surface]
-name = "split_half_x"
-material_left = "snow"
-material_right = "ocean"
+type         = "uniform"
+material     = "ocean"
 
+# -----------------------------------------------------------------------------
+# batch experiments (4 surfaces * 9 tau values = 36 execution configs)
+# -----------------------------------------------------------------------------
+
+# base surface layout scenarios
+[[scenario]]
+name    = "baseline-ocean"
+surface = { type = "uniform", material = "ocean" }
 
 [[scenario]]
-name="tau-1"
-atmosphere_materials.material_1.extinction_coeff_per_km = 0.1
+name    = "baseline-snow"
+surface = { type = "uniform", material = "snow" }
 
 [[scenario]]
-name="tau-2.5"
-atmosphere_materials.material_1.extinction_coeff_per_km = 0.25
+name    = "split"
+surface = { type = "split_half_x", material_left = "snow", material_right = "ocean" }
 
 [[scenario]]
-name="tau-5"
-atmosphere_materials.material_1.extinction_coeff_per_km = 0.5
+name    = "island"
+surface = { type = "circle", material_in = "snow", material_out = "ocean", radius_km = 2.0 }
 
-[[scenario]]
-name="tau-10"
-atmosphere_materials.material_1.extinction_coeff_per_km = 1
-
-[[scenario]]
-name="tau-25"
-atmosphere_materials.material_1.extinction_coeff_per_km = 2.5
-
-[[scenario]]
-name="tau-50"
-atmosphere_materials.material_1.extinction_coeff_per_km = 5
+# parameter sweep for optical thickness (tau = extinction * 5km layer)
+# values correspond to tau: [0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 40.0, 100.0]
+[[sweep]]
+parameter = "atmosphere_materials.material_1.extinction_coeff_per_km"
+values    = [0.04, 0.1, 0.2, 0.4, 1.0, 2.0, 4.0, 8.0, 20.0]

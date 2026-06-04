@@ -1,133 +1,145 @@
+# =============================================================================
+# atmorad simulation configuration file
+# =============================================================================
+
 [metadata]
 experiment_name = "demo001"
-description = "A demo simulation of 3D radiative transfer over a heterogeneous surface."
+description     = "a demo simulation of radiative transfer over a heterogenous surface."
 
 [engine]
-num_photons = 400_000
-batch_size = 100_000  # photons will be processed in arrays of batch_size in parallel       
-random_seed = 42
-cpu_cores = 4
-resume_from_checkpoint = false
-
-# Russian Roulette params
-photon_weight_threshold = 1e-4 
-photon_survival_chance = 0.1    # 10% chance to survive with 10x multiplied weight
+random_seed                   = 42
+num_photons                   = 400_000
+batch_size                    = 100_000  # photons per simulation chunk
+roulette_weight_threshold     = 1e-4
+roulette_survival_probability = 0.1      # 10% chance to survive with 10x multiplied weight
+num_threads                   = 4
+resume_from_checkpoint        = false
 
 [source]
-theta_sun_deg = 30           # solar zenith angle (0 = directly downwards)
-phi_sun_deg = 0              # solar azimuth angle
-wavelength_nm = 530          # only for reference, wavelength-dependent parameters are not implemented yet
+zenith_angle_deg  = 30
+azimuth_angle_deg = 0
+wavelength_nm     = 530  # only for reference, wavelength-dependent parameters not implemented yet
 
-[geometry]
-domain_size_x_km = 100
-domain_size_y_km = 100
+[domain]
+size_x_km          = 100
+size_y_km          = 100
 boundary_condition = "periodic"
 
-[detectors]
-active = [ # list of supported detectors
-    "fate", 
-    "path_tracking", 
-    "vertical_flux", 
-    "absorption_vertical", 
-    "plane_flux", 
-    "surface_absorption"
-]
-# spatial resolution for bins in detectors
-vertical_profiles_resolution_km = 0.2
-horizontal_maps_resolution_km = 1.0
-num_full_paths = 200 # 200 photon paths will be saved to results
-flux_maps_z_levels_km = [0.0, 4.0, 10.0] # planes at which vertical flux will be counted
+# -----------------------------------------------------------------------------
+# active detectors (comment out a block to deactivate)
+# -----------------------------------------------------------------------------
+
+[detectors.energy_budget]
+
+[detectors.trajectories]
+max_tracked_paths = 200
+
+[detectors.flux_profile]
+vertical_resolution_km = 0.1
+
+[detectors.absorption_profile]
+vertical_resolution_km = 0.2
+
+[detectors.flux_maps]
+horizontal_resolution_km = 2.1
+z_levels_km              = [0.0, 4.0, 10.0]
+
+[detectors.surface_absorption_map]
+horizontal_resolution_km = 2.1
 
 [output]
 save_plots = true
-overwrite = true
-path = 'results'
+overwrite  = true
+base_dir   = "results"
+fig_dir    = "plots"
 
-# --- material names and properties (can be added or changed) ---
+# -----------------------------------------------------------------------------
+# material types and properties
+# -----------------------------------------------------------------------------
 
 [surface_materials.snow]
-albedo = 0.85             
-reflection = {type = "lambertian"}
+albedo = 0.85
+brdf   = { type = "lambertian" }
 
 [surface_materials.ocean]
-albedo = 0.01                
-reflection = {type = "specular", roughness = 0.0}
+albedo = 0.01
+brdf   = { type = "specular", roughness = 0.0 }
 
 [atmosphere_materials.air]
-extinction_coeff_per_km = 0.01 # optical density
-ssa = 0.9
-scattering = {type = "rayleigh"} 
+extinction_coeff_per_km = 0.01  # optical density
+ssa                     = 0.999
+phase_function          = { type = "rayleigh" }
 
 [atmosphere_materials.light_clouds]
-extinction_coeff_per_km = 1  
-ssa = 0.999999               # almost no absorption, scattering
-scattering = {type = "hg", g = 0.85} # g > 0 means forward scattering
+extinction_coeff_per_km = 1.0
+ssa                     = 0.999999  # negligible absorption
+phase_function          = { type = "hg", g = 0.85 }  # g > 0 means forward scattering
 
 [atmosphere_materials.dark_clouds]
-extinction_coeff_per_km = 5
-ssa = 0.999999
-scattering = {type = "hg", g = 0.85}
+extinction_coeff_per_km = 5.0
+ssa                     = 0.999999
+phase_function          = { type = "hg", g = 0.85 }
 
-
-# ___ atmospheric layers (bottom to top) ___
-
-[[layer]] ## double square brackets are used for a list item
-thickness_km = 2
-components = [{material = "air", concentration = 1.0}]
+# -----------------------------------------------------------------------------
+# atmospheric layers (bottom to top)
+# -----------------------------------------------------------------------------
 
 [[layer]]
-thickness_km = 4
-components = [
-    {material = "air", concentration = 1.0},
-    {material = "dark_clouds", concentration = 0.9}
-]
+thickness_km = 2.0
+components   = { air = 1.0 }
 
 [[layer]]
-thickness_km = 4
-components = [{material = "air", concentration = 1.0}]
+thickness_km = 4.0
+components   = { air = 1.0, dark_clouds = 0.9 }  # { material: extinction coefficient multiplier }
 
-# [[layer]] ... more layers can be added
+[[layer]]
+thickness_km = 4.0
+components   = { air = 1.0 }
 
-# ___ surface map configuration ___
-# choose one surface map by commenting out the others
+# -----------------------------------------------------------------------------
+# surface map configuration (choose one by uncommenting)
+# -----------------------------------------------------------------------------
 
 # [surface]
-# name = "uniform"
+# type     = "uniform"
 # material = "snow"
 
 [surface]
-name = "circle"
-radius_km = 20
-material_in = "snow"
+type         = "circle"
+radius_km    = 20.0
+material_in  = "snow"
 material_out = "ocean"
 
 # [surface]
-# name = "split_half_x"
-# material_left = "snow"
+# type           = "split_half_x"
+# material_left  = "snow"
 # material_right = "ocean"
 
 # [surface]
-# name = "checkerboard"
-# tile_size_km = 10
-# material_a = "snow"
-# material_b = "ocean"
+# type         = "checkerboard"
+# tile_size_km = 10.0
+# material_a   = "snow"
+# material_b   = "ocean"
 
+# -----------------------------------------------------------------------------
+# scenarios and sweeps (batch experiments)
+# -----------------------------------------------------------------------------
 
-# batch experiments
-# append multiple [[scenario]] blocks (one per simulation) to run a series of experiments
-
-# overrides the solar angle to 30 degrees
+# scenario overrides: each block runs a separate simulation
 # [[scenario]]
-# name = "sun_30"
-# source.theta_sun_deg = 30
+# name    = "checkerboard-surface"
+# surface = { type = "checkerboard", tile_size_km = 10.0, material_a = "snow", material_b = "ocean" }
 
-# overrides both the solar angle and the photon count
 # [[scenario]]
-# name = "sun_60"
-# engine.num_photons = 500_000
-# source.theta_sun_deg = 60
+# name               = "less-photons"
+# engine.num_photons = 50_000
+# engine.batch_size  = 12_500
 
-# overrides russian roulette treshold
-# [[scenario]]
-# name = "no_roulette"
-# engine.photon_weight_threshold = 0.0
+# multiple sweep blocks are combined using a cartesian product
+# [[sweep]]
+# parameter = "source.zenith_angle_deg"
+# values    = [0, 15, 30, 45, 60]
+
+# [[sweep]]
+# parameter = "source.azimuth_angle_deg"
+# values    = [0, 45, 90, 135, 180]

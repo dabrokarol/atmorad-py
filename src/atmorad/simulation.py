@@ -2,36 +2,55 @@ import logging
 import time
 
 import numpy as np
+import xarray as xr
 
-from atmorad.config import SimConfig
-from atmorad.constants import MAX_SCATTERINGS, PBAR_THRESHOLD, ZERO_TOLERANCE
+from atmorad.config.schemas import SimConfig
+from atmorad.constants import MAX_SCATTERINGS, PBAR_INTERVAL, ZERO_TOLERANCE
 from atmorad.detectors import BaseDetector
 from atmorad.environment.scene import Scene
-from atmorad.models import EngineResult, PhotonBatch, SimResults
-from atmorad.registry import DETECTORS
+from atmorad.physics.batch import PhotonBatch
 
 
-class Engine:
-    def __init__(self, config: SimConfig, scene: Scene, progress_callback=None):
+def run_photon_batch(
+    config: SimConfig,
+    batch_size: int,
+    random_seed: np.random.SeedSequence,
+    scene: Scene,
+    detectors: dict[str, BaseDetector],
+    progress_callback=None,
+) -> dict[str, xr.Dataset]:
+    engine = _MonteCarloEngine(config, batch_size, random_seed, scene, detectors, progress_callback)
+    return engine.run()
+
+
+class _MonteCarloEngine:
+    def __init__(
+        self,
+        config: SimConfig,
+        batch_size: int,
+        random_seed: np.random.SeedSequence,
+        scene: Scene,
+        detectors: dict[str, BaseDetector],
+        progress_callback=None,
+    ):
         self.config = config
         self.scene = scene
 
-        engine_config = config.engine
         source_config = config.source
-        self.num_photons = engine_config.num_photons
-        self.rng = np.random.default_rng(engine_config.random_seed)
-        self.theta_sun = source_config.theta_sun_deg
-        self.phi_sun = source_config.phi_sun_deg
-        self.weight_threshold = config.engine.photon_weight_threshold
-        self.survival_chance = config.engine.photon_survival_chance
-        self.weight_multiplier = 1.0 / config.engine.photon_survival_chance
+        self.num_photons = batch_size
+        self.rng = np.random.default_rng(random_seed)
+        self.detectors = detectors
+        self.sun_zenith = source_config.zenith_angle_deg
+        self.sun_azimuth = source_config.azimuth_angle_deg
+        self.weight_threshold = config.engine.roulette_weight_threshold
+        self.survival_chance = config.engine.roulette_survival_probability
+        self.weight_multiplier = 1.0 / config.engine.roulette_survival_probability
 
-        self.results = None
         self.on_progress = progress_callback
 
     def _init_arrays(self):
         pos = self.scene.start_pos(self.num_photons, self.rng)
-        direction = self.scene.start_direction(self.num_photons, self.theta_sun, self.phi_sun)
+        direction = self.scene.start_direction(self.num_photons, self.sun_zenith, self.sun_azimuth)
 
         batch = PhotonBatch(
             pos=pos,
@@ -48,17 +67,8 @@ class Engine:
     def random_tau(self, size):
         return self.rng.exponential(scale=1.0, size=size)
 
-    def _initialize_detectors(self):
-        self.detectors: dict[str, BaseDetector] = {}
-
-        for det_name in self.config.detectors.active:
-            detector_class = DETECTORS[det_name]
-            self.detectors[det_name] = detector_class(self.scene, self.config)
-
-    def run(self):
+    def run(self) -> dict[str, xr.Dataset]:
         old_err = np.seterr(divide="ignore", invalid="ignore")
-
-        self._initialize_detectors()
         batch = self._init_arrays()
 
         scene = self.scene
@@ -67,7 +77,7 @@ class Engine:
         on_progress = self.on_progress
         counter = 0
 
-        start_time = time.process_time()
+        progress_report_time = time.perf_counter()
 
         while batch.active_count > 0:
             logging.debug(f"Active photons: {batch.active_count}")
@@ -130,35 +140,23 @@ class Engine:
 
             batch.deactivate_photons(terminated_mask)
             batch.shrink_to_active()
+
             counter += active_old - batch.active_count
-            if on_progress and counter > PBAR_THRESHOLD:
-                on_progress(counter)
-                counter = 0
+            if on_progress and counter > 0:
+                current_time = time.perf_counter()
+                if current_time - progress_report_time > PBAR_INTERVAL:
+                    on_progress(counter)
+                    counter = 0
+                    progress_report_time = current_time
+
+        if on_progress and counter > 0:
+            on_progress(counter)
 
         np.seterr(**old_err)
 
-        end_time = time.process_time()
-
-        self.cpu_time_s = end_time - start_time
-        self.results = self._build_results()
-
-    def _build_results(self) -> SimResults:
-        detector_results = {}
-
+        results_dict = {}
         for det_id, det in self.detectors.items():
             det.finalize()
-            detector_results[det_id] = det.get_results()
+            results_dict[det_id] = det.get_results()
 
-        return SimResults(
-            engine_result=EngineResult(
-                cpu_time_s=self.cpu_time_s,
-            ),
-            detector_results=detector_results,
-            total_photons=self.num_photons,
-        )
-
-    def get_results(self):
-        if self.results is None:
-            raise RuntimeError("No results, use '.run()' first")
-
-        return self.results
+        return results_dict

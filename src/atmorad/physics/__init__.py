@@ -1,6 +1,6 @@
+from .brdf import SurfaceReflection
 from .geometry import orientation, rotate, sun_zenith_to_direction
-from .reflection import SurfaceReflection
-from .scattering import Scattering
+from .phase_functions import Scattering
 
 __all__ = [
     "orientation",

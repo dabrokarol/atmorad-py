@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from atmorad.constants import X, Y
-from atmorad.registry import register_surface_map
 
 
 class BaseSurfaceMap(ABC):
@@ -13,19 +12,16 @@ class BaseSurfaceMap(ABC):
         pass
 
 
-@register_surface_map("uniform", ["material"])
 class UniformMap(BaseSurfaceMap):
     def get_material_ids(self, pos: np.ndarray):
         return np.zeros_like(pos[X], dtype=int)
 
 
-@register_surface_map("split_half_x", ["material_left", "material_right"])
 class SplitHalfXMap(BaseSurfaceMap):
     def get_material_ids(self, pos: np.ndarray):
         return np.where(pos[X] < 0, 0, 1)
 
 
-@register_surface_map("circle", ["material_in", "material_out"])
 class CircleMap(BaseSurfaceMap):
     def __init__(self, radius_km: float):
         self.radius_sq = radius_km**2
@@ -34,7 +30,6 @@ class CircleMap(BaseSurfaceMap):
         return np.where((pos[X] ** 2 + pos[Y] ** 2) < self.radius_sq, 0, 1)
 
 
-@register_surface_map("checkerboard", ["material_a", "material_b"])
 class CheckerboardMap(BaseSurfaceMap):
     def __init__(self, tile_size_km: float):
         self.tile_size = tile_size_km
@@ -46,7 +41,6 @@ class CheckerboardMap(BaseSurfaceMap):
         return np.where(((x < half) & (y < half)) | ((x >= half) & (y >= half)), 0, 1)
 
 
-@register_surface_map("grid", ["materials"])
 class GridMap(BaseSurfaceMap):
     """
     Args:
@@ -79,3 +73,12 @@ class GridMap(BaseSurfaceMap):
             idx_y = np.clip(np.floor(grid_y), 0, self.n_y - 1).astype(int)
 
         return self.matrix[idx_x, idx_y]
+
+
+SURFACE_MAPS = {
+    "uniform": {"class": UniformMap, "material_keys": ["material"]},
+    "split_half_x": {"class": SplitHalfXMap, "material_keys": ["material_left", "material_right"]},
+    "circle": {"class": CircleMap, "material_keys": ["material_in", "material_out"]},
+    "checkerboard": {"class": CheckerboardMap, "material_keys": ["material_a", "material_b"]},
+    "grid": {"class": GridMap, "material_keys": ["materials"]},
+}

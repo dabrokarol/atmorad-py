@@ -1,19 +1,19 @@
 import numpy as np
+import xarray as xr
 
-from atmorad.config import SimConfig
+from atmorad.config.schemas import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import AbsorptionProfileResult, PhotonBatch
-from atmorad.registry import register_detector
+from atmorad.physics.batch import PhotonBatch
 
 from .base import BaseDetector
 
 
-@register_detector("absorption_vertical", AbsorptionProfileResult)
 class AbsorptionProfileDetector(BaseDetector):
     def __init__(self, scene: Scene, config: SimConfig):
+        assert config.detectors.absorption_profile is not None
         self.scene = scene
         top_of_atmosphere = scene.atmosphere.top_of_atmosphere
-        self.spacing = config.detectors.vertical_profiles_resolution_km
+        self.spacing = config.detectors.absorption_profile.vertical_resolution_km
 
         self.measure_z = np.arange(0, top_of_atmosphere, self.spacing)
         if not np.isclose(self.measure_z[-1], top_of_atmosphere):
@@ -42,9 +42,30 @@ class AbsorptionProfileDetector(BaseDetector):
         )
         self.absorption_profile += layer_counts
 
-    def get_results(self) -> AbsorptionProfileResult:
+    def get_results(self) -> xr.Dataset:
         z_centers = (self.measure_z[:-1] + self.measure_z[1:]) / 2.0
 
-        return AbsorptionProfileResult(
-            z_centers=z_centers, absorption_profile_1d=self.absorption_profile
+        return xr.Dataset(
+            data_vars={
+                "absorption_profile": (
+                    ["z_absorption"],
+                    self.absorption_profile,
+                    {"units": "photons", "long_name": "Atmospheric absorption profile"},
+                ),
+            },
+            coords={
+                "z_absorption": (
+                    "z_absorption",
+                    z_centers,
+                    {"units": "km", "long_name": "Altitude (absorption)"},
+                ),
+            },
         )
+
+    @staticmethod
+    def merge_chunks(chunks: list[xr.Dataset]) -> xr.Dataset:
+        if not chunks:
+            return xr.Dataset()
+
+        combined = xr.concat(chunks, dim="batch")
+        return combined.sum(dim="batch", keep_attrs=True)

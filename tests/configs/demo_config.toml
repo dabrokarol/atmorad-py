@@ -3,88 +3,95 @@ experiment_name = "demo001"
 description = "A demo simulation."
 
 [engine]
-num_photons = 1_000
-batch_size = 1_000
 random_seed = 42
-cpu_cores = 4
+num_photons = 1_000
+batch_size = 100
+num_threads = 4
 resume_from_checkpoint = false
 
 [source]
-theta_sun_deg = 90
-phi_sun_deg = 360
+zenith_angle_deg = 90
+azimuth_angle_deg = 360
 wavelength_nm = 530
 
-[geometry]
-domain_size_x_km = 100
-domain_size_y_km = 100
+[domain]
+size_x_km = 100
+size_y_km = 100
 boundary_condition = "periodic"
 
-[detectors]
-active = [
-    "fate", 
-    "path_tracking", 
-    "vertical_flux", 
-    "absorption_vertical", 
-    "plane_flux", 
-    "surface_absorption"
-]
-vertical_profiles_resolution_km = 20.0
-horizontal_maps_resolution_km = 1.0
-num_full_paths = 10
-flux_maps_z_levels_km = [0, 4.0]
+[detectors.energy_budget]
+
+[detectors.trajectories]
+max_tracked_paths = 10
+
+[detectors.flux_profile]
+vertical_resolution_km = 20.0
+
+[detectors.absorption_profile]
+vertical_resolution_km = 20.0
+
+[detectors.flux_maps]
+horizontal_resolution_km = 1.0
+z_levels_km = [0, 4.0]
+
+[detectors.surface_absorption_map]
+horizontal_resolution_km = 1.0
 
 [output]
 save_plots = false
 overwrite = true
+base_dir = "results"
+fig_dir = "plots"
 
 [surface_materials.snow]
 albedo = 0.85
-reflection = { type = "lambertian" }
+brdf = { type = "lambertian" }
 
 [surface_materials.ocean]
 albedo = 0.01
-reflection = { type = "specular", roughness = 0.0 }
+brdf = { type = "specular", roughness = 0.0 }
 
 [atmosphere_materials.air]
 extinction_coeff_per_km = 0.01
 ssa = 0.9
-scattering = { type = "rayleigh" }
+phase_function = { type = "rayleigh" }
 
 [atmosphere_materials.light_clouds]
 extinction_coeff_per_km = 1.0
 ssa = 0.999999
-scattering = { type = "hg", g = 0.85 }
+phase_function = { type = "hg", g = 0.85 }
 
 [atmosphere_materials.dark_clouds]
 extinction_coeff_per_km = 5.0
 ssa = 0.999999
-scattering = { type = "hg", g = 0.85 }
+phase_function = { type = "hg", g = 0.85 }
 
 [[layer]]
 thickness_km = 2.0
-components = [{ material = "air", concentration = 1.0 }]
+components = { air = 1.0 }
 
 [[layer]]
 thickness_km = 4.0
-components = [
-    { material = "air", concentration = 0.1 },
-    { material = "dark_clouds", concentration = 0.9 }
-]
+components = { air = 0.1, dark_clouds = 0.9 }
 
 [[layer]]
 thickness_km = 4.0
-components = [{ material = "air", concentration = 1.0 }]
+components = { air = 1.0 }
 
 [surface]
-name = "circle"
+type = "circle"
 radius_km = 20.0
 material_in = "snow"
 material_out = "ocean"
 
 [[scenario]]
 name = "test-scenario-1"
-source.theta_sun_deg = 35
+source.zenith_angle_deg = 35
 
 [[scenario]]
 name = "test-scenario-2"
-source.theta_sun_deg = 55
+source.zenith_angle_deg = 55
+
+[[sweep]]
+parameter = "source.azimuth_angle_deg"
+values    = [0, 45, 90]

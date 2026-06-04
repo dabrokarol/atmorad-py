@@ -17,5 +17,4 @@ def test_readme_examples(example_path):
     result = subprocess.run(
         [sys.executable, str(example_path)], capture_output=True, text=True, timeout=60
     )
-
-    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert result.returncode == 0, f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"

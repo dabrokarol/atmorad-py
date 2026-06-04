@@ -1,17 +1,21 @@
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 import numpy as np
+import xarray as xr
 
-from atmorad.config import SimConfig
 from atmorad.environment import Scene
-from atmorad.models import BaseResult, PhotonBatch
+from atmorad.physics.batch import PhotonBatch
+
+if TYPE_CHECKING:
+    from atmorad.config.schemas import SimConfig
 
 
 class BaseDetector(ABC):
     """Abstract base class for detectors, defining Monte Carlo simulation lifecycle hooks."""
 
     @abstractmethod
-    def __init__(self, scene: Scene, config: SimConfig):
+    def __init__(self, scene: Scene, config: "SimConfig"):
         """Initializes the detector before the simulation starts."""
         pass
 
@@ -37,6 +41,12 @@ class BaseDetector(ABC):
         pass
 
     @abstractmethod
-    def get_results(self) -> BaseResult:
+    def get_results(self) -> xr.Dataset:
         """Retrieves the final processed results from the detector."""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def merge_chunks(chunks: list[xr.Dataset]) -> xr.Dataset:
+        """Merges detector results from chunks"""
         pass

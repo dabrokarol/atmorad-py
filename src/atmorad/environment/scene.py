@@ -1,17 +1,81 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from atmorad.constants import ZERO_TOLERANCE, X, Y, Z
-from atmorad.models import PhotonBatch
+from atmorad.environment.atmosphere import Atmosphere, AtmosphericLayer, AtmosphericMedium
+from atmorad.environment.surface import BaseSurface, FlatSurface, SurfaceMaterial
+from atmorad.environment.surface_maps import SURFACE_MAPS
 from atmorad.physics import sun_zenith_to_direction
+from atmorad.physics.batch import PhotonBatch
+from atmorad.physics.brdf import REFLECTION_MODELS
+from atmorad.physics.phase_functions import SCATTERING_MODELS
 
-from .atmosphere import Atmosphere
-from .surface import BaseSurface
+if TYPE_CHECKING:
+    from atmorad.config.schemas import SimConfig
 
 
 class Scene:
     def __init__(self, surface: BaseSurface, atmosphere: Atmosphere) -> None:
         self.surface = surface
         self.atmosphere = atmosphere
+
+    @classmethod
+    def from_config(cls, config: "SimConfig") -> "Scene":
+        atm_materials = {}
+        for name, props in config.atmosphere_materials.items():
+            scat_type = props.phase_function["type"]
+            scat_kwargs = {k: v for k, v in props.phase_function.items() if k != "type"}
+            phase_function = SCATTERING_MODELS[scat_type](**scat_kwargs)
+
+            atm_materials[name] = AtmosphericMedium(
+                extinction_coeff=props.extinction_coeff_per_km,
+                ssa=props.ssa,
+                phase_function=phase_function,
+            )
+
+        layers = []
+        for layer_data in config.layers:
+            components = [
+                (atm_materials[name], conc) for name, conc in layer_data.components.items()
+            ]
+            layers.append(
+                AtmosphericLayer(thickness=layer_data.thickness_km, components=components)
+            )
+
+        surf_materials = {}
+        for name, mat_data in config.surface_materials.items():
+            ref_type = mat_data.brdf["type"]
+            ref_kwargs = {k: v for k, v in mat_data.brdf.items() if k != "type"}
+            reflection_model = REFLECTION_MODELS[ref_type](**ref_kwargs)
+
+            surf_materials[name] = SurfaceMaterial(
+                albedo=mat_data.albedo, reflection=reflection_model
+            )
+
+        surf_cfg = config.surface
+        map_name = surf_cfg["type"]
+
+        map_data = SURFACE_MAPS[map_name]
+        MapClass = map_data["class"]
+        material_keys = map_data["material_keys"]
+
+        material_names = [surf_cfg[key] for key in material_keys]
+        ordered_materials = [surf_materials[name] for name in material_names]
+
+        map_kwargs = {k: v for k, v in surf_cfg.items() if k not in material_keys and k != "type"}
+        ground_map = MapClass(**map_kwargs)
+
+        is_periodic = config.domain.boundary_condition == "periodic"
+
+        surface = FlatSurface(
+            ground_map=ground_map,
+            ground_types=ordered_materials,
+            domain_x_km=config.domain.size_x_km,
+            domain_y_km=config.domain.size_y_km,
+            is_periodic=is_periodic,
+        )
+        return cls(surface=surface, atmosphere=Atmosphere(layers))
 
     def process_interactions(
         self,
@@ -20,14 +84,7 @@ class Scene:
         surface_mask: np.ndarray,
         rng: np.random.Generator,
     ) -> PhotonBatch:
-        """
-        Scatters and reflects photons.
-
-        Args:
-            batch: The current active PhotonBatch.
-            random_samples: Array of shape (3, N) containing uniform random numbers
-                            for interaction type, theta, and phi respectively.
-        """
+        """Scatters and reflects photons."""
         if np.any(scatter_mask):
             batch = self.atmosphere.process_scattering(batch, scatter_mask, rng)
 
