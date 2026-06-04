@@ -17,6 +17,8 @@ Example outputs generated from the default configuration |(approx 10 seconds for
 
 atmorad is a Monte Carlo radiative transfer model written in Python.
 
+Monte Carlo methods are well-suited for radiative transfer because they naturally handle multiple scattering and complex geometries without solving the full radiative transfer equation.
+
 The code simulates photon transport through a plane-parallel atmosphere above a heterogeneous surface and records quantities such as radiative fluxes, absorption profiles, and surface energy deposition.
 
 
@@ -315,7 +317,7 @@ This creates an `<exp_name>_<scen_name>_config.toml` file in the current working
 
 ## Acknowledgments
 - I created this project inspired by the lectures on *Radiative Processes in the Atmosphere* by Prof. K. Markowicz, Faculty of Physics, University of Warsaw.
-- I used Large Language Models as a programming aid during development.
+- I used an LLM as a programming aid during development.
 
 ## Contributing
 Contributions of any size are welcome. 
